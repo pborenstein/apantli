@@ -13,7 +13,7 @@ Lightweight local proxy for routing LLM requests with SQLite cost tracking.
 ## Setup
 
 ```bash
-uv pip install -r requirements.txt
+uv sync
 ```
 
 Create `.env` with your API keys:
@@ -43,7 +43,7 @@ model_list:
 Start the proxy:
 
 ```bash
-python3 proxy.py
+uv run python3 proxy.py
 ```
 
 Make requests:
