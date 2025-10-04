@@ -365,7 +365,8 @@ async def dashboard():
         .request-row { cursor: pointer; }
         .request-row:hover { background: #f5f5f5; }
         .request-detail { display: none; padding: 10px; background: #f9f9f9; margin: 10px 0; }
-        .json-view { white-space: pre-wrap; font-size: 11px; }
+        .json-view { white-space: pre-wrap; font-size: 11px; overflow-x: auto; }
+        pre.json-view { margin: 5px 0; }
         nav { margin: 20px 0; border-bottom: 1px solid #ccc; }
         nav a { display: inline-block; padding: 10px 20px; text-decoration: none; color: #333; }
         nav a.active { border-bottom: 2px solid #333; font-weight: bold; }
@@ -451,9 +452,46 @@ async def dashboard():
             `;
         }
 
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
         async function loadRequests() {
             const res = await fetch('/requests');
             const data = await res.json();
+
+            const rows = data.requests.map((r, i) => {
+                let requestJson = 'Error parsing request';
+                let responseJson = 'Error parsing response';
+
+                try {
+                    requestJson = JSON.stringify(JSON.parse(r.request_data), null, 2);
+                } catch(e) {}
+
+                try {
+                    responseJson = JSON.stringify(JSON.parse(r.response_data), null, 2);
+                } catch(e) {}
+
+                return `
+                    <tr class="request-row" onclick="toggleDetail(${i})">
+                        <td>${escapeHtml(new Date(r.timestamp).toLocaleString())}</td>
+                        <td>${escapeHtml(r.model)}</td>
+                        <td>${r.total_tokens}</td>
+                        <td>$${r.cost.toFixed(4)}</td>
+                        <td>${r.duration_ms}ms</td>
+                    </tr>
+                    <tr id="detail-${i}" style="display:none">
+                        <td colspan="5" class="request-detail">
+                            <b>Request:</b>
+                            <pre class="json-view">${escapeHtml(requestJson)}</pre>
+                            <b>Response:</b>
+                            <pre class="json-view">${escapeHtml(responseJson)}</pre>
+                        </td>
+                    </tr>
+                `;
+            }).join('');
 
             document.getElementById('requests-list').innerHTML = `
                 <tr>
@@ -463,23 +501,7 @@ async def dashboard():
                     <th>Cost</th>
                     <th>Duration</th>
                 </tr>
-                ${data.requests.map((r, i) => `
-                    <tr class="request-row" onclick="toggleDetail(${i})">
-                        <td>${new Date(r.timestamp).toLocaleString()}</td>
-                        <td>${r.model}</td>
-                        <td>${r.total_tokens}</td>
-                        <td>$${r.cost.toFixed(4)}</td>
-                        <td>${r.duration_ms}ms</td>
-                    </tr>
-                    <tr id="detail-${i}" style="display:none">
-                        <td colspan="5" class="request-detail">
-                            <b>Request:</b>
-                            <div class="json-view">${JSON.stringify(JSON.parse(r.request_data), null, 2)}</div>
-                            <b>Response:</b>
-                            <div class="json-view">${JSON.stringify(JSON.parse(r.response_data), null, 2)}</div>
-                        </td>
-                    </tr>
-                `).join('')}
+                ${rows}
             `;
         }
 
