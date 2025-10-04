@@ -160,7 +160,9 @@ async def chat_completions(request: Request):
         response_dict = response.model_dump()
 
         # Extract provider from response metadata
-        provider = response_dict.get('_hidden_params', {}).get('custom_llm_provider', 'unknown')
+        provider = getattr(response, 'model', '').split('/')[0] if '/' in getattr(response, 'model', '') else 'unknown'
+        if provider == 'unknown' and hasattr(response, '_hidden_params'):
+            provider = response._hidden_params.get('custom_llm_provider', 'unknown')
 
         # Calculate duration
         duration_ms = int((time.time() - start_time) * 1000)
@@ -187,6 +189,71 @@ async def chat_completions(request: Request):
 async def health():
     """Health check endpoint."""
     return {"status": "ok"}
+
+
+@app.get("/models")
+async def models():
+    """List available models from config."""
+    model_list = []
+    for model_name, config in MODEL_MAP.items():
+        # Try to get pricing info from LiteLLM
+        try:
+            test_response = {
+                'model': config['model'],
+                'usage': {'prompt_tokens': 1000, 'completion_tokens': 1000}
+            }
+            cost_per_1k = litellm.completion_cost(completion_response=test_response)
+            input_cost = cost_per_1k / 2  # Rough estimate
+            output_cost = cost_per_1k / 2
+        except:
+            input_cost = None
+            output_cost = None
+
+        model_list.append({
+            'name': model_name,
+            'litellm_model': config['model'],
+            'provider': config['model'].split('/')[0] if '/' in config['model'] else 'unknown',
+            'input_cost_per_1k': round(input_cost, 6) if input_cost else None,
+            'output_cost_per_1k': round(output_cost, 6) if output_cost else None
+        })
+
+    return {'models': model_list}
+
+
+@app.get("/requests")
+async def requests():
+    """Get recent requests with full details."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
+               cost, duration_ms, request_data, response_data
+        FROM requests
+        WHERE error IS NULL
+        ORDER BY timestamp DESC
+        LIMIT 50
+    """)
+    rows = cursor.fetchall()
+    conn.close()
+
+    return {
+        "requests": [
+            {
+                "timestamp": row[0],
+                "model": row[1],
+                "provider": row[2],
+                "prompt_tokens": row[3],
+                "completion_tokens": row[4],
+                "total_tokens": row[5],
+                "cost": row[6],
+                "duration_ms": row[7],
+                "request_data": row[8],
+                "response_data": row[9]
+            }
+            for row in rows
+        ]
+    }
 
 
 @app.get("/stats")
@@ -290,23 +357,121 @@ async def dashboard():
         .metric-value { font-size: 24px; font-weight: bold; }
         .metric-label { font-size: 12px; color: #666; }
         .error { color: #c00; }
+        .request-row { cursor: pointer; }
+        .request-row:hover { background: #f5f5f5; }
+        .request-detail { display: none; padding: 10px; background: #f9f9f9; margin: 10px 0; }
+        .json-view { white-space: pre-wrap; font-size: 11px; }
+        nav { margin: 20px 0; border-bottom: 1px solid #ccc; }
+        nav a { display: inline-block; padding: 10px 20px; text-decoration: none; color: #333; }
+        nav a.active { border-bottom: 2px solid #333; font-weight: bold; }
     </style>
 </head>
 <body>
     <h1>LLM Proxy Statistics</h1>
 
-    <div id="totals"></div>
+    <nav>
+        <a href="#" class="active" onclick="showTab('stats'); return false">Stats</a>
+        <a href="#" onclick="showTab('models'); return false">Models</a>
+        <a href="#" onclick="showTab('requests'); return false">Requests</a>
+    </nav>
 
-    <h2>By Model</h2>
-    <table id="by-model"></table>
+    <div id="stats-tab">
+        <div id="totals"></div>
 
-    <h2>By Provider</h2>
-    <table id="by-provider"></table>
+        <h2>By Model</h2>
+        <table id="by-model"></table>
 
-    <h2>Recent Errors</h2>
-    <table id="errors"></table>
+        <h2>By Provider</h2>
+        <table id="by-provider"></table>
+
+        <h2>Recent Errors</h2>
+        <table id="errors"></table>
+    </div>
+
+    <div id="models-tab" style="display:none">
+        <h2>Available Models</h2>
+        <table id="models-list"></table>
+    </div>
+
+    <div id="requests-tab" style="display:none">
+        <h2>Recent Requests</h2>
+        <table id="requests-list"></table>
+    </div>
 
     <script>
+        function showTab(tab) {
+            document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+            event.target.classList.add('active');
+
+            document.getElementById('stats-tab').style.display = tab === 'stats' ? 'block' : 'none';
+            document.getElementById('models-tab').style.display = tab === 'models' ? 'block' : 'none';
+            document.getElementById('requests-tab').style.display = tab === 'requests' ? 'block' : 'none';
+
+            if (tab === 'models') loadModels();
+            if (tab === 'requests') loadRequests();
+        }
+
+        async function loadModels() {
+            const res = await fetch('/models');
+            const data = await res.json();
+
+            document.getElementById('models-list').innerHTML = `
+                <tr>
+                    <th>Name</th>
+                    <th>Provider</th>
+                    <th>LiteLLM Model</th>
+                    <th>Input Cost/1k</th>
+                    <th>Output Cost/1k</th>
+                </tr>
+                ${data.models.map(m => `
+                    <tr>
+                        <td>${m.name}</td>
+                        <td>${m.provider}</td>
+                        <td>${m.litellm_model}</td>
+                        <td>${m.input_cost_per_1k ? '$' + m.input_cost_per_1k : 'N/A'}</td>
+                        <td>${m.output_cost_per_1k ? '$' + m.output_cost_per_1k : 'N/A'}</td>
+                    </tr>
+                `).join('')}
+            `;
+        }
+
+        async function loadRequests() {
+            const res = await fetch('/requests');
+            const data = await res.json();
+
+            document.getElementById('requests-list').innerHTML = `
+                <tr>
+                    <th>Time</th>
+                    <th>Model</th>
+                    <th>Tokens</th>
+                    <th>Cost</th>
+                    <th>Duration</th>
+                </tr>
+                ${data.requests.map((r, i) => `
+                    <tr class="request-row" onclick="toggleDetail(${i})">
+                        <td>${new Date(r.timestamp).toLocaleString()}</td>
+                        <td>${r.model}</td>
+                        <td>${r.total_tokens}</td>
+                        <td>$${r.cost.toFixed(4)}</td>
+                        <td>${r.duration_ms}ms</td>
+                    </tr>
+                    <tr id="detail-${i}" style="display:none">
+                        <td colspan="5" class="request-detail">
+                            <b>Request:</b>
+                            <div class="json-view">${JSON.stringify(JSON.parse(r.request_data), null, 2)}</div>
+                            <b>Response:</b>
+                            <div class="json-view">${JSON.stringify(JSON.parse(r.response_data), null, 2)}</div>
+                        </td>
+                    </tr>
+                `).join('')}
+            `;
+        }
+
+        function toggleDetail(id) {
+            const row = document.getElementById('detail-' + id);
+            row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+        }
+
         async function refresh() {
             const res = await fetch('/stats');
             const data = await res.json();
