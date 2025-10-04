@@ -1,0 +1,7 @@
+.env
+env-txt.txt
+requests.db
+*.pyc
+__pycache__/
+.venv/
+.claude
