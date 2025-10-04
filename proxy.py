@@ -364,7 +364,7 @@ async def dashboard():
         .error { color: #c00; }
         .request-row { cursor: pointer; }
         .request-row:hover { background: #f5f5f5; }
-        .request-detail { display: none; padding: 10px; background: #f9f9f9; margin: 10px 0; }
+        .request-detail { padding: 10px; background: #f9f9f9; }
         .json-view { white-space: pre-wrap; font-size: 11px; overflow-x: auto; }
         pre.json-view { margin: 5px 0; }
         nav { margin: 20px 0; border-bottom: 1px solid #ccc; }
@@ -417,6 +417,7 @@ async def dashboard():
 
     <script>
         function showTab(e, tab) {
+            console.log('showTab called with:', tab);
             e.preventDefault();
             document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
             e.target.classList.add('active');
@@ -425,8 +426,14 @@ async def dashboard():
             document.getElementById('models-tab').style.display = tab === 'models' ? 'block' : 'none';
             document.getElementById('requests-tab').style.display = tab === 'requests' ? 'block' : 'none';
 
-            if (tab === 'models') loadModels();
-            if (tab === 'requests') loadRequests();
+            if (tab === 'models') {
+                console.log('Loading models...');
+                loadModels();
+            }
+            if (tab === 'requests') {
+                console.log('Loading requests...');
+                loadRequests();
+            }
         }
 
         async function loadModels() {
@@ -460,8 +467,10 @@ async def dashboard():
         }
 
         async function loadRequests() {
+            console.log('loadRequests called');
             try {
                 const res = await fetch('/requests');
+                console.log('Fetch response:', res.status);
                 const data = await res.json();
                 console.log('Loaded', data.requests.length, 'requests');
 
@@ -486,7 +495,10 @@ async def dashboard():
                     // Create main row
                     const mainRow = document.createElement('tr');
                     mainRow.className = 'request-row';
-                    mainRow.onclick = () => toggleDetail(i);
+                    mainRow.onclick = () => {
+                        console.log('Row clicked, index:', i);
+                        toggleDetail(i);
+                    };
                     mainRow.innerHTML = `
                         <td>${escapeHtml(new Date(r.timestamp).toLocaleString())}</td>
                         <td>${escapeHtml(r.model)}</td>
@@ -531,8 +543,16 @@ async def dashboard():
         }
 
         function toggleDetail(id) {
+            console.log('toggleDetail called with id:', id);
             const row = document.getElementById('detail-' + id);
-            row.style.display = row.style.display === 'none' ? 'table-row' : 'none';
+            console.log('Found row:', row);
+            if (row) {
+                const isHidden = row.style.display === 'none' || !row.style.display;
+                row.style.display = isHidden ? 'table-row' : 'none';
+                console.log('Was hidden:', isHidden, 'New display:', row.style.display);
+            } else {
+                console.error('Row not found: detail-' + id);
+            }
         }
 
         async function refresh() {
