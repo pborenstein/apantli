@@ -376,9 +376,9 @@ async def dashboard():
     <h1>LLM Proxy Statistics</h1>
 
     <nav>
-        <a href="#" class="active" onclick="showTab('stats'); return false">Stats</a>
-        <a href="#" onclick="showTab('models'); return false">Models</a>
-        <a href="#" onclick="showTab('requests'); return false">Requests</a>
+        <a href="#" class="active" onclick="showTab(event, 'stats')">Stats</a>
+        <a href="#" onclick="showTab(event, 'models')">Models</a>
+        <a href="#" onclick="showTab(event, 'requests')">Requests</a>
     </nav>
 
     <div id="stats-tab">
@@ -416,9 +416,10 @@ async def dashboard():
     </div>
 
     <script>
-        function showTab(tab) {
+        function showTab(e, tab) {
+            e.preventDefault();
             document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-            event.target.classList.add('active');
+            e.target.classList.add('active');
 
             document.getElementById('stats-tab').style.display = tab === 'stats' ? 'block' : 'none';
             document.getElementById('models-tab').style.display = tab === 'models' ? 'block' : 'none';
@@ -459,50 +460,74 @@ async def dashboard():
         }
 
         async function loadRequests() {
-            const res = await fetch('/requests');
-            const data = await res.json();
+            try {
+                const res = await fetch('/requests');
+                const data = await res.json();
+                console.log('Loaded', data.requests.length, 'requests');
 
-            const rows = data.requests.map((r, i) => {
-                let requestJson = 'Error parsing request';
-                let responseJson = 'Error parsing response';
+                const tbody = document.createElement('tbody');
 
-                try {
-                    requestJson = JSON.stringify(JSON.parse(r.request_data), null, 2);
-                } catch(e) {}
+                data.requests.forEach((r, i) => {
+                    let requestJson = 'Error parsing request';
+                    let responseJson = 'Error parsing response';
 
-                try {
-                    responseJson = JSON.stringify(JSON.parse(r.response_data), null, 2);
-                } catch(e) {}
+                    try {
+                        requestJson = JSON.stringify(JSON.parse(r.request_data), null, 2);
+                    } catch(e) {
+                        console.error('Error parsing request:', e);
+                    }
 
-                return `
-                    <tr class="request-row" onclick="toggleDetail(${i})">
+                    try {
+                        responseJson = JSON.stringify(JSON.parse(r.response_data), null, 2);
+                    } catch(e) {
+                        console.error('Error parsing response:', e);
+                    }
+
+                    // Create main row
+                    const mainRow = document.createElement('tr');
+                    mainRow.className = 'request-row';
+                    mainRow.onclick = () => toggleDetail(i);
+                    mainRow.innerHTML = `
                         <td>${escapeHtml(new Date(r.timestamp).toLocaleString())}</td>
                         <td>${escapeHtml(r.model)}</td>
                         <td>${r.total_tokens}</td>
                         <td>$${r.cost.toFixed(4)}</td>
                         <td>${r.duration_ms}ms</td>
-                    </tr>
-                    <tr id="detail-${i}" style="display:none">
+                    `;
+
+                    // Create detail row
+                    const detailRow = document.createElement('tr');
+                    detailRow.id = 'detail-' + i;
+                    detailRow.style.display = 'none';
+                    detailRow.innerHTML = `
                         <td colspan="5" class="request-detail">
                             <b>Request:</b>
                             <pre class="json-view">${escapeHtml(requestJson)}</pre>
                             <b>Response:</b>
                             <pre class="json-view">${escapeHtml(responseJson)}</pre>
                         </td>
-                    </tr>
-                `;
-            }).join('');
+                    `;
 
-            document.getElementById('requests-list').innerHTML = `
-                <tr>
-                    <th>Time</th>
-                    <th>Model</th>
-                    <th>Tokens</th>
-                    <th>Cost</th>
-                    <th>Duration</th>
-                </tr>
-                ${rows}
-            `;
+                    tbody.appendChild(mainRow);
+                    tbody.appendChild(detailRow);
+                });
+
+                document.getElementById('requests-list').innerHTML = `
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Model</th>
+                            <th>Tokens</th>
+                            <th>Cost</th>
+                            <th>Duration</th>
+                        </tr>
+                    </thead>
+                `;
+                document.getElementById('requests-list').appendChild(tbody);
+            } catch(e) {
+                console.error('Error loading requests:', e);
+                document.getElementById('requests-list').innerHTML = '<tr><td colspan="5">Error loading requests</td></tr>';
+            }
         }
 
         function toggleDetail(id) {
