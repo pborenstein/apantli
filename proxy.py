@@ -417,7 +417,6 @@ async def dashboard():
 
     <script>
         function showTab(e, tab) {
-            console.log('showTab called with:', tab);
             e.preventDefault();
             document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
             e.target.classList.add('active');
@@ -426,14 +425,8 @@ async def dashboard():
             document.getElementById('models-tab').style.display = tab === 'models' ? 'block' : 'none';
             document.getElementById('requests-tab').style.display = tab === 'requests' ? 'block' : 'none';
 
-            if (tab === 'models') {
-                console.log('Loading models...');
-                loadModels();
-            }
-            if (tab === 'requests') {
-                console.log('Loading requests...');
-                loadRequests();
-            }
+            if (tab === 'models') loadModels();
+            if (tab === 'requests') loadRequests();
         }
 
         async function loadModels() {
@@ -467,12 +460,9 @@ async def dashboard():
         }
 
         async function loadRequests() {
-            console.log('loadRequests called');
             try {
                 const res = await fetch('/requests');
-                console.log('Fetch response:', res.status);
                 const data = await res.json();
-                console.log('Loaded', data.requests.length, 'requests');
 
                 const tbody = document.createElement('tbody');
 
@@ -482,23 +472,16 @@ async def dashboard():
 
                     try {
                         requestJson = JSON.stringify(JSON.parse(r.request_data), null, 2);
-                    } catch(e) {
-                        console.error('Error parsing request:', e);
-                    }
+                    } catch(e) {}
 
                     try {
                         responseJson = JSON.stringify(JSON.parse(r.response_data), null, 2);
-                    } catch(e) {
-                        console.error('Error parsing response:', e);
-                    }
+                    } catch(e) {}
 
                     // Create main row
                     const mainRow = document.createElement('tr');
                     mainRow.className = 'request-row';
-                    mainRow.onclick = () => {
-                        console.log('Row clicked, index:', i);
-                        toggleDetail(i);
-                    };
+                    mainRow.onclick = () => toggleDetail(i);
                     mainRow.innerHTML = `
                         <td>${escapeHtml(new Date(r.timestamp).toLocaleString())}</td>
                         <td>${escapeHtml(r.model)}</td>
@@ -537,21 +520,15 @@ async def dashboard():
                 `;
                 document.getElementById('requests-list').appendChild(tbody);
             } catch(e) {
-                console.error('Error loading requests:', e);
                 document.getElementById('requests-list').innerHTML = '<tr><td colspan="5">Error loading requests</td></tr>';
             }
         }
 
         function toggleDetail(id) {
-            console.log('toggleDetail called with id:', id);
             const row = document.getElementById('detail-' + id);
-            console.log('Found row:', row);
             if (row) {
                 const isHidden = row.style.display === 'none' || !row.style.display;
                 row.style.display = isHidden ? 'table-row' : 'none';
-                console.log('Was hidden:', isHidden, 'New display:', row.style.display);
-            } else {
-                console.error('Row not found: detail-' + id);
             }
         }
 
