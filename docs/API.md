@@ -28,6 +28,7 @@ For network exposure, add authentication layer (reverse proxy with basic auth, A
 | `/models` | GET | List available models |
 | `/stats` | GET | Usage statistics |
 | `/requests` | GET | Recent request history |
+| `/errors` | DELETE | Clear all error records |
 | `/` | GET | Web dashboard (HTML) |
 
 ## POST /v1/chat/completions
@@ -61,7 +62,7 @@ Content-Type: application/json
 | `max_tokens` | integer | No | Maximum tokens to generate |
 | `top_p` | number | No | Nucleus sampling parameter |
 | `n` | integer | No | Number of completions to generate |
-| `stream` | boolean | No | Enable streaming (not yet supported) |
+| `stream` | boolean | No | Enable streaming responses |
 | `stop` | string/array | No | Stop sequences |
 | `presence_penalty` | number | No | Presence penalty (-2.0 to 2.0) |
 | `frequency_penalty` | number | No | Frequency penalty (-2.0 to 2.0) |
@@ -344,7 +345,7 @@ GET /stats?hours=24 HTTP/1.1
 
 | Parameter | Type | Required | Description |
 |:----------|:-----|:---------|:------------|
-| `hours` | integer | No | Filter to last N hours (omit for all time) |
+| `hours` | integer | No | Filter to last N hours (1, 4, 6, 12, 24, 168, 720; omit for all time) |
 
 ### Response Format
 
@@ -456,6 +457,19 @@ curl "http://localhost:4000/stats?hours=168" | jq
 curl "http://localhost:4000/stats?hours=720" | jq
 ```
 
+**Other time ranges**:
+
+```bash
+# Last 4 hours
+curl "http://localhost:4000/stats?hours=4" | jq
+
+# Last 6 hours
+curl "http://localhost:4000/stats?hours=6" | jq
+
+# Last 12 hours
+curl "http://localhost:4000/stats?hours=12" | jq
+```
+
 **Python example**:
 
 ```python
@@ -558,6 +572,45 @@ for req in requests_data[:5]:  # First 5
     print(f"  User: {user_message[:50]}...")
 ```
 
+## DELETE /errors
+
+Deletes all error records from the database.
+
+### Request
+
+```http
+DELETE /errors HTTP/1.1
+```
+
+### Response Format
+
+```json
+{
+  "deleted": 15
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `deleted` | integer | Number of error records deleted |
+
+### Usage
+
+```bash
+curl -X DELETE http://localhost:4000/errors
+```
+
+```python
+import requests
+
+response = requests.delete("http://localhost:4000/errors")
+print(f"Deleted {response.json()['deleted']} error records")
+```
+
+This endpoint is used by the dashboard's "Clear Errors" button but can also be called directly via API.
+
 ## GET /
 
 Returns the HTML dashboard for browser viewing.
@@ -581,9 +634,10 @@ http://localhost:4000/
 **Stats Tab**:
 
 - Total requests, cost, tokens, average duration
-- Time range selector (all time, 1h, 24h, week, 30 days)
+- Time range selector (all time, 1h, 4h, 6h, 12h, 24h, week, 30 days)
 - Breakdown by model and provider
-- Recent errors
+- Recent errors with "Clear Errors" button
+- All timestamps displayed in local timezone
 
 **Models Tab**:
 
@@ -607,7 +661,7 @@ Apantli implements a subset of OpenAI's API. Compatible endpoints:
 
 | OpenAI Endpoint | Apantli Support | Notes |
 |:----------------|:----------------|:------|
-| `/v1/chat/completions` | Yes | Full support for non-streaming |
+| `/v1/chat/completions` | Yes | Full support including streaming |
 | `/v1/completions` | No | Use chat completions instead |
 | `/v1/embeddings` | No | Not implemented |
 | `/v1/models` | Partial | Different format, use `/models` |
@@ -641,9 +695,11 @@ Provider rate limits still apply. If you exceed provider limits, requests will f
 
 ## CORS
 
-No CORS headers configured. Dashboard loads from same origin, so not needed for local use.
+CORS is fully enabled with permissive settings to support web-based clients like Obsidian Copilot.
 
-For cross-origin requests (e.g., from web apps), add CORS middleware to FastAPI app.
+All origins are allowed via regex pattern matching. Credentials and all HTTP methods/headers are permitted.
+
+This configuration is suitable for local development. For production network exposure, restrict `allow_origin_regex` to specific domains.
 
 ## Logging
 
