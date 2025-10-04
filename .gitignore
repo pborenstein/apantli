@@ -1,9 +1,8 @@
 .env
 env-txt.txt
-requests.db
+*.db
 *.pyc
 __pycache__/
 .venv/
 .claude
 uv.lock
-hello.py

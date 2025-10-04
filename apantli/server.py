@@ -7,6 +7,7 @@ Compatible with OpenAI API format, uses LiteLLM SDK for provider routing.
 import os
 import sqlite3
 import json
+import argparse
 from datetime import datetime
 from typing import Optional
 from contextlib import asynccontextmanager
@@ -611,7 +612,48 @@ async def dashboard():
 
 def main():
     """Entry point for the proxy server."""
-    uvicorn.run(app, host="0.0.0.0", port=4000)
+    parser = argparse.ArgumentParser(
+        description="Apantli - Lightweight LLM proxy with SQLite cost tracking"
+    )
+    parser.add_argument(
+        "--host",
+        default="0.0.0.0",
+        help="Host to bind to (default: 0.0.0.0)"
+    )
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=4000,
+        help="Port to bind to (default: 4000)"
+    )
+    parser.add_argument(
+        "--config",
+        default="config.yaml",
+        help="Path to config file (default: config.yaml)"
+    )
+    parser.add_argument(
+        "--db",
+        default="requests.db",
+        help="Path to SQLite database (default: requests.db)"
+    )
+    parser.add_argument(
+        "--reload",
+        action="store_true",
+        help="Enable auto-reload for development"
+    )
+
+    args = parser.parse_args()
+
+    # Update global config paths if provided
+    global DB_PATH
+    DB_PATH = args.db
+
+    uvicorn.run(
+        app,
+        host=args.host,
+        port=args.port,
+        reload=args.reload
+    )
 
 
 if __name__ == "__main__":
