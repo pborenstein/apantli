@@ -1,0 +1,15 @@
+[project]
+name = "personal-llm-router"
+version = "0.1.0"
+description = "Lightweight LLM proxy with SQLite cost tracking"
+requires-python = ">=3.13"
+dependencies = [
+    "fastapi",
+    "uvicorn",
+    "litellm",
+    "pyyaml",
+    "python-dotenv",
+]
+
+[project.scripts]
+llm-proxy = "proxy:main"

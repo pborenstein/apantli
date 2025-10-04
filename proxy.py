@@ -382,5 +382,10 @@ async def dashboard():
 """
 
 
-if __name__ == "__main__":
+def main():
+    """Entry point for the proxy server."""
     uvicorn.run(app, host="0.0.0.0", port=4000)
+
+
+if __name__ == "__main__":
+    main()
