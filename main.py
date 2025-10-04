@@ -1,5 +1,5 @@
 def main():
-    print("Hello from personal-llm-router!")
+    print("Hello from apantli!")
 
 
 if __name__ == "__main__":
