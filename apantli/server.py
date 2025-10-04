@@ -291,7 +291,7 @@ async def stats(hours: int = None):
     # Build time filter
     time_filter = ""
     if hours:
-        time_filter = f"AND timestamp > datetime('now', '-{hours} hours')"
+        time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
 
     # Total stats
     cursor.execute(f"""
@@ -369,6 +369,18 @@ async def stats(hours: int = None):
     }
 
 
+@app.delete("/errors")
+async def clear_errors():
+    """Clear all errors from the database."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM requests WHERE error IS NOT NULL")
+    deleted = cursor.rowcount
+    conn.commit()
+    conn.close()
+    return {"deleted": deleted}
+
+
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     """Simple HTML dashboard."""
@@ -413,6 +425,9 @@ async def dashboard():
             <select id="timeRange" onchange="refresh()">
                 <option value="">All time</option>
                 <option value="1">Last hour</option>
+                <option value="4">Last 4 hours</option>
+                <option value="6">Last 6 hours</option>
+                <option value="12">Last 12 hours</option>
                 <option value="24">Last 24 hours</option>
                 <option value="168">Last week</option>
                 <option value="720">Last 30 days</option>
@@ -427,7 +442,7 @@ async def dashboard():
         <h2>By Provider</h2>
         <table id="by-provider"></table>
 
-        <h2>Recent Errors</h2>
+        <h2>Recent Errors <button onclick="clearErrors()" style="margin-left: 10px;">Clear Errors</button></h2>
         <table id="errors"></table>
     </div>
 
@@ -616,7 +631,7 @@ async def dashboard():
                     <tr><th>Time</th><th>Model</th><th>Error</th></tr>
                     ${data.recent_errors.map(e => `
                         <tr>
-                            <td>${new Date(e.timestamp).toLocaleString()}</td>
+                            <td>${new Date(e.timestamp + 'Z').toLocaleString()}</td>
                             <td>${e.model}</td>
                             <td class="error">${e.error}</td>
                         </tr>
@@ -625,6 +640,12 @@ async def dashboard():
             } else {
                 document.getElementById('errors').innerHTML = '<tr><td>No errors</td></tr>';
             }
+        }
+
+        async function clearErrors() {
+            if (!confirm('Clear all errors from the database?')) return;
+            await fetch('/errors', { method: 'DELETE' });
+            refresh();
         }
 
         refresh();
