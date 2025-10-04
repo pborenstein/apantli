@@ -13,7 +13,8 @@ from typing import Optional
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request, HTTPException
-from fastapi.responses import JSONResponse, HTMLResponse
+from fastapi.responses import JSONResponse, HTMLResponse, StreamingResponse
+from fastapi.middleware.cors import CORSMiddleware
 import litellm
 from litellm import completion
 import uvicorn
@@ -125,6 +126,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="LLM Proxy", lifespan=lifespan)
 
+# Add CORS middleware - allow all origins by using regex
+app.add_middleware(
+    CORSMiddleware,
+    allow_origin_regex=r".*",
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 
 @app.post("/v1/chat/completions")
 @app.post("/chat/completions")
@@ -157,8 +167,23 @@ async def chat_completions(request: Request):
         # Call LiteLLM
         response = completion(**request_data)
 
+        # Handle streaming responses
+        if request_data.get('stream', False):
+            async def generate():
+                for chunk in response:
+                    yield f"data: {json.dumps(chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk))}\n\n"
+                yield "data: [DONE]\n\n"
+
+            return StreamingResponse(generate(), media_type="text/event-stream")
+
+        # Non-streaming response
         # Convert to dict for logging and response
-        response_dict = response.model_dump()
+        if hasattr(response, 'model_dump'):
+            response_dict = response.model_dump()
+        elif hasattr(response, 'dict'):
+            response_dict = response.dict()
+        else:
+            response_dict = json.loads(response.json())
 
         # Extract provider from response metadata
         provider = getattr(response, 'model', '').split('/')[0] if '/' in getattr(response, 'model', '') else 'unknown'
