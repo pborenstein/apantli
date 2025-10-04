@@ -257,13 +257,18 @@ async def requests():
 
 
 @app.get("/stats")
-async def stats():
-    """Get usage statistics."""
+async def stats(hours: int = None):
+    """Get usage statistics, optionally filtered by time range (hours)."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
+    # Build time filter
+    time_filter = ""
+    if hours:
+        time_filter = f"AND timestamp > datetime('now', '-{hours} hours')"
+
     # Total stats
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT
             COUNT(*) as total_requests,
             SUM(cost) as total_cost,
@@ -271,33 +276,33 @@ async def stats():
             SUM(completion_tokens) as total_completion_tokens,
             AVG(duration_ms) as avg_duration_ms
         FROM requests
-        WHERE error IS NULL
+        WHERE error IS NULL {time_filter}
     """)
     totals = cursor.fetchone()
 
     # By model
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT
             model,
             COUNT(*) as requests,
             SUM(cost) as cost,
             SUM(total_tokens) as tokens
         FROM requests
-        WHERE error IS NULL
+        WHERE error IS NULL {time_filter}
         GROUP BY model
         ORDER BY cost DESC
     """)
     by_model = cursor.fetchall()
 
     # By provider
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT
             provider,
             COUNT(*) as requests,
             SUM(cost) as cost,
             SUM(total_tokens) as tokens
         FROM requests
-        WHERE error IS NULL
+        WHERE error IS NULL {time_filter}
         GROUP BY provider
         ORDER BY cost DESC
     """)
@@ -376,6 +381,17 @@ async def dashboard():
     </nav>
 
     <div id="stats-tab">
+        <div style="margin: 20px 0;">
+            Time range:
+            <select id="timeRange" onchange="refresh()">
+                <option value="">All time</option>
+                <option value="1">Last hour</option>
+                <option value="24">Last 24 hours</option>
+                <option value="168">Last week</option>
+                <option value="720">Last 30 days</option>
+            </select>
+        </div>
+
         <div id="totals"></div>
 
         <h2>By Model</h2>
@@ -473,7 +489,9 @@ async def dashboard():
         }
 
         async function refresh() {
-            const res = await fetch('/stats');
+            const hours = document.getElementById('timeRange')?.value;
+            const url = hours ? `/stats?hours=${hours}` : '/stats';
+            const res = await fetch(url);
             const data = await res.json();
 
             // Totals
