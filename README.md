@@ -57,9 +57,10 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 | Local-first | No cloud dependencies, runs entirely on your machine |
 | Multi-provider | OpenAI, Anthropic, and other LiteLLM-compatible providers |
 | Cost tracking | Automatic calculation and storage of per-request costs |
-| Web dashboard | Real-time statistics with time-range filtering |
+| Web dashboard | Real-time statistics with time-range filtering and error management |
 | SQLite storage | Lightweight database with full request/response logging |
-| OpenAI compatible | Drop-in replacement for OpenAI API clients |
+| OpenAI compatible | Drop-in replacement for OpenAI API clients with streaming support |
+| CORS enabled | Works with web-based clients like Obsidian Copilot |
 
 ## System Architecture
 
@@ -241,6 +242,29 @@ data = response.json()
 print(data["choices"][0]["message"]["content"])
 ```
 
+### Obsidian Copilot Integration
+
+Configure Obsidian Copilot to use Apantli as a custom provider:
+
+1. **Start Apantli**:
+   ```bash
+   apantli
+   ```
+
+2. **In Obsidian Copilot settings**:
+   - Go to **Copilot Basic Settings** → **API Keys**
+   - Click **Add Model** → **Custom Model**
+
+3. **Configure custom model**:
+   - **Provider**: Select "3rd party (openai format)"
+   - **Base URL**: `http://localhost:4000/v1`
+   - **Model Name**: Use any model from your `config.yaml` (e.g., `gpt-4.1-mini`, `claude-sonnet-4`)
+   - **API Key**: Enter any value (e.g., `not-used`) - Apantli handles the actual API keys
+
+4. **Use the model**: Select your custom model in Copilot and start chatting
+
+All requests will route through Apantli with full cost tracking and logging. Streaming responses are supported.
+
 ### Web Dashboard
 
 Open http://localhost:4000/ in your browser.
@@ -249,8 +273,9 @@ Open http://localhost:4000/ in your browser.
 
 - Total requests, costs, tokens
 - Breakdown by model and provider
-- Recent errors
-- Time filters: All time, 1 hour, 24 hours, 7 days, 30 days
+- Recent errors with "Clear Errors" button
+- Time filters: All time, 1h, 4h, 6h, 12h, 24h, 7 days, 30 days
+- All timestamps in local timezone
 
 **Models Tab**: See configured models with pricing
 
@@ -268,10 +293,11 @@ Open http://localhost:4000/ in your browser.
 
 | Endpoint | Method | Description |
 |:---------|:-------|:------------|
-| `/v1/chat/completions` | POST | OpenAI-compatible chat completions |
+| `/v1/chat/completions` | POST | OpenAI-compatible chat completions (streaming supported) |
 | `/models` | GET | List available models with pricing |
 | `/stats?hours=N` | GET | Usage statistics (optional time filter) |
 | `/requests` | GET | Recent request history (last 50) |
+| `/errors` | DELETE | Clear all error records |
 | `/health` | GET | Health check |
 | `/` | GET | Web dashboard |
 
@@ -350,9 +376,10 @@ Works with any tool that supports OpenAI's API format:
 - LlamaIndex
 - Continue.dev
 - Cursor
+- Obsidian Copilot
 - Any custom application using OpenAI API
 
-Point your client at `http://localhost:4000` and use model names from `config.yaml`.
+Point your client at `http://localhost:4000/v1` and use model names from `config.yaml`.
 
 ## Command-Line Options
 
