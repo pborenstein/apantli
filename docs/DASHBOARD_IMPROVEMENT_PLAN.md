@@ -5,7 +5,8 @@
 This plan outlines incremental improvements to the Apantli dashboard to add date filtering, calendar views, provider breakdown, and enhanced analytics while maintaining the lightweight, embedded architecture.
 
 **Current State:**
-- Single-file HTML embedded in FastAPI server
+- Dashboard HTML served via Jinja2 template (`templates/dashboard.html`)
+- Decoupled from server code for easier development with `--reload`
 - Vanilla JavaScript, three tabs (Stats, Models, Requests)
 - Simple time-based filtering (hours dropdown)
 - Basic tables and metrics
@@ -206,7 +207,7 @@ Selected: October 4, 2025
 </div>
 ```
 
-**CSS (add to existing style block):**
+**CSS (add to templates/dashboard.html style block):**
 ```css
 .calendar-grid {
   display: grid;
@@ -1350,7 +1351,7 @@ WHERE error IS NULL;
 
 ## File Size Estimates
 
-**Current HTML:** ~13KB embedded in server.py
+**Current HTML:** ~12KB in templates/dashboard.html
 
 **After All Phases:**
 - HTML structure: ~8KB
@@ -1363,11 +1364,17 @@ WHERE error IS NULL;
 - Vue + dependencies: ~150KB+ minified
 - Our solution: ~45KB unminified (can minify to ~30KB)
 
+**Development Workflow:**
+- Template files live in `templates/` directory
+- Server code in `apantli/server.py`
+- Changes to templates auto-reload with `apantli --reload`
+- Separate concerns enable better HTML tooling and faster iteration
+
 ---
 
 ## Conclusion
 
-This plan delivers all user-requested features while maintaining the lightweight, embedded architecture:
+This plan delivers all user-requested features while maintaining the lightweight, template-based architecture:
 
 1. **Date range filtering** - Flexible date selection with quick filters and custom ranges
 2. **Calendar view** - Visual monthly overview with daily cost heatmap
