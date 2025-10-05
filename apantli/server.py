@@ -76,6 +76,23 @@ def init_db():
             error TEXT
         )
     """)
+
+    # Create indexes for faster date-based queries
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_timestamp
+        ON requests(timestamp)
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_date_provider
+        ON requests(DATE(timestamp), provider)
+        WHERE error IS NULL
+    """)
+    cursor.execute("""
+        CREATE INDEX IF NOT EXISTS idx_cost
+        ON requests(cost)
+        WHERE error IS NULL
+    """)
+
     conn.commit()
     conn.close()
 
@@ -306,8 +323,14 @@ async def models():
 
 
 @app.get("/requests")
-async def requests(hours: int = None):
-    """Get recent requests with full details, optionally filtered by time range (hours)."""
+async def requests(hours: int = None, start_date: str = None, end_date: str = None):
+    """Get recent requests with full details, optionally filtered by time range.
+
+    Parameters:
+    - hours: Filter to last N hours (backward compatible)
+    - start_date: ISO 8601 date (YYYY-MM-DD)
+    - end_date: ISO 8601 date (YYYY-MM-DD)
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
@@ -315,6 +338,12 @@ async def requests(hours: int = None):
     time_filter = ""
     if hours:
         time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
+    elif start_date and end_date:
+        time_filter = f"AND DATE(timestamp) >= DATE('{start_date}') AND DATE(timestamp) <= DATE('{end_date}')"
+    elif start_date:
+        time_filter = f"AND DATE(timestamp) >= DATE('{start_date}')"
+    elif end_date:
+        time_filter = f"AND DATE(timestamp) <= DATE('{end_date}')"
 
     cursor.execute(f"""
         SELECT timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
@@ -347,8 +376,14 @@ async def requests(hours: int = None):
 
 
 @app.get("/stats")
-async def stats(hours: int = None):
-    """Get usage statistics, optionally filtered by time range (hours)."""
+async def stats(hours: int = None, start_date: str = None, end_date: str = None):
+    """Get usage statistics, optionally filtered by time range.
+
+    Parameters:
+    - hours: Filter to last N hours (backward compatible)
+    - start_date: ISO 8601 date (YYYY-MM-DD)
+    - end_date: ISO 8601 date (YYYY-MM-DD)
+    """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
@@ -356,6 +391,12 @@ async def stats(hours: int = None):
     time_filter = ""
     if hours:
         time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
+    elif start_date and end_date:
+        time_filter = f"AND DATE(timestamp) >= DATE('{start_date}') AND DATE(timestamp) <= DATE('{end_date}')"
+    elif start_date:
+        time_filter = f"AND DATE(timestamp) >= DATE('{start_date}')"
+    elif end_date:
+        time_filter = f"AND DATE(timestamp) <= DATE('{end_date}')"
 
     # Total stats
     cursor.execute(f"""
@@ -443,6 +484,85 @@ async def clear_errors():
     conn.commit()
     conn.close()
     return {"deleted": deleted}
+
+
+@app.get("/stats/daily")
+async def stats_daily(start_date: str = None, end_date: str = None):
+    """Get daily aggregated statistics with provider breakdown.
+
+    Parameters:
+    - start_date: ISO 8601 date (YYYY-MM-DD), defaults to 30 days ago
+    - end_date: ISO 8601 date (YYYY-MM-DD), defaults to today
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Set default date range if not provided
+    if not end_date:
+        end_date = datetime.utcnow().strftime('%Y-%m-%d')
+    if not start_date:
+        # Default to 30 days ago
+        from datetime import timedelta
+        start = datetime.utcnow() - timedelta(days=30)
+        start_date = start.strftime('%Y-%m-%d')
+
+    # Get daily aggregates with provider breakdown
+    cursor.execute("""
+        SELECT
+            DATE(timestamp) as date,
+            provider,
+            COUNT(*) as requests,
+            SUM(cost) as cost,
+            SUM(total_tokens) as tokens
+        FROM requests
+        WHERE error IS NULL
+          AND DATE(timestamp) >= DATE(?)
+          AND DATE(timestamp) <= DATE(?)
+        GROUP BY DATE(timestamp), provider
+        ORDER BY date DESC
+    """, (start_date, end_date))
+    rows = cursor.fetchall()
+
+    # Group by date
+    daily_data = {}
+    for row in rows:
+        date, provider, requests, cost, tokens = row
+        if date not in daily_data:
+            daily_data[date] = {
+                'date': date,
+                'requests': 0,
+                'cost': 0.0,
+                'total_tokens': 0,
+                'by_provider': []
+            }
+        daily_data[date]['requests'] += requests
+        daily_data[date]['cost'] += cost or 0.0
+        daily_data[date]['total_tokens'] += tokens or 0
+        daily_data[date]['by_provider'].append({
+            'provider': provider,
+            'requests': requests,
+            'cost': round(cost or 0, 4)
+        })
+
+    # Convert to sorted list
+    daily_list = sorted(daily_data.values(), key=lambda x: x['date'], reverse=True)
+
+    # Round costs
+    for day in daily_list:
+        day['cost'] = round(day['cost'], 4)
+
+    # Calculate totals
+    total_cost = sum(day['cost'] for day in daily_list)
+    total_requests = sum(day['requests'] for day in daily_list)
+
+    conn.close()
+
+    return {
+        'daily': daily_list,
+        'total_days': len(daily_list),
+        'total_cost': round(total_cost, 4),
+        'total_requests': total_requests
+    }
 
 
 @app.get("/")
