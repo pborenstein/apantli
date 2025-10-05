@@ -40,7 +40,8 @@ API keys use format `os.environ/VARIABLE_NAME` and are resolved at request time 
 # Standard run
 apantli
 
-# Development with auto-reload (watches Python files only, not config.yaml or .env)
+# Development with auto-reload
+# Watches Python files and templates directory for changes
 apantli --reload
 
 # Custom port
@@ -49,6 +50,11 @@ apantli --port 8080
 # With custom config file
 apantli --config path/to/config.yaml
 ```
+
+**Note:** The `--reload` flag uses uvicorn's auto-reload which watches:
+- Python files (`.py`) by default
+- Template files in `templates/` directory
+- Does NOT watch `config.yaml` or `.env` (requires manual restart)
 
 ### Testing
 
@@ -108,11 +114,13 @@ All endpoints are in `apantli/server.py`:
 - `/models` - List available models with pricing
 - `/requests` - Last 50 requests with full JSON
 - `/errors` - DELETE to clear error records
-- `/` - Dashboard HTML (embedded in server.py)
+- `/` - Dashboard HTML (from templates/dashboard.html)
 
 ### Dashboard Modifications
 
-Dashboard is embedded HTML in `server.py` returned by `GET /` endpoint. Uses vanilla JavaScript with three tabs (Stats, Models, Requests). Auto-refreshes every 5 seconds for Stats tab.
+Dashboard is in `templates/dashboard.html` and served via Jinja2 templates. The `GET /` endpoint in `server.py` renders the template. Uses vanilla JavaScript with three tabs (Stats, Models, Requests). Auto-refreshes every 5 seconds for Stats tab.
+
+When running with `--reload`, changes to dashboard.html are automatically detected and the server reloads.
 
 ## Database Schema
 
