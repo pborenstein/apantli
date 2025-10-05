@@ -281,7 +281,7 @@ Open http://localhost:4000/ in your browser.
 
 - Model names and aliases
 - Provider information
-- Input/output costs per 1000 tokens
+- Input/output costs per million tokens
 
 **Requests Tab**: View recent request history
 

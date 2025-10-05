@@ -289,15 +289,15 @@ GET /models HTTP/1.1
       "name": "gpt-4.1-mini",
       "litellm_model": "openai/gpt-4.1-mini",
       "provider": "openai",
-      "input_cost_per_1k": 0.00015,
-      "output_cost_per_1k": 0.0006
+      "input_cost_per_million": 0.15,
+      "output_cost_per_million": 0.60
     },
     {
       "name": "claude-haiku-3.5",
       "litellm_model": "anthropic/claude-3-5-haiku-20241022",
       "provider": "anthropic",
-      "input_cost_per_1k": 0.00025,
-      "output_cost_per_1k": 0.00125
+      "input_cost_per_million": 0.25,
+      "output_cost_per_million": 1.25
     }
   ]
 }
@@ -310,10 +310,12 @@ GET /models HTTP/1.1
 | `name` | string | Model alias from config |
 | `litellm_model` | string | Full LiteLLM model identifier |
 | `provider` | string | Provider name (openai, anthropic, etc.) |
-| `input_cost_per_1k` | number | Cost per 1000 input tokens (USD) |
-| `output_cost_per_1k` | number | Cost per 1000 output tokens (USD) |
+| `input_cost_per_million` | number | Cost per million input tokens (USD) |
+| `output_cost_per_million` | number | Cost per million output tokens (USD) |
 
 Costs are null if LiteLLM doesn't have pricing data for the model.
+
+Pricing data comes from LiteLLM's built-in cost database, updated when you upgrade the LiteLLM package.
 
 ### Usage
 
@@ -328,7 +330,7 @@ response = requests.get("http://localhost:4000/models")
 models = response.json()["models"]
 
 for model in models:
-    print(f"{model['name']}: ${model['input_cost_per_1k']}/1k input tokens")
+    print(f"{model['name']}: ${model['input_cost_per_million']}/million input tokens")
 ```
 
 ## GET /stats
@@ -643,7 +645,7 @@ http://localhost:4000/
 
 - List of configured models
 - Provider and LiteLLM identifier
-- Input/output costs per 1000 tokens
+- Input/output costs per million tokens
 
 **Requests Tab**:
 
