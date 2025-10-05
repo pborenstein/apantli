@@ -32,80 +32,7 @@ litellm_params:
 
 API keys use format `os.environ/VARIABLE_NAME` and are resolved at request time from environment variables.
 
-## Development Commands
-
-### Running the Server
-
-```bash
-# Standard run
-apantli
-
-# Development with auto-reload
-# Watches Python files and templates directory for changes
-apantli --reload
-
-# Custom port
-apantli --port 8080
-
-# With custom config file
-apantli --config path/to/config.yaml
-```
-
-**Note:** The `--reload` flag uses uvicorn's auto-reload which watches:
-- Python files (`.py`) by default
-- Template files in `templates/` directory
-- Does NOT watch `config.yaml` or `.env` (requires manual restart)
-
-### Testing
-
-```bash
-# Start server first
-apantli
-
-# Run test script (in another terminal)
-python3 test_proxy.py
-```
-
-Test script verifies:
-
-- OpenAI model routing
-- Anthropic model routing
-- Stats endpoint
-- Cost tracking
-
-### Database Operations
-
-```bash
-# View recent requests
-sqlite3 requests.db "SELECT timestamp, model, cost FROM requests ORDER BY timestamp DESC LIMIT 10"
-
-# Calculate total costs
-sqlite3 requests.db "SELECT SUM(cost) FROM requests"
-
-# View errors
-sqlite3 requests.db "SELECT timestamp, model, error FROM requests WHERE error IS NOT NULL"
-```
-
-## Common Development Tasks
-
-### Adding a New Provider
-
-1. Add API key to `.env`:
-   ```bash
-   NEW_PROVIDER_API_KEY=your-key-here
-   ```
-
-2. Add model to `config.yaml`:
-   ```yaml
-   - model_name: new-model-alias
-     litellm_params:
-       model: provider/model-name
-       api_key: os.environ/NEW_PROVIDER_API_KEY
-   ```
-
-3. Restart server to reload config
-
-### Modifying API Endpoints
+## API Endpoints
 
 All endpoints are in `apantli/server.py`:
 
@@ -116,11 +43,9 @@ All endpoints are in `apantli/server.py`:
 - `/errors` - DELETE to clear error records
 - `/` - Dashboard HTML (from templates/dashboard.html)
 
-### Dashboard Modifications
+## Dashboard
 
-Dashboard is in `templates/dashboard.html` and served via Jinja2 templates. The `GET /` endpoint in `server.py` renders the template. Uses vanilla JavaScript with three tabs (Stats, Models, Requests). Auto-refreshes every 5 seconds for Stats tab.
-
-When running with `--reload`, changes to dashboard.html are automatically detected and the server reloads.
+Served via Jinja2 templates from `templates/dashboard.html`. Uses vanilla JavaScript with three tabs (Stats, Models, Requests). Auto-refreshes every 5 seconds for Stats tab.
 
 ## Database Schema
 
@@ -153,22 +78,7 @@ LiteLLM model format: `provider/model-name` (e.g., `openai/gpt-4.1-mini`, `anthr
 
 ## Configuration Notes
 
-### Environment Variables
-
-`.env` file contains API keys referenced in `config.yaml`. Never logged or exposed in API responses.
-
-### Server Startup
-
-Uses FastAPI lifespan context manager:
-
-1. Load `config.yaml` → populate `MODEL_MAP`
-2. Initialize SQLite database (create table if missing)
-3. Print server URL and available network interfaces
-4. Start uvicorn server
-
-### CORS
-
-CORS is enabled for all origins to support web clients like Obsidian Copilot.
+`.env` file contains API keys referenced in `config.yaml`. Never logged or exposed in API responses. CORS is enabled for all origins to support web clients.
 
 ## Error Handling
 
@@ -182,44 +92,3 @@ CORS is enabled for all origins to support web clients like Obsidian Copilot.
 - **Dashboard**: No authentication (acceptable for local use only)
 - **Request logging**: Full conversation history stored in `requests.db` - protect file permissions
 - **Network binding**: Default is `0.0.0.0` (all interfaces) - use `--host 127.0.0.1` for localhost-only
-
-## Performance Characteristics
-
-Total request latency = FastAPI (1-5ms) + LiteLLM SDK (10-50ms) + Provider API (200-2000ms) + SQLite write (1-5ms)
-
-Provider API latency dominates. SQLite writes are async-friendly and not a bottleneck for single-user scenarios.
-
-Database growth: ~2-10 KB per request. 10,000 requests ≈ 20-100 MB.
-
-## Package Structure
-
-- **apantli/\_\_init\_\_.py**: Package metadata (version, name)
-- **apantli/\_\_main\_\_.py**: CLI entry point that imports and calls `server.main()`
-- **apantli/server.py**: All application logic (FastAPI app, routes, database, dashboard)
-- **pyproject.toml**: Defines `apantli` command pointing to `apantli.server:main`
-
-Entry point: `apantli` command runs `uvicorn` with the FastAPI app from `server.py`.
-
-## Dependencies
-
-Managed via `uv` (fast Python package installer):
-
-- **fastapi**: Web framework
-- **uvicorn**: ASGI server
-- **litellm**: Multi-provider LLM routing and cost calculation
-- **pyyaml**: Config file parsing
-- **python-dotenv**: Environment variable loading
-- **netifaces**: Network interface discovery for startup messages
-
-Install: `uv sync`
-
-## Testing Strategy
-
-`test_proxy.py` makes actual API calls to verify:
-
-- OpenAI provider routing works
-- Anthropic provider routing works
-- Stats are correctly aggregated
-- Costs are calculated and stored
-
-Requires server to be running and valid API keys in `.env`.
