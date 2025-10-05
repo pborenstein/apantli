@@ -5,6 +5,7 @@ Compatible with OpenAI API format, uses LiteLLM SDK for provider routing.
 """
 
 import os
+import socket
 import sqlite3
 import json
 import argparse
@@ -693,6 +694,46 @@ def main():
     # Update global config paths if provided
     global DB_PATH
     DB_PATH = args.db
+
+    # Print available URLs
+    print(f"\n🚀 Apantli server starting...")
+    if args.host == "0.0.0.0":
+        # Get all network interfaces
+        import netifaces
+        addresses = []
+
+        # Add localhost
+        addresses.append(f"http://localhost:{args.port}/")
+
+        # Get all network interfaces and their addresses
+        try:
+            for interface in netifaces.interfaces():
+                addrs = netifaces.ifaddresses(interface)
+                # Get IPv4 addresses (AF_INET = 2)
+                if netifaces.AF_INET in addrs:
+                    for addr_info in addrs[netifaces.AF_INET]:
+                        ip = addr_info.get('addr')
+                        # Skip localhost IPs
+                        if ip and ip != '127.0.0.1':
+                            url = f"http://{ip}:{args.port}/"
+                            if url not in addresses:
+                                addresses.append(url)
+        except Exception as e:
+            # Fallback to hostname lookup
+            try:
+                hostname = socket.gethostname()
+                for info in socket.getaddrinfo(hostname, None):
+                    ip = info[4][0]
+                    if ':' not in ip and ip != '127.0.0.1':
+                        url = f"http://{ip}:{args.port}/"
+                        if url not in addresses:
+                            addresses.append(url)
+            except:
+                pass
+
+        print(f"   Server at {' or '.join(addresses)}\n")
+    else:
+        print(f"   Server at http://{args.host}:{args.port}/\n")
 
     uvicorn.run(
         app,

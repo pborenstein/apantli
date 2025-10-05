@@ -9,6 +9,7 @@ dependencies = [
     "litellm",
     "pyyaml",
     "python-dotenv",
+    "netifaces",
 ]
 
 [project.scripts]
