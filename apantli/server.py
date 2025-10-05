@@ -302,16 +302,21 @@ async def models():
 
 
 @app.get("/requests")
-async def requests():
-    """Get recent requests with full details."""
+async def requests(hours: int = None):
+    """Get recent requests with full details, optionally filtered by time range (hours)."""
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    cursor.execute("""
+    # Build time filter
+    time_filter = ""
+    if hours:
+        time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
+
+    cursor.execute(f"""
         SELECT timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
                cost, duration_ms, request_data, response_data
         FROM requests
-        WHERE error IS NULL
+        WHERE error IS NULL {time_filter}
         ORDER BY timestamp DESC
         LIMIT 50
     """)
@@ -507,12 +512,27 @@ async def dashboard():
     </div>
 
     <div id="requests-tab" style="display:none">
+        <div style="margin: 20px 0;">
+            Time range:
+            <select id="requestsTimeRange" onchange="loadRequests()">
+                <option value="">All time</option>
+                <option value="1">Last hour</option>
+                <option value="4">Last 4 hours</option>
+                <option value="6">Last 6 hours</option>
+                <option value="12">Last 12 hours</option>
+                <option value="24">Last 24 hours</option>
+                <option value="168">Last week</option>
+                <option value="720">Last 30 days</option>
+            </select>
+        </div>
+
         <h2>Recent Requests</h2>
         <table id="requests-list"></table>
     </div>
 
     <script>
         let requestsInterval = null;
+        let expandedRequests = new Set();
 
         function showTab(e, tab) {
             e.preventDefault();
@@ -569,7 +589,9 @@ async def dashboard():
 
         async function loadRequests() {
             try {
-                const res = await fetch('/requests');
+                const hours = document.getElementById('requestsTimeRange')?.value;
+                const url = hours ? `/requests?hours=${hours}` : '/requests';
+                const res = await fetch(url);
                 const data = await res.json();
 
                 const tbody = document.createElement('tbody');
@@ -586,10 +608,13 @@ async def dashboard():
                         responseJson = JSON.stringify(JSON.parse(r.response_data), null, 2);
                     } catch(e) {}
 
+                    // Use timestamp as unique identifier
+                    const requestId = r.timestamp;
+
                     // Create main row
                     const mainRow = document.createElement('tr');
                     mainRow.className = 'request-row';
-                    mainRow.onclick = () => toggleDetail(i);
+                    mainRow.onclick = () => toggleDetail(requestId);
                     mainRow.innerHTML = `
                         <td>${escapeHtml(new Date(r.timestamp + 'Z').toLocaleString())}</td>
                         <td>${escapeHtml(r.model)}</td>
@@ -598,10 +623,10 @@ async def dashboard():
                         <td>${r.duration_ms}ms</td>
                     `;
 
-                    // Create detail row
+                    // Create detail row, restore expanded state if it was previously expanded
                     const detailRow = document.createElement('tr');
-                    detailRow.id = 'detail-' + i;
-                    detailRow.style.display = 'none';
+                    detailRow.id = 'detail-' + requestId;
+                    detailRow.style.display = expandedRequests.has(requestId) ? 'table-row' : 'none';
                     detailRow.innerHTML = `
                         <td colspan="5" class="request-detail">
                             <b>Request:</b>
@@ -637,6 +662,13 @@ async def dashboard():
             if (row) {
                 const isHidden = row.style.display === 'none' || !row.style.display;
                 row.style.display = isHidden ? 'table-row' : 'none';
+
+                // Track expanded state
+                if (isHidden) {
+                    expandedRequests.add(id);
+                } else {
+                    expandedRequests.delete(id);
+                }
             }
         }
 
