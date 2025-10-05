@@ -224,17 +224,33 @@ async def models():
     model_list = []
     for model_name, config in MODEL_MAP.items():
         # Try to get pricing info from LiteLLM
+        litellm_model = config['model']
+        input_cost = None
+        output_cost = None
+
         try:
-            test_response = {
-                'model': config['model'],
-                'usage': {'prompt_tokens': 1000000, 'completion_tokens': 1000000}
-            }
-            cost_per_million = litellm.completion_cost(completion_response=test_response)
-            input_cost = cost_per_million / 2  # Rough estimate
-            output_cost = cost_per_million / 2
-        except:
-            input_cost = None
-            output_cost = None
+            # Get per-token costs from LiteLLM's cost database
+            # Try with full model name first, then without provider prefix
+            model_data = None
+            if litellm_model in litellm.model_cost:
+                model_data = litellm.model_cost[litellm_model]
+            elif '/' in litellm_model:
+                # Try without provider prefix (e.g., "openai/gpt-4.1" -> "gpt-4.1")
+                model_without_provider = litellm_model.split('/', 1)[1]
+                if model_without_provider in litellm.model_cost:
+                    model_data = litellm.model_cost[model_without_provider]
+
+            if model_data:
+                input_cost_per_token = model_data.get('input_cost_per_token', 0)
+                output_cost_per_token = model_data.get('output_cost_per_token', 0)
+
+                # Convert to per-million
+                if input_cost_per_token:
+                    input_cost = input_cost_per_token * 1000000
+                if output_cost_per_token:
+                    output_cost = output_cost_per_token * 1000000
+        except Exception as e:
+            pass
 
         model_list.append({
             'name': model_name,
