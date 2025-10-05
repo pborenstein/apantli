@@ -227,11 +227,11 @@ async def models():
         try:
             test_response = {
                 'model': config['model'],
-                'usage': {'prompt_tokens': 1000, 'completion_tokens': 1000}
+                'usage': {'prompt_tokens': 1000000, 'completion_tokens': 1000000}
             }
-            cost_per_1k = litellm.completion_cost(completion_response=test_response)
-            input_cost = cost_per_1k / 2  # Rough estimate
-            output_cost = cost_per_1k / 2
+            cost_per_million = litellm.completion_cost(completion_response=test_response)
+            input_cost = cost_per_million / 2  # Rough estimate
+            output_cost = cost_per_million / 2
         except:
             input_cost = None
             output_cost = None
@@ -240,8 +240,8 @@ async def models():
             'name': model_name,
             'litellm_model': config['model'],
             'provider': config['model'].split('/')[0] if '/' in config['model'] else 'unknown',
-            'input_cost_per_1k': round(input_cost, 6) if input_cost else None,
-            'output_cost_per_1k': round(output_cost, 6) if output_cost else None
+            'input_cost_per_million': round(input_cost, 2) if input_cost else None,
+            'output_cost_per_million': round(output_cost, 2) if output_cost else None
         })
 
     return {'models': model_list}
@@ -480,16 +480,16 @@ async def dashboard():
                     <th>Name</th>
                     <th>Provider</th>
                     <th>LiteLLM Model</th>
-                    <th>Input Cost/1k</th>
-                    <th>Output Cost/1k</th>
+                    <th>Input Cost/1M</th>
+                    <th>Output Cost/1M</th>
                 </tr>
                 ${data.models.map(m => `
                     <tr>
                         <td>${m.name}</td>
                         <td>${m.provider}</td>
                         <td>${m.litellm_model}</td>
-                        <td>${m.input_cost_per_1k ? '$' + m.input_cost_per_1k : 'N/A'}</td>
-                        <td>${m.output_cost_per_1k ? '$' + m.output_cost_per_1k : 'N/A'}</td>
+                        <td>${m.input_cost_per_million ? '$' + m.input_cost_per_million.toFixed(2) : 'N/A'}</td>
+                        <td>${m.output_cost_per_million ? '$' + m.output_cost_per_million.toFixed(2) : 'N/A'}</td>
                     </tr>
                 `).join('')}
             `;
