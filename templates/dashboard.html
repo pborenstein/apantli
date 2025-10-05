@@ -30,6 +30,42 @@
         nav { margin: 20px 0; border-bottom: 1px solid #ccc; }
         nav a { display: inline-block; padding: 10px 20px; text-decoration: none; color: #333; }
         nav a.active { border-bottom: 2px solid #333; font-weight: bold; }
+
+        /* Calendar styles */
+        .calendar-header { display: flex; align-items: center; justify-content: center; gap: 20px; margin: 20px 0; }
+        .calendar-header button { padding: 8px 16px; font-size: 18px; cursor: pointer; border: 1px solid #ddd; background: white; }
+        .calendar-header button:hover { background: #f0f0f0; }
+        .calendar-header h2 { margin: 0; min-width: 200px; text-align: center; }
+
+        .calendar-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; margin: 20px 0; }
+        .calendar-day-header { padding: 10px; text-align: center; font-weight: bold; background: #f0f0f0; border: 1px solid #ddd; }
+        .calendar-day {
+            aspect-ratio: 1;
+            padding: 8px;
+            border: 1px solid #e0e0e0;
+            cursor: pointer;
+            transition: transform 0.1s, box-shadow 0.1s;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            min-height: 80px;
+        }
+        .calendar-day:hover { transform: scale(1.05); box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+        .calendar-day.today { border: 2px solid #333; }
+        .calendar-day.empty { background: #fafafa; cursor: default; }
+        .calendar-day.empty:hover { transform: none; box-shadow: none; }
+        .day-number { font-size: 14px; font-weight: bold; color: #333; }
+        .day-cost { font-size: 12px; font-weight: bold; color: #333; margin: 4px 0; }
+        .day-requests { font-size: 10px; color: #666; }
+
+        #day-detail { margin-top: 30px; padding: 20px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 4px; }
+        #day-detail h3 { margin-top: 0; }
+        .provider-bar { margin: 15px 0; }
+        .provider-header { display: flex; justify-content: space-between; margin-bottom: 5px; font-weight: bold; }
+        .bar-container { height: 24px; background: #f0f0f0; border-radius: 4px; overflow: hidden; }
+        .bar-fill { height: 100%; transition: width 0.3s ease; }
+        .provider-details { font-size: 12px; color: #666; margin-top: 4px; }
     </style>
 </head>
 <body>
@@ -37,6 +73,7 @@
 
     <nav>
         <a href="#" class="active" onclick="showTab(event, 'stats')">Stats</a>
+        <a href="#" onclick="showTab(event, 'calendar')">Calendar</a>
         <a href="#" onclick="showTab(event, 'models')">Models</a>
         <a href="#" onclick="showTab(event, 'requests')">Requests</a>
     </nav>
@@ -66,6 +103,19 @@
 
         <h2>Recent Errors <button onclick="clearErrors()" style="margin-left: 10px;">Clear Errors</button></h2>
         <table id="errors"></table>
+    </div>
+
+    <div id="calendar-tab" style="display:none">
+        <div class="calendar-header">
+            <button id="prev-month" onclick="navigateMonth(-1)">←</button>
+            <h2 id="current-month"></h2>
+            <button id="next-month" onclick="navigateMonth(1)">→</button>
+        </div>
+        <div class="calendar-grid" id="calendar-grid"></div>
+        <div id="day-detail" style="display:none">
+            <h3 id="day-detail-title"></h3>
+            <div id="day-detail-content"></div>
+        </div>
     </div>
 
     <div id="models-tab" style="display:none">
@@ -101,9 +151,11 @@
             e.target.classList.add('active');
 
             document.getElementById('stats-tab').style.display = tab === 'stats' ? 'block' : 'none';
+            document.getElementById('calendar-tab').style.display = tab === 'calendar' ? 'block' : 'none';
             document.getElementById('models-tab').style.display = tab === 'models' ? 'block' : 'none';
             document.getElementById('requests-tab').style.display = tab === 'requests' ? 'block' : 'none';
 
+            if (tab === 'calendar') loadCalendar();
             if (tab === 'models') loadModels();
             if (tab === 'requests') loadRequests();
         }
@@ -354,6 +406,141 @@
             if (!confirm('Clear all errors from the database?')) return;
             await fetch('/errors', { method: 'DELETE' });
             refresh();
+        }
+
+        // Calendar functionality
+        let currentMonth = new Date();
+        let selectedDate = null;
+        let calendarData = {};
+
+        function getCostColor(cost, maxCost) {
+            if (cost === 0) return '#f0f0f0';
+            const ratio = Math.min(cost / (maxCost || 1), 1);
+            const lightness = 100 - (ratio * 50);
+            return `hsl(210, 100%, ${lightness}%)`;
+        }
+
+        function formatDate(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
+        async function loadCalendar() {
+            const year = currentMonth.getFullYear();
+            const month = currentMonth.getMonth();
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+
+            const startDate = formatDate(firstDay);
+            const endDate = formatDate(lastDay);
+
+            const res = await fetch(`/stats/daily?start_date=${startDate}&end_date=${endDate}`);
+            const data = await res.json();
+
+            calendarData = {};
+            data.daily.forEach(day => {
+                calendarData[day.date] = day;
+            });
+
+            renderCalendar(year, month);
+        }
+
+        function renderCalendar(year, month) {
+            const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                              'July', 'August', 'September', 'October', 'November', 'December'];
+            document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
+
+            const firstDay = new Date(year, month, 1);
+            const lastDay = new Date(year, month + 1, 0);
+            const startingDayOfWeek = firstDay.getDay();
+            const daysInMonth = lastDay.getDate();
+
+            const today = formatDate(new Date());
+            const maxCost = Math.max(...Object.values(calendarData).map(d => d.cost), 0.01);
+
+            let html = '';
+            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
+                html += `<div class="calendar-day-header">${day}</div>`;
+            });
+
+            for (let i = 0; i < startingDayOfWeek; i++) {
+                html += '<div class="calendar-day empty"></div>';
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = formatDate(new Date(year, month, day));
+                const dayData = calendarData[date] || { requests: 0, cost: 0 };
+                const bgColor = getCostColor(dayData.cost, maxCost);
+                const isToday = date === today ? 'today' : '';
+
+                html += `
+                    <div class="calendar-day ${isToday}"
+                         style="background-color: ${bgColor}"
+                         onclick="onDayClick('${date}')"
+                         data-date="${date}">
+                        <div class="day-number">${day}</div>
+                        <div class="day-cost">$${dayData.cost.toFixed(2)}</div>
+                        <div class="day-requests">${dayData.requests} req</div>
+                    </div>
+                `;
+            }
+
+            document.getElementById('calendar-grid').innerHTML = html;
+        }
+
+        function navigateMonth(direction) {
+            currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1);
+            loadCalendar();
+        }
+
+        function onDayClick(date) {
+            selectedDate = date;
+            const dayData = calendarData[date];
+
+            if (!dayData || dayData.requests === 0) {
+                document.getElementById('day-detail').style.display = 'none';
+                return;
+            }
+
+            const detailTitle = document.getElementById('day-detail-title');
+            const detailContent = document.getElementById('day-detail-content');
+
+            detailTitle.textContent = `${date} - $${dayData.cost.toFixed(4)} across ${dayData.requests} requests`;
+
+            let providersHtml = '<h4>By Provider:</h4>';
+            const totalCost = dayData.cost;
+
+            dayData.by_provider.forEach(p => {
+                const percentage = totalCost > 0 ? (p.cost / totalCost * 100) : 0;
+                const providerColors = {
+                    'openai': '#10a37f',
+                    'anthropic': '#d97757',
+                    'google': '#4285f4',
+                    'unknown': '#999999'
+                };
+                const color = providerColors[p.provider] || '#999999';
+
+                providersHtml += `
+                    <div class="provider-bar">
+                        <div class="provider-header">
+                            <span class="provider-name">${p.provider}</span>
+                            <span class="provider-percentage">${percentage.toFixed(0)}%</span>
+                        </div>
+                        <div class="bar-container">
+                            <div class="bar-fill" style="width: ${percentage}%; background: ${color}"></div>
+                        </div>
+                        <div class="provider-details">
+                            $${p.cost.toFixed(4)} across ${p.requests} requests
+                        </div>
+                    </div>
+                `;
+            });
+
+            detailContent.innerHTML = providersHtml;
+            document.getElementById('day-detail').style.display = 'block';
         }
 
         refresh();
