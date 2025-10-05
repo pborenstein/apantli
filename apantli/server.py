@@ -170,10 +170,48 @@ async def chat_completions(request: Request):
 
         # Handle streaming responses
         if request_data.get('stream', False):
+            # Collect chunks for logging
+            chunks = []
+            full_response = {
+                'id': None,
+                'model': request_data['model'],  # Use full LiteLLM model name for cost calculation
+                'choices': [{'message': {'role': 'assistant', 'content': ''}, 'finish_reason': None}],
+                'usage': {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}
+            }
+
             async def generate():
+                nonlocal full_response
                 for chunk in response:
-                    yield f"data: {json.dumps(chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk))}\n\n"
+                    chunk_dict = chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk)
+                    chunks.append(chunk_dict)
+
+                    # Accumulate content
+                    if 'choices' in chunk_dict and len(chunk_dict['choices']) > 0:
+                        delta = chunk_dict['choices'][0].get('delta', {})
+                        if 'content' in delta and delta['content'] is not None:
+                            full_response['choices'][0]['message']['content'] += delta['content']
+                        if 'finish_reason' in chunk_dict['choices'][0]:
+                            full_response['choices'][0]['finish_reason'] = chunk_dict['choices'][0]['finish_reason']
+
+                    # Capture ID and usage
+                    if 'id' in chunk_dict and chunk_dict['id']:
+                        full_response['id'] = chunk_dict['id']
+                    if 'usage' in chunk_dict:
+                        full_response['usage'] = chunk_dict['usage']
+
+                    yield f"data: {json.dumps(chunk_dict)}\n\n"
                 yield "data: [DONE]\n\n"
+
+                # Log after streaming completes
+                try:
+                    # Extract provider from model name in request
+                    litellm_model = request_data.get('model', '')
+                    provider = litellm_model.split('/')[0] if '/' in litellm_model else 'unknown'
+
+                    duration_ms = int((time.time() - start_time) * 1000)
+                    log_request(model, provider, full_response, duration_ms, request_data)
+                except Exception as e:
+                    print(f"Error logging streaming request: {e}")
 
             return StreamingResponse(generate(), media_type="text/event-stream")
 
