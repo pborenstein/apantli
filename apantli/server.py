@@ -463,8 +463,17 @@ async def dashboard():
         .request-row { cursor: pointer; }
         .request-row:hover { background: #f5f5f5; }
         .request-detail { padding: 10px; background: #f9f9f9; }
-        .json-view { white-space: pre-wrap; font-size: 11px; overflow-x: auto; }
-        pre.json-view { margin: 5px 0; }
+        .json-view { font-size: 11px; overflow-x: auto; margin: 5px 0; }
+        .json-tree { font-family: monospace; line-height: 1.4; }
+        .json-key { color: #881391; }
+        .json-string { color: #1A1AA6; }
+        .json-number { color: #1C00CF; }
+        .json-boolean { color: #0D22AA; }
+        .json-null { color: #808080; }
+        .json-toggle { cursor: pointer; user-select: none; display: inline-block; width: 12px; }
+        .json-toggle:hover { background: #e0e0e0; }
+        .json-line { margin-left: 20px; }
+        .json-collapsed { display: none; }
         nav { margin: 20px 0; border-bottom: 1px solid #ccc; }
         nav a { display: inline-block; padding: 10px 20px; text-decoration: none; color: #333; }
         nav a.active { border-bottom: 2px solid #333; font-weight: bold; }
@@ -531,7 +540,6 @@ async def dashboard():
     </div>
 
     <script>
-        let requestsInterval = null;
         let expandedRequests = new Set();
 
         function showTab(e, tab) {
@@ -543,18 +551,8 @@ async def dashboard():
             document.getElementById('models-tab').style.display = tab === 'models' ? 'block' : 'none';
             document.getElementById('requests-tab').style.display = tab === 'requests' ? 'block' : 'none';
 
-            // Clear requests interval when switching away
-            if (requestsInterval) {
-                clearInterval(requestsInterval);
-                requestsInterval = null;
-            }
-
             if (tab === 'models') loadModels();
-            if (tab === 'requests') {
-                loadRequests();
-                // Auto-refresh requests every 5 seconds
-                requestsInterval = setInterval(loadRequests, 5000);
-            }
+            if (tab === 'requests') loadRequests();
         }
 
         async function loadModels() {
@@ -587,6 +585,62 @@ async def dashboard():
             return div.innerHTML;
         }
 
+        function renderJsonTree(obj, isRoot = true) {
+            if (obj === null) return '<span class="json-null">null</span>';
+            if (obj === undefined) return '<span class="json-null">undefined</span>';
+
+            const type = typeof obj;
+            if (type === 'string') return `<span class="json-string">"${escapeHtml(obj)}"</span>`;
+            if (type === 'number') return `<span class="json-number">${obj}</span>`;
+            if (type === 'boolean') return `<span class="json-boolean">${obj}</span>`;
+
+            if (Array.isArray(obj)) {
+                if (obj.length === 0) return '<span>[]</span>';
+
+                const id = 'json-' + Math.random().toString(36).substr(2, 9);
+                let html = `<span class="json-toggle" onclick="toggleJson('${id}')">▼</span>[`;
+                html += `<div id="${id}" class="json-line">`;
+                obj.forEach((item, i) => {
+                    html += renderJsonTree(item, false);
+                    if (i < obj.length - 1) html += ',';
+                    html += '<br>';
+                });
+                html += '</div>]';
+                return html;
+            }
+
+            if (type === 'object') {
+                const keys = Object.keys(obj);
+                if (keys.length === 0) return '<span>{}</span>';
+
+                const id = 'json-' + Math.random().toString(36).substr(2, 9);
+                let html = `<span class="json-toggle" onclick="toggleJson('${id}')">▼</span>{`;
+                html += `<div id="${id}" class="json-line">`;
+                keys.forEach((key, i) => {
+                    html += `<span class="json-key">"${escapeHtml(key)}"</span>: `;
+                    html += renderJsonTree(obj[key], false);
+                    if (i < keys.length - 1) html += ',';
+                    html += '<br>';
+                });
+                html += '</div>}';
+                return html;
+            }
+
+            return String(obj);
+        }
+
+        function toggleJson(id) {
+            const el = document.getElementById(id);
+            const toggle = el.previousElementSibling;
+            if (el.classList.contains('json-collapsed')) {
+                el.classList.remove('json-collapsed');
+                toggle.textContent = '▼';
+            } else {
+                el.classList.add('json-collapsed');
+                toggle.textContent = '▶';
+            }
+        }
+
         async function loadRequests() {
             try {
                 const hours = document.getElementById('requestsTimeRange')?.value;
@@ -597,15 +651,17 @@ async def dashboard():
                 const tbody = document.createElement('tbody');
 
                 data.requests.forEach((r, i) => {
-                    let requestJson = 'Error parsing request';
-                    let responseJson = 'Error parsing response';
+                    let requestHtml = '<span class="error">Error parsing request</span>';
+                    let responseHtml = '<span class="error">Error parsing response</span>';
 
                     try {
-                        requestJson = JSON.stringify(JSON.parse(r.request_data), null, 2);
+                        const requestObj = JSON.parse(r.request_data);
+                        requestHtml = renderJsonTree(requestObj);
                     } catch(e) {}
 
                     try {
-                        responseJson = JSON.stringify(JSON.parse(r.response_data), null, 2);
+                        const responseObj = JSON.parse(r.response_data);
+                        responseHtml = renderJsonTree(responseObj);
                     } catch(e) {}
 
                     // Use timestamp as unique identifier
@@ -630,9 +686,9 @@ async def dashboard():
                     detailRow.innerHTML = `
                         <td colspan="5" class="request-detail">
                             <b>Request:</b>
-                            <pre class="json-view">${escapeHtml(requestJson)}</pre>
+                            <div class="json-view json-tree">${requestHtml}</div>
                             <b>Response:</b>
-                            <pre class="json-view">${escapeHtml(responseJson)}</pre>
+                            <div class="json-view json-tree">${responseHtml}</div>
                         </td>
                     `;
 
