@@ -474,6 +474,8 @@ async def dashboard():
     </div>
 
     <script>
+        let requestsInterval = null;
+
         function showTab(e, tab) {
             e.preventDefault();
             document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
@@ -483,8 +485,18 @@ async def dashboard():
             document.getElementById('models-tab').style.display = tab === 'models' ? 'block' : 'none';
             document.getElementById('requests-tab').style.display = tab === 'requests' ? 'block' : 'none';
 
+            // Clear requests interval when switching away
+            if (requestsInterval) {
+                clearInterval(requestsInterval);
+                requestsInterval = null;
+            }
+
             if (tab === 'models') loadModels();
-            if (tab === 'requests') loadRequests();
+            if (tab === 'requests') {
+                loadRequests();
+                // Auto-refresh requests every 5 seconds
+                requestsInterval = setInterval(loadRequests, 5000);
+            }
         }
 
         async function loadModels() {
@@ -541,7 +553,7 @@ async def dashboard():
                     mainRow.className = 'request-row';
                     mainRow.onclick = () => toggleDetail(i);
                     mainRow.innerHTML = `
-                        <td>${escapeHtml(new Date(r.timestamp).toLocaleString())}</td>
+                        <td>${escapeHtml(new Date(r.timestamp + 'Z').toLocaleString())}</td>
                         <td>${escapeHtml(r.model)}</td>
                         <td>${r.total_tokens}</td>
                         <td>$${r.cost.toFixed(4)}</td>
