@@ -74,7 +74,13 @@
     currentTab: $persist('stats'),
     statsTimeRange: $persist(''),
     requestsTimeRange: $persist('')
-}" x-init="$watch('currentTab', value => onTabChange(value)); $watch('statsTimeRange', () => refresh()); $watch('requestsTimeRange', () => loadRequests())">
+}" x-init="
+    $watch('currentTab', value => onTabChange(value));
+    $watch('statsTimeRange', value => refresh(value));
+    $watch('requestsTimeRange', value => loadRequests(value));
+    // Trigger initial load with persisted values
+    refresh(statsTimeRange);
+">
     <h1>LLM Proxy Statistics</h1>
 
     <nav>
@@ -243,9 +249,12 @@
             }
         }
 
-        async function loadRequests() {
+        async function loadRequests(hours) {
             try {
-                const hours = document.getElementById('requestsTimeRange')?.value;
+                // Use parameter if provided, otherwise fall back to DOM
+                if (hours === undefined) {
+                    hours = document.getElementById('requestsTimeRange')?.value;
+                }
                 const url = hours ? `/requests?hours=${hours}` : '/requests';
                 const res = await fetch(url);
                 const data = await res.json();
@@ -330,8 +339,11 @@
             }
         }
 
-        async function refresh() {
-            const hours = document.getElementById('timeRange')?.value;
+        async function refresh(hours) {
+            // Use parameter if provided, otherwise fall back to DOM
+            if (hours === undefined) {
+                hours = document.getElementById('timeRange')?.value;
+            }
             const url = hours ? `/stats?hours=${hours}` : '/stats';
             const res = await fetch(url);
             const data = await res.json();
@@ -543,9 +555,11 @@
             document.getElementById('day-detail').style.display = 'block';
         }
 
-        // Initial load - refresh stats tab
-        refresh();
-        setInterval(refresh, 5000);
+        // Auto-refresh stats every 5 seconds (will use current persisted value)
+        setInterval(() => {
+            const hours = document.getElementById('timeRange')?.value;
+            refresh(hours);
+        }, 5000);
 
         // Load initial tab data after Alpine initializes
         document.addEventListener('alpine:initialized', () => {
