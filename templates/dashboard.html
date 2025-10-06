@@ -94,6 +94,27 @@
         }
         .filter-custom span { color: #666; font-size: 13px; }
 
+        /* Request filter styles */
+        .request-filters { background: #f9f9f9; padding: 15px; border-radius: 6px; margin: 20px 0; border: 1px solid #e0e0e0; }
+        .filter-row { display: flex; gap: 15px; margin-bottom: 10px; align-items: center; flex-wrap: wrap; }
+        .filter-row:last-child { margin-bottom: 0; }
+        .filter-search { flex: 1; min-width: 300px; }
+        .filter-search label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+        .filter-search input { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; }
+        .filter-select { flex: 1; min-width: 150px; }
+        .filter-select label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+        .filter-select select { width: 100%; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; }
+        .filter-cost-range { display: flex; gap: 6px; align-items: center; }
+        .filter-cost-range label { font-size: 12px; color: #666; }
+        .filter-cost-range input { width: 90px; padding: 6px 8px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; }
+        .filter-cost-range span { font-size: 12px; color: #666; }
+
+        /* Request summary styles */
+        .request-summary { display: flex; gap: 20px; padding: 15px; background: #fff; border: 1px solid #ddd; border-radius: 4px; margin: 20px 0; }
+        .summary-metric { text-align: center; }
+        .summary-metric .metric-value { display: block; font-size: 20px; font-weight: bold; color: #333; }
+        .summary-metric .metric-label { display: block; font-size: 11px; color: #666; margin-top: 4px; }
+
         /* Sortable table styles */
         th.sortable { cursor: pointer; user-select: none; }
         th.sortable:hover { background: #e0e0e0; }
@@ -283,6 +304,57 @@
                 <input type="date" x-model="requestsFilter.startDate">
                 <span>to</span>
                 <input type="date" x-model="requestsFilter.endDate">
+            </div>
+        </div>
+
+        <div class="request-filters">
+            <div class="filter-row">
+                <div class="filter-search">
+                    <label for="search-requests">Search:</label>
+                    <input type="text" id="search-requests" placeholder="Search in model or content..." oninput="applyRequestFilters()">
+                </div>
+            </div>
+
+            <div class="filter-row">
+                <div class="filter-select">
+                    <label for="filter-provider">Provider:</label>
+                    <select id="filter-provider" onchange="applyRequestFilters()">
+                        <option value="all">All</option>
+                    </select>
+                </div>
+
+                <div class="filter-select">
+                    <label for="filter-model">Model:</label>
+                    <select id="filter-model" onchange="applyRequestFilters()">
+                        <option value="all">All</option>
+                    </select>
+                </div>
+
+                <div class="filter-cost-range">
+                    <label>Cost Range:</label>
+                    <input type="number" id="min-cost" placeholder="Min $" step="0.0001" min="0" oninput="applyRequestFilters()">
+                    <span>to</span>
+                    <input type="number" id="max-cost" placeholder="Max $" step="0.0001" min="0" oninput="applyRequestFilters()">
+                </div>
+            </div>
+        </div>
+
+        <div id="request-summary" style="display: none;" class="request-summary">
+            <div class="summary-metric">
+                <span class="metric-value" id="summary-count">0</span>
+                <span class="metric-label">Requests</span>
+            </div>
+            <div class="summary-metric">
+                <span class="metric-value" id="summary-cost">$0.00</span>
+                <span class="metric-label">Total Cost</span>
+            </div>
+            <div class="summary-metric">
+                <span class="metric-value" id="summary-tokens">0</span>
+                <span class="metric-label">Tokens</span>
+            </div>
+            <div class="summary-metric">
+                <span class="metric-value" id="summary-avg-cost">$0.00</span>
+                <span class="metric-label">Avg Cost</span>
             </div>
         </div>
 
@@ -511,6 +583,8 @@
 
         let requestsData = [];
         let requestsObjects = []; // Store original request objects for detail rows
+        let filteredRequestsData = []; // Filtered subset
+        let filteredRequestsObjects = []; // Filtered objects
 
         async function loadRequests() {
             if (!alpineData) return;
@@ -531,19 +605,120 @@
                     r.timestamp // Store timestamp for detail row lookup
                 ]);
 
-                if (!tableSortState['requests-list']) {
-                    tableSortState['requests-list'] = { column: null, direction: null, originalData: [...requestsData] };
-                } else {
-                    tableSortState['requests-list'].originalData = [...requestsData];
-                }
-                renderRequestsTable(applySortIfNeeded('requests-list', requestsData), tableSortState['requests-list']);
+                // Populate filter dropdowns
+                populateFilterDropdowns();
+
+                // Apply initial filtering
+                applyRequestFilters();
             } catch(e) {
                 document.getElementById('requests-list').innerHTML = '<tr><td colspan="5">Error loading requests</td></tr>';
             }
         }
 
+        function populateFilterDropdowns() {
+            // Get unique providers
+            const providers = [...new Set(requestsObjects.map(r => r.provider).filter(Boolean))].sort();
+            const providerSelect = document.getElementById('filter-provider');
+            providerSelect.innerHTML = '<option value="all">All</option>';
+            providers.forEach(p => {
+                const option = document.createElement('option');
+                option.value = p;
+                option.textContent = p;
+                providerSelect.appendChild(option);
+            });
+
+            // Get unique models
+            const models = [...new Set(requestsObjects.map(r => r.model).filter(Boolean))].sort();
+            const modelSelect = document.getElementById('filter-model');
+            modelSelect.innerHTML = '<option value="all">All</option>';
+            models.forEach(m => {
+                const option = document.createElement('option');
+                option.value = m;
+                option.textContent = m;
+                modelSelect.appendChild(option);
+            });
+        }
+
+        function applyRequestFilters() {
+            const searchText = document.getElementById('search-requests').value.toLowerCase();
+            const filterProvider = document.getElementById('filter-provider').value;
+            const filterModel = document.getElementById('filter-model').value;
+            const minCost = parseFloat(document.getElementById('min-cost').value) || 0;
+            const maxCost = parseFloat(document.getElementById('max-cost').value) || Infinity;
+
+            // Filter objects first
+            filteredRequestsObjects = requestsObjects.filter(r => {
+                // Search filter
+                if (searchText) {
+                    const modelMatch = r.model.toLowerCase().includes(searchText);
+                    let contentMatch = false;
+                    try {
+                        const content = r.request_data + r.response_data;
+                        contentMatch = content.toLowerCase().includes(searchText);
+                    } catch(e) {}
+                    if (!modelMatch && !contentMatch) return false;
+                }
+
+                // Provider filter
+                if (filterProvider !== 'all' && r.provider !== filterProvider) return false;
+
+                // Model filter
+                if (filterModel !== 'all' && r.model !== filterModel) return false;
+
+                // Cost range filter
+                if (r.cost < minCost || r.cost > maxCost) return false;
+
+                return true;
+            });
+
+            // Convert filtered objects to array format
+            filteredRequestsData = filteredRequestsObjects.map(r => [
+                new Date(r.timestamp + 'Z').getTime(),
+                r.model,
+                r.total_tokens,
+                r.cost,
+                r.duration_ms,
+                r.timestamp
+            ]);
+
+            // Update sort state with filtered data
+            if (!tableSortState['requests-list']) {
+                tableSortState['requests-list'] = { column: null, direction: null, originalData: [...filteredRequestsData] };
+            } else {
+                tableSortState['requests-list'].originalData = [...filteredRequestsData];
+                // Reset sort when filters change
+                tableSortState['requests-list'].column = null;
+                tableSortState['requests-list'].direction = null;
+            }
+
+            // Update summary and render
+            updateRequestSummary();
+            renderRequestsTable(filteredRequestsData, tableSortState['requests-list']);
+        }
+
+        function updateRequestSummary() {
+            const summary = document.getElementById('request-summary');
+
+            if (filteredRequestsObjects.length === 0) {
+                summary.style.display = 'none';
+                return;
+            }
+
+            const count = filteredRequestsObjects.length;
+            const totalCost = filteredRequestsObjects.reduce((sum, r) => sum + r.cost, 0);
+            const totalTokens = filteredRequestsObjects.reduce((sum, r) => sum + r.total_tokens, 0);
+            const avgCost = count > 0 ? totalCost / count : 0;
+
+            document.getElementById('summary-count').textContent = count;
+            document.getElementById('summary-cost').textContent = '$' + totalCost.toFixed(4);
+            document.getElementById('summary-tokens').textContent = totalTokens.toLocaleString();
+            document.getElementById('summary-avg-cost').textContent = '$' + avgCost.toFixed(4);
+
+            summary.style.display = 'flex';
+        }
+
         function sortRequestsTable(columnIndex) {
-            sortTable('requests-list', columnIndex, requestsData, renderRequestsTable);
+            sortTable('requests-list', columnIndex, filteredRequestsData, renderRequestsTable);
         }
 
         function renderRequestsTable(data, sortState) {
