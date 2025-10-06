@@ -363,6 +363,30 @@
             });
         }
 
+        function applySortIfNeeded(tableId, data) {
+            const state = tableSortState[tableId];
+            if (!state || state.direction === null) {
+                return data;
+            }
+
+            return [...data].sort((a, b) => {
+                let aVal = a[state.column];
+                let bVal = b[state.column];
+
+                if (aVal == null) return state.direction === 'asc' ? 1 : -1;
+                if (bVal == null) return state.direction === 'asc' ? -1 : 1;
+
+                if (typeof aVal === 'number' && typeof bVal === 'number') {
+                    return state.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                }
+
+                const aStr = String(aVal).toLowerCase();
+                const bStr = String(bVal).toLowerCase();
+                const comparison = aStr.localeCompare(bStr);
+                return state.direction === 'asc' ? comparison : -comparison;
+            });
+        }
+
         function onTabChange(tab) {
             if (tab === 'calendar') loadCalendar();
             if (tab === 'models') loadModels();
@@ -384,7 +408,12 @@
                 m.output_cost_per_million || 0
             ]);
 
-            renderModelsTable(modelsData, tableSortState['models-list']);
+            if (!tableSortState['models-list']) {
+                tableSortState['models-list'] = { column: null, direction: null, originalData: [...modelsData] };
+            } else {
+                tableSortState['models-list'].originalData = [...modelsData];
+            }
+            renderModelsTable(applySortIfNeeded('models-list', modelsData), tableSortState['models-list']);
         }
 
         function sortModelsTable(columnIndex) {
@@ -502,7 +531,12 @@
                     r.timestamp // Store timestamp for detail row lookup
                 ]);
 
-                renderRequestsTable(requestsData, tableSortState['requests-list']);
+                if (!tableSortState['requests-list']) {
+                    tableSortState['requests-list'] = { column: null, direction: null, originalData: [...requestsData] };
+                } else {
+                    tableSortState['requests-list'].originalData = [...requestsData];
+                }
+                renderRequestsTable(applySortIfNeeded('requests-list', requestsData), tableSortState['requests-list']);
             } catch(e) {
                 document.getElementById('requests-list').innerHTML = '<tr><td colspan="5">Error loading requests</td></tr>';
             }
@@ -671,15 +705,30 @@
 
             // By model - convert to sortable format
             byModelData = data.by_model.map(m => [m.model, m.requests, m.cost, m.tokens]);
-            renderByModelTable(byModelData, tableSortState['by-model']);
+            if (!tableSortState['by-model']) {
+                tableSortState['by-model'] = { column: null, direction: null, originalData: [...byModelData] };
+            } else {
+                tableSortState['by-model'].originalData = [...byModelData];
+            }
+            renderByModelTable(applySortIfNeeded('by-model', byModelData), tableSortState['by-model']);
 
             // By provider - convert to sortable format
             byProviderData = data.by_provider.map(p => [p.provider, p.requests, p.cost, p.tokens]);
-            renderByProviderTable(byProviderData, tableSortState['by-provider']);
+            if (!tableSortState['by-provider']) {
+                tableSortState['by-provider'] = { column: null, direction: null, originalData: [...byProviderData] };
+            } else {
+                tableSortState['by-provider'].originalData = [...byProviderData];
+            }
+            renderByProviderTable(applySortIfNeeded('by-provider', byProviderData), tableSortState['by-provider']);
 
             // Errors - convert to sortable format
             errorsData = data.recent_errors.map(e => [new Date(e.timestamp + 'Z').getTime(), e.model, e.error, e.timestamp]);
-            renderErrorsTable(errorsData, tableSortState['errors']);
+            if (!tableSortState['errors']) {
+                tableSortState['errors'] = { column: null, direction: null, originalData: [...errorsData] };
+            } else {
+                tableSortState['errors'].originalData = [...errorsData];
+            }
+            renderErrorsTable(applySortIfNeeded('errors', errorsData), tableSortState['errors']);
         }
 
         function sortByModelTable(columnIndex) {
