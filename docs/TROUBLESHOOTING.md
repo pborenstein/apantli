@@ -610,107 +610,29 @@ Solutions to common issues when running Apantli.
 
 ## Database Issues
 
-### "database is locked" Error
+For comprehensive database troubleshooting, maintenance procedures, and schema details, see [DATABASE.md](DATABASE.md).
 
-**Symptoms**:
+### Quick Reference
 
-- `sqlite3.OperationalError: database is locked`
-- Intermittent request failures
-- Database operations hang
+**Common issues**:
 
-**Solutions**:
+- ["database is locked"](DATABASE.md#database-is-locked-error) - Multiple connections or high concurrency
+- [Database corruption](DATABASE.md#database-corruption) - Recovery and backup procedures
+- [Request history disappeared](DATABASE.md#request-history-disappeared) - Verify database location and contents
+- [High memory usage](DATABASE.md#high-memory-usage) - Database size and pruning
 
-1. Close other connections to `requests.db`:
+**Quick checks**:
 
-   ```bash
-   # Check for processes using the database
-   lsof requests.db
-   ```
+```bash
+# Check database size
+ls -lh requests.db
 
-2. Ensure only one server instance is running:
+# Count records
+sqlite3 requests.db "SELECT COUNT(*) FROM requests"
 
-   ```bash
-   ps aux | grep apantli
-   ```
-
-3. SQLite is single-writer, this is expected under high concurrency. For production:
-   - Use external database (Postgres)
-   - Or reduce concurrent requests
-
-**Related Issues**:
-
-- [Performance issues under load](#slow-request-processing)
-
-### Database Corruption
-
-**Symptoms**:
-
-- `sqlite3.DatabaseError: database disk image is malformed`
-- Server crashes on startup
-- Stats endpoint returns errors
-
-**Solutions**:
-
-1. Backup existing database:
-
-   ```bash
-   cp requests.db requests.db.backup
-   ```
-
-2. Try recovery:
-
-   ```bash
-   sqlite3 requests.db ".recover" | sqlite3 requests.db.recovered
-   mv requests.db.recovered requests.db
-   ```
-
-3. If recovery fails, delete and recreate (loses all data):
-
-   ```bash
-   rm requests.db
-   apantli  # Will create fresh database
-   ```
-
-4. Restore from backup if available
-
-**Related Issues**:
-
-- [Lost request history](#request-history-disappeared)
-
-### Request History Disappeared
-
-**Symptoms**:
-
-- Dashboard shows no requests
-- `/requests` endpoint returns empty array
-- Stats show zero requests
-
-**Solutions**:
-
-1. Check database file exists:
-
-   ```bash
-   ls -la requests.db
-   ```
-
-2. Verify database has data:
-
-   ```bash
-   sqlite3 requests.db "SELECT COUNT(*) FROM requests"
-   ```
-
-3. Check if using custom database path:
-
-   ```bash
-   # Ensure you're querying the right database
-   apantli --db /path/to/custom.db
-   ```
-
-4. Server may have recreated database (check for `requests.db.backup` or similar)
-
-**Related Issues**:
-
-- [Database corruption](#database-corruption)
+# Check for locks
+lsof requests.db
+```
 
 ## Dashboard Issues
 
@@ -882,31 +804,27 @@ Solutions to common issues when running Apantli.
 
 **Solutions**:
 
-1. Check database size:
+See [DATABASE.md - High Memory Usage](DATABASE.md#high-memory-usage) for detailed troubleshooting.
 
-   ```bash
-   ls -lh requests.db
-   ```
+**Quick checks**:
 
-2. Large database files (>1GB) can increase memory usage. Archive or delete old data:
+```bash
+# Check database size
+ls -lh requests.db
 
-   ```bash
-   # Delete requests older than 30 days
-   sqlite3 requests.db "DELETE FROM requests WHERE timestamp < datetime('now', '-30 days')"
-   sqlite3 requests.db "VACUUM"
-   ```
+# Monitor server memory
+ps aux | grep apantli
+```
 
-3. Restart server periodically to clear memory
+**Common fixes**:
 
-4. Monitor with:
-
-   ```bash
-   ps aux | grep apantli
-   ```
+- Prune old database records (see [DATABASE.md - Pruning](DATABASE.md#pruning-old-data))
+- Restart server periodically
+- Archive large databases before deletion
 
 **Related Issues**:
 
-- [Database size growing rapidly](#request-history-disappeared)
+- [Database maintenance](DATABASE.md#database-maintenance)
 
 ### Cost Calculations Seem Wrong
 

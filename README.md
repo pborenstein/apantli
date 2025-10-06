@@ -47,6 +47,7 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 |:---------|:------------|:---------|
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and technical implementation | Developers |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Model setup and environment configuration | Users & Developers |
+| [docs/DATABASE.md](docs/DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [docs/API.md](docs/API.md) | HTTP endpoint reference | Developers & Integration users |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 
@@ -427,6 +428,7 @@ apantli/
 │   ├── README.md           # Documentation index
 │   ├── ARCHITECTURE.md     # System design
 │   ├── CONFIGURATION.md    # Setup guide
+│   ├── DATABASE.md         # Database schema & maintenance
 │   ├── API.md              # Endpoint reference
 │   ├── TROUBLESHOOTING.md  # Common issues
 │   └── archive/            # Historical documents

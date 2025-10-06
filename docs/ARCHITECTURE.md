@@ -218,28 +218,11 @@ model_list:
 
 ### Database Schema
 
-**File**: `requests.db` (created automatically)
+**File**: `requests.db` (SQLite 3, created automatically)
 
-**Table**: `requests`
+**Table**: `requests` - stores all LLM requests, responses, costs, and errors
 
-| Column | Type | Description |
-|:-------|:-----|:------------|
-| id | INTEGER | Primary key (autoincrement) |
-| timestamp | TEXT | ISO 8601 timestamp (UTC) |
-| model | TEXT | Model name as requested by client |
-| provider | TEXT | Provider name (openai, anthropic, etc.) |
-| prompt_tokens | INTEGER | Input token count |
-| completion_tokens | INTEGER | Output token count |
-| total_tokens | INTEGER | Sum of prompt + completion |
-| cost | REAL | USD cost calculated by LiteLLM |
-| duration_ms | INTEGER | Request duration in milliseconds |
-| request_data | TEXT | Full request JSON (serialized) |
-| response_data | TEXT | Full response JSON (serialized) |
-| error | TEXT | Error message if request failed (NULL otherwise) |
-
-**Indexing**: No explicit indexes (table is write-heavy, read queries are infrequent and limited to LIMIT 50)
-
-**Storage**: All timestamps in UTC to avoid timezone issues
+For complete schema details, indexes, maintenance procedures, and troubleshooting, see [DATABASE.md](DATABASE.md).
 
 ### Web Dashboard
 
@@ -414,7 +397,7 @@ Full request and response JSON stored in database, including:
 - Model outputs
 - Metadata
 
-**Implication**: The `requests.db` file contains all conversation history. Protect with appropriate file permissions.
+**Implication**: The `requests.db` file contains all conversation history. Protect with appropriate file permissions. See [DATABASE.md](DATABASE.md#security-considerations) for details.
 
 ### Web Dashboard
 
