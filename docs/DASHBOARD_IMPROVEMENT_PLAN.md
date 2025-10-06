@@ -9,13 +9,14 @@
 - ✅ Phase 2: Calendar View UI (COMPLETE)
 - ✅ Phase 3.1: Provider Overview Section (COMPLETE)
 - ✅ Phase 4: Date Range Filtering UI (COMPLETE)
+- ✅ Phase 5.1-5.2: Request Filtering and Summary (COMPLETE)
 
 **In Progress:**
 - None
 
 **Not Started:**
 - Phase 3.2: Provider Comparison Over Time
-- Phase 5: Enhanced Requests Explorer
+- Phase 5.3: Enhanced Request Detail View
 - Phase 6: Visual Polish and Accessibility
 - Phase 7: Advanced Analytics
 
@@ -642,13 +643,15 @@ function formatDate(date) {
 
 ---
 
-## Phase 5: Enhanced Requests Explorer ❌ NOT STARTED
+## Phase 5: Enhanced Requests Explorer ⚠️ PARTIALLY COMPLETE
 
 **Goal:** Better exploration and analysis of individual requests
 
-### 5.1 Request Filtering and Search
+### 5.1 Request Filtering and Search ✅ COMPLETE
 
-Add search and filter controls above requests table:
+**Status:** DONE - Implemented in `templates/dashboard.html`
+
+Search and filter controls added above requests table:
 
 **Visual Design:**
 ```
@@ -711,9 +714,11 @@ function filterRequests(requests) {
 }
 ```
 
-### 5.2 Request Statistics Summary
+### 5.2 Request Statistics Summary ✅ COMPLETE
 
-Show aggregate stats for filtered requests:
+**Status:** DONE - Implemented in `templates/dashboard.html`
+
+Shows aggregate stats for filtered requests:
 
 ```html
 <div class="request-summary">
@@ -736,7 +741,7 @@ Show aggregate stats for filtered requests:
 </div>
 ```
 
-### 5.3 Enhanced Request Detail View
+### 5.3 Enhanced Request Detail View ❌ NOT STARTED
 
 Improve the expandable request detail:
 

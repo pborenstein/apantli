@@ -231,9 +231,12 @@ For complete schema details, indexes, maintenance procedures, and troubleshootin
 **Architecture**:
 
 - Single HTML page returned by `GET /`
-- Three tabs: Stats, Models, Requests
+- Four tabs: Stats, Calendar, Models, Requests
 - Auto-refresh every 5 seconds for Stats tab
-- On-demand loading for Models and Requests tabs
+- On-demand loading for Calendar, Models, and Requests tabs
+- Date range filtering with quick buttons and custom date pickers
+- Request filtering with search, provider/model selectors, and cost range
+- Summary statistics for filtered results
 
 **Key Functions**:
 
