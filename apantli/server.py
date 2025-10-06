@@ -599,6 +599,33 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
     }
 
 
+@app.get("/stats/date-range")
+async def stats_date_range():
+    """Get the actual date range of data in the database."""
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT MIN(DATE(timestamp)), MAX(DATE(timestamp))
+        FROM requests
+        WHERE error IS NULL
+    """)
+    row = cursor.fetchone()
+    conn.close()
+
+    if row and row[0] and row[1]:
+        return {
+            'start_date': row[0],
+            'end_date': row[1]
+        }
+    else:
+        # No data yet, return empty
+        return {
+            'start_date': None,
+            'end_date': None
+        }
+
+
 @app.get("/")
 async def dashboard(request: Request):
     """Simple HTML dashboard."""
