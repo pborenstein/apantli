@@ -318,23 +318,13 @@ See [docs/API.md](docs/API.md) for complete endpoint documentation.
 
 ## Database
 
-All requests are logged to `requests.db` (SQLite) with:
+All requests are logged to `requests.db` (SQLite) including:
 
-| Field | Description |
-|:------|:------------|
-| `timestamp` | ISO 8601 timestamp (UTC) |
-| `model` | Model name from request |
-| `provider` | Provider that handled the request |
-| `prompt_tokens` | Input token count |
-| `completion_tokens` | Output token count |
-| `total_tokens` | Sum of input + output |
-| `cost` | USD cost calculated by LiteLLM |
-| `duration_ms` | Request duration in milliseconds |
-| `request_data` | Full request JSON (serialized) |
-| `response_data` | Full response JSON (serialized) |
-| `error` | Error message if request failed |
+- Request metadata (timestamp, model, provider, tokens, cost, duration)
+- Full request and response JSON
+- Error messages for failed requests
 
-### Query Database Directly
+**Quick queries**:
 
 ```bash
 # View recent requests
@@ -342,13 +332,9 @@ sqlite3 requests.db "SELECT timestamp, model, cost FROM requests ORDER BY timest
 
 # Calculate total costs
 sqlite3 requests.db "SELECT SUM(cost) FROM requests"
-
-# Requests by model
-sqlite3 requests.db "SELECT model, COUNT(*), SUM(cost) FROM requests GROUP BY model"
-
-# Recent errors
-sqlite3 requests.db "SELECT timestamp, model, error FROM requests WHERE error IS NOT NULL"
 ```
+
+See [docs/DATABASE.md](docs/DATABASE.md) for complete schema, maintenance procedures, common queries, and troubleshooting.
 
 ## Troubleshooting
 
