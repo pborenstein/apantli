@@ -487,12 +487,13 @@ async def clear_errors():
 
 
 @app.get("/stats/daily")
-async def stats_daily(start_date: str = None, end_date: str = None):
+async def stats_daily(start_date: str = None, end_date: str = None, timezone_offset: int = None):
     """Get daily aggregated statistics with provider breakdown.
 
     Parameters:
     - start_date: ISO 8601 date (YYYY-MM-DD), defaults to 30 days ago
     - end_date: ISO 8601 date (YYYY-MM-DD), defaults to today
+    - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
     """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
@@ -506,19 +507,30 @@ async def stats_daily(start_date: str = None, end_date: str = None):
         start = datetime.utcnow() - timedelta(days=30)
         start_date = start.strftime('%Y-%m-%d')
 
+    # Build date expression with timezone conversion if offset provided
+    if timezone_offset is not None:
+        # Convert minutes to SQLite modifier format (+/-HH:MM)
+        hours = abs(timezone_offset) // 60
+        minutes = abs(timezone_offset) % 60
+        sign = '+' if timezone_offset >= 0 else '-'
+        tz_modifier = f"{sign}{hours:02d}:{minutes:02d}"
+        date_expr = f"DATE(timestamp, '{tz_modifier}')"
+    else:
+        date_expr = "DATE(timestamp)"
+
     # Get daily aggregates with provider breakdown
-    cursor.execute("""
+    cursor.execute(f"""
         SELECT
-            DATE(timestamp) as date,
+            {date_expr} as date,
             provider,
             COUNT(*) as requests,
             SUM(cost) as cost,
             SUM(total_tokens) as tokens
         FROM requests
         WHERE error IS NULL
-          AND DATE(timestamp) >= DATE(?)
-          AND DATE(timestamp) <= DATE(?)
-        GROUP BY DATE(timestamp), provider
+          AND {date_expr} >= DATE(?)
+          AND {date_expr} <= DATE(?)
+        GROUP BY {date_expr}, provider
         ORDER BY date DESC
     """, (start_date, end_date))
     rows = cursor.fetchall()

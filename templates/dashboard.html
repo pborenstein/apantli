@@ -437,7 +437,10 @@
             const startDate = formatDate(firstDay);
             const endDate = formatDate(lastDay);
 
-            const res = await fetch(`/stats/daily?start_date=${startDate}&end_date=${endDate}`);
+            // Get browser timezone offset in minutes from UTC (negative for west)
+            const timezoneOffset = -new Date().getTimezoneOffset();
+
+            const res = await fetch(`/stats/daily?start_date=${startDate}&end_date=${endDate}&timezone_offset=${timezoneOffset}`);
             const data = await res.json();
 
             calendarData = {};
