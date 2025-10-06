@@ -270,13 +270,22 @@ All requests will route through Apantli with full cost tracking and logging. Str
 
 Open http://localhost:4000/ in your browser.
 
-**Stats Tab**: View usage statistics with time-range filtering
+**Stats Tab**: View usage statistics with flexible date filtering
 
 - Total requests, costs, tokens
 - Breakdown by model and provider
+- Provider cost breakdown visualization
 - Recent errors with "Clear Errors" button
-- Time filters: All time, 1h, 4h, 6h, 12h, 24h, 7 days, 30 days
+- Date filters: All Time, Today, Yesterday, This Week, This Month, Last 30 Days
+- Custom date range picker for specific periods
 - All timestamps in local timezone
+
+**Calendar Tab**: Monthly view of daily spending patterns
+
+- Calendar grid showing daily costs with heatmap coloring
+- Request counts per day
+- Click any day to see provider breakdown
+- Navigate between months
 
 **Models Tab**: See configured models with pricing
 
@@ -284,11 +293,14 @@ Open http://localhost:4000/ in your browser.
 - Provider information
 - Input/output costs per million tokens
 
-**Requests Tab**: View recent request history
+**Requests Tab**: View and filter request history
 
-- Last 50 requests
+- Last 50 requests with date range filtering
+- Search filter (model names and content)
+- Filter by provider, model, and cost range
+- Summary statistics for filtered results (count, cost, tokens, avg)
 - Click rows to expand full request/response JSON
-- Token counts and costs per request
+- Sortable columns (time, model, tokens, cost, duration)
 
 ### API Endpoints
 
@@ -463,12 +475,12 @@ apantli/
 
 ## Future Enhancements
 
-- Streaming support for real-time responses
-- Request filtering and search in dashboard
 - Cost alerts and budgets
 - Data export (CSV, JSON)
 - Authentication for network exposure
 - Additional provider support
+- Provider cost trends over time
+- Enhanced request detail view with message extraction
 
 ## License
 
