@@ -9,6 +9,7 @@ import socket
 import sqlite3
 import json
 import argparse
+import logging
 from datetime import datetime
 from typing import Optional
 from contextlib import asynccontextmanager
@@ -670,6 +671,15 @@ def main():
     global DB_PATH
     DB_PATH = args.db
 
+    # Configure logging format with timestamps
+    log_config = uvicorn.config.LOGGING_CONFIG
+    # Update default formatter (for startup/info logs)
+    log_config["formatters"]["default"]["fmt"] = '%(asctime)s %(levelprefix)s %(message)s'
+    log_config["formatters"]["default"]["datefmt"] = '%Y-%m-%d %H:%M:%S'
+    # Update access formatter (for HTTP request logs)
+    log_config["formatters"]["access"]["fmt"] = '%(asctime)s %(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s'
+    log_config["formatters"]["access"]["datefmt"] = '%Y-%m-%d %H:%M:%S'
+
     # Print available URLs
     print(f"\n🚀 Apantli server starting...")
     if args.host == "0.0.0.0":
@@ -716,14 +726,16 @@ def main():
             "apantli.server:app",
             host=args.host,
             port=args.port,
-            reload=args.reload
+            reload=args.reload,
+            log_config=log_config
         )
     else:
         # Production mode can use app object directly
         uvicorn.run(
             app,
             host=args.host,
-            port=args.port
+            port=args.port,
+            log_config=log_config
         )
 
 
