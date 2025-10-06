@@ -2,6 +2,8 @@
 <html>
 <head>
     <title>LLM Proxy Stats</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/@alpinejs/persist@3.x.x/dist/cdn.min.js"></script>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <style>
         body { font-family: monospace; max-width: 1200px; margin: 40px auto; padding: 0 20px; }
         h1 { border-bottom: 2px solid #333; }
@@ -68,20 +70,24 @@
         .provider-details { font-size: 12px; color: #666; margin-top: 4px; }
     </style>
 </head>
-<body>
+<body x-data="{
+    currentTab: $persist('stats'),
+    statsTimeRange: $persist(''),
+    requestsTimeRange: $persist('')
+}" x-init="$watch('currentTab', value => onTabChange(value)); $watch('statsTimeRange', () => refresh()); $watch('requestsTimeRange', () => loadRequests())">
     <h1>LLM Proxy Statistics</h1>
 
     <nav>
-        <a href="#" class="active" onclick="showTab(event, 'stats')">Stats</a>
-        <a href="#" onclick="showTab(event, 'calendar')">Calendar</a>
-        <a href="#" onclick="showTab(event, 'models')">Models</a>
-        <a href="#" onclick="showTab(event, 'requests')">Requests</a>
+        <a href="#" :class="{ 'active': currentTab === 'stats' }" @click.prevent="currentTab = 'stats'">Stats</a>
+        <a href="#" :class="{ 'active': currentTab === 'calendar' }" @click.prevent="currentTab = 'calendar'">Calendar</a>
+        <a href="#" :class="{ 'active': currentTab === 'models' }" @click.prevent="currentTab = 'models'">Models</a>
+        <a href="#" :class="{ 'active': currentTab === 'requests' }" @click.prevent="currentTab = 'requests'">Requests</a>
     </nav>
 
-    <div id="stats-tab">
+    <div id="stats-tab" x-show="currentTab === 'stats'">
         <div style="margin: 20px 0;">
             Time range:
-            <select id="timeRange" onchange="refresh()">
+            <select id="timeRange" x-model="statsTimeRange">
                 <option value="">All time</option>
                 <option value="1">Last hour</option>
                 <option value="4">Last 4 hours</option>
@@ -105,7 +111,7 @@
         <table id="errors"></table>
     </div>
 
-    <div id="calendar-tab" style="display:none">
+    <div id="calendar-tab" x-show="currentTab === 'calendar'">
         <div class="calendar-header">
             <button id="prev-month" onclick="navigateMonth(-1)">←</button>
             <h2 id="current-month"></h2>
@@ -118,15 +124,15 @@
         </div>
     </div>
 
-    <div id="models-tab" style="display:none">
+    <div id="models-tab" x-show="currentTab === 'models'">
         <h2>Available Models</h2>
         <table id="models-list"></table>
     </div>
 
-    <div id="requests-tab" style="display:none">
+    <div id="requests-tab" x-show="currentTab === 'requests'">
         <div style="margin: 20px 0;">
             Time range:
-            <select id="requestsTimeRange" onchange="loadRequests()">
+            <select id="requestsTimeRange" x-model="requestsTimeRange">
                 <option value="">All time</option>
                 <option value="1">Last hour</option>
                 <option value="4">Last 4 hours</option>
@@ -145,16 +151,7 @@
     <script>
         let expandedRequests = new Set();
 
-        function showTab(e, tab) {
-            e.preventDefault();
-            document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
-            e.target.classList.add('active');
-
-            document.getElementById('stats-tab').style.display = tab === 'stats' ? 'block' : 'none';
-            document.getElementById('calendar-tab').style.display = tab === 'calendar' ? 'block' : 'none';
-            document.getElementById('models-tab').style.display = tab === 'models' ? 'block' : 'none';
-            document.getElementById('requests-tab').style.display = tab === 'requests' ? 'block' : 'none';
-
+        function onTabChange(tab) {
             if (tab === 'calendar') loadCalendar();
             if (tab === 'models') loadModels();
             if (tab === 'requests') loadRequests();
@@ -546,8 +543,15 @@
             document.getElementById('day-detail').style.display = 'block';
         }
 
+        // Initial load - refresh stats tab
         refresh();
         setInterval(refresh, 5000);
+
+        // Load initial tab data after Alpine initializes
+        document.addEventListener('alpine:initialized', () => {
+            const initialTab = localStorage.getItem('_x_currentTab')?.replace(/['"]/g, '') || 'stats';
+            onTabChange(initialTab);
+        });
     </script>
 </body>
 </html>
