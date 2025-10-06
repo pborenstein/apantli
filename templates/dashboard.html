@@ -71,9 +71,7 @@
 
         /* Date filter styles */
         .date-filter { background: #f9f9f9; padding: 15px; border-radius: 6px; margin: 20px 0; }
-        .filter-section { margin: 12px 0; }
-        .filter-label { font-size: 12px; color: #666; margin-bottom: 6px; display: block; }
-        .filter-buttons { display: flex; gap: 6px; flex-wrap: wrap; }
+        .filter-buttons { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
         .filter-btn {
             padding: 6px 12px;
             border: 1px solid #ddd;
@@ -100,33 +98,30 @@
 <body x-data="{
     currentTab: $persist('stats'),
     statsFilter: $persist({
-        mode: 'all',  // 'all' | 'quick' | 'hours' | 'custom'
+        mode: 'all',  // 'all' | 'quick' | 'custom'
         quick: 'today',
-        hours: '',
         startDate: '',
         endDate: ''
     }),
     requestsFilter: $persist({
         mode: 'all',
         quick: 'today',
-        hours: '',
         startDate: '',
         endDate: ''
     }),
 
     // Helper to build query string from filter
     buildQuery(filter) {
-        if (filter.mode === 'hours' && filter.hours) {
-            return `?hours=${filter.hours}`;
-        }
+        const timezoneOffset = -new Date().getTimezoneOffset();
+        let query = `?timezone_offset=${timezoneOffset}`;
+
         if (filter.mode === 'custom' && filter.startDate && filter.endDate) {
-            return `?start_date=${filter.startDate}&end_date=${filter.endDate}`;
-        }
-        if (filter.mode === 'quick') {
+            query += `&start_date=${filter.startDate}&end_date=${filter.endDate}`;
+        } else if (filter.mode === 'quick') {
             const dates = this.getQuickDates(filter.quick);
-            return `?start_date=${dates.start}&end_date=${dates.end}`;
+            query += `&start_date=${dates.start}&end_date=${dates.end}`;
         }
-        return ''; // all time
+        return query;
     },
 
     // Convert quick filter to dates
@@ -174,37 +169,20 @@
 
     <div id="stats-tab" x-show="currentTab === 'stats'">
         <div class="date-filter">
-            <div class="filter-section">
-                <span class="filter-label">Quick Filters</span>
-                <div class="filter-buttons">
-                    <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'all' }" @click="statsFilter.mode = 'all'">All Time</button>
-                    <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'today' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'today'">Today</button>
-                    <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'yesterday' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'yesterday'">Yesterday</button>
-                    <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'this-week' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'this-week'">This Week</button>
-                    <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'this-month' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'this-month'">This Month</button>
-                    <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'last-30-days' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'last-30-days'">Last 30 Days</button>
-                </div>
+            <div class="filter-buttons">
+                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'all' }" @click="statsFilter.mode = 'all'">All Time</button>
+                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'today' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'today'">Today</button>
+                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'yesterday' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'yesterday'">Yesterday</button>
+                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'this-week' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'this-week'">This Week</button>
+                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'this-month' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'this-month'">This Month</button>
+                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'last-30-days' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'last-30-days'">Last 30 Days</button>
             </div>
 
-            <div class="filter-section">
-                <span class="filter-label">Or by hours</span>
-                <select class="filter-btn" style="width: auto;" x-model="statsFilter.hours" @change="statsFilter.mode = statsFilter.hours ? 'hours' : 'all'">
-                    <option value="">-</option>
-                    <option value="1">Last hour</option>
-                    <option value="4">Last 4 hours</option>
-                    <option value="6">Last 6 hours</option>
-                    <option value="12">Last 12 hours</option>
-                    <option value="24">Last 24 hours</option>
-                </select>
-            </div>
-
-            <div class="filter-section">
-                <span class="filter-label">Or custom range</span>
-                <div class="filter-custom">
-                    <input type="date" x-model="statsFilter.startDate" @change="if (statsFilter.startDate && statsFilter.endDate) statsFilter.mode = 'custom'">
-                    <span>to</span>
-                    <input type="date" x-model="statsFilter.endDate" @change="if (statsFilter.startDate && statsFilter.endDate) statsFilter.mode = 'custom'">
-                </div>
+            <div class="filter-custom">
+                <span>Custom:</span>
+                <input type="date" x-model="statsFilter.startDate" @change="if (statsFilter.startDate && statsFilter.endDate) statsFilter.mode = 'custom'">
+                <span>to</span>
+                <input type="date" x-model="statsFilter.endDate" @change="if (statsFilter.startDate && statsFilter.endDate) statsFilter.mode = 'custom'">
             </div>
         </div>
 
@@ -240,37 +218,20 @@
 
     <div id="requests-tab" x-show="currentTab === 'requests'">
         <div class="date-filter">
-            <div class="filter-section">
-                <span class="filter-label">Quick Filters</span>
-                <div class="filter-buttons">
-                    <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'all' }" @click="requestsFilter.mode = 'all'">All Time</button>
-                    <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'today' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'today'">Today</button>
-                    <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'yesterday' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'yesterday'">Yesterday</button>
-                    <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'this-week' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'this-week'">This Week</button>
-                    <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'this-month' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'this-month'">This Month</button>
-                    <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'last-30-days' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'last-30-days'">Last 30 Days</button>
-                </div>
+            <div class="filter-buttons">
+                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'all' }" @click="requestsFilter.mode = 'all'">All Time</button>
+                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'today' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'today'">Today</button>
+                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'yesterday' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'yesterday'">Yesterday</button>
+                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'this-week' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'this-week'">This Week</button>
+                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'this-month' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'this-month'">This Month</button>
+                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'last-30-days' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'last-30-days'">Last 30 Days</button>
             </div>
 
-            <div class="filter-section">
-                <span class="filter-label">Or by hours</span>
-                <select class="filter-btn" style="width: auto;" x-model="requestsFilter.hours" @change="requestsFilter.mode = requestsFilter.hours ? 'hours' : 'all'">
-                    <option value="">-</option>
-                    <option value="1">Last hour</option>
-                    <option value="4">Last 4 hours</option>
-                    <option value="6">Last 6 hours</option>
-                    <option value="12">Last 12 hours</option>
-                    <option value="24">Last 24 hours</option>
-                </select>
-            </div>
-
-            <div class="filter-section">
-                <span class="filter-label">Or custom range</span>
-                <div class="filter-custom">
-                    <input type="date" x-model="requestsFilter.startDate" @change="if (requestsFilter.startDate && requestsFilter.endDate) requestsFilter.mode = 'custom'">
-                    <span>to</span>
-                    <input type="date" x-model="requestsFilter.endDate" @change="if (requestsFilter.startDate && requestsFilter.endDate) requestsFilter.mode = 'custom'">
-                </div>
+            <div class="filter-custom">
+                <span>Custom:</span>
+                <input type="date" x-model="requestsFilter.startDate" @change="if (requestsFilter.startDate && requestsFilter.endDate) requestsFilter.mode = 'custom'">
+                <span>to</span>
+                <input type="date" x-model="requestsFilter.endDate" @change="if (requestsFilter.startDate && requestsFilter.endDate) requestsFilter.mode = 'custom'">
             </div>
         </div>
 

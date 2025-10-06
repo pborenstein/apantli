@@ -323,27 +323,38 @@ async def models():
 
 
 @app.get("/requests")
-async def requests(hours: int = None, start_date: str = None, end_date: str = None):
+async def requests(hours: int = None, start_date: str = None, end_date: str = None, timezone_offset: int = None):
     """Get recent requests with full details, optionally filtered by time range.
 
     Parameters:
-    - hours: Filter to last N hours (backward compatible)
+    - hours: Filter to last N hours
     - start_date: ISO 8601 date (YYYY-MM-DD)
     - end_date: ISO 8601 date (YYYY-MM-DD)
+    - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
     """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+
+    # Build date expression with timezone conversion if offset provided
+    if timezone_offset is not None:
+        hours_offset = abs(timezone_offset) // 60
+        minutes_offset = abs(timezone_offset) % 60
+        sign = '+' if timezone_offset >= 0 else '-'
+        tz_modifier = f"{sign}{hours_offset:02d}:{minutes_offset:02d}"
+        date_expr = f"DATE(timestamp, '{tz_modifier}')"
+    else:
+        date_expr = "DATE(timestamp)"
 
     # Build time filter
     time_filter = ""
     if hours:
         time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
     elif start_date and end_date:
-        time_filter = f"AND DATE(timestamp) >= DATE('{start_date}') AND DATE(timestamp) <= DATE('{end_date}')"
+        time_filter = f"AND {date_expr} >= DATE('{start_date}') AND {date_expr} <= DATE('{end_date}')"
     elif start_date:
-        time_filter = f"AND DATE(timestamp) >= DATE('{start_date}')"
+        time_filter = f"AND {date_expr} >= DATE('{start_date}')"
     elif end_date:
-        time_filter = f"AND DATE(timestamp) <= DATE('{end_date}')"
+        time_filter = f"AND {date_expr} <= DATE('{end_date}')"
 
     cursor.execute(f"""
         SELECT timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
@@ -376,27 +387,38 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
 
 
 @app.get("/stats")
-async def stats(hours: int = None, start_date: str = None, end_date: str = None):
+async def stats(hours: int = None, start_date: str = None, end_date: str = None, timezone_offset: int = None):
     """Get usage statistics, optionally filtered by time range.
 
     Parameters:
-    - hours: Filter to last N hours (backward compatible)
+    - hours: Filter to last N hours
     - start_date: ISO 8601 date (YYYY-MM-DD)
     - end_date: ISO 8601 date (YYYY-MM-DD)
+    - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
     """
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+
+    # Build date expression with timezone conversion if offset provided
+    if timezone_offset is not None:
+        hours_offset = abs(timezone_offset) // 60
+        minutes_offset = abs(timezone_offset) % 60
+        sign = '+' if timezone_offset >= 0 else '-'
+        tz_modifier = f"{sign}{hours_offset:02d}:{minutes_offset:02d}"
+        date_expr = f"DATE(timestamp, '{tz_modifier}')"
+    else:
+        date_expr = "DATE(timestamp)"
 
     # Build time filter
     time_filter = ""
     if hours:
         time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
     elif start_date and end_date:
-        time_filter = f"AND DATE(timestamp) >= DATE('{start_date}') AND DATE(timestamp) <= DATE('{end_date}')"
+        time_filter = f"AND {date_expr} >= DATE('{start_date}') AND {date_expr} <= DATE('{end_date}')"
     elif start_date:
-        time_filter = f"AND DATE(timestamp) >= DATE('{start_date}')"
+        time_filter = f"AND {date_expr} >= DATE('{start_date}')"
     elif end_date:
-        time_filter = f"AND DATE(timestamp) <= DATE('{end_date}')"
+        time_filter = f"AND {date_expr} <= DATE('{end_date}')"
 
     # Total stats
     cursor.execute(f"""
