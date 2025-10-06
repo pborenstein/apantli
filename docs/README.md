@@ -8,6 +8,7 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 |:---------|:------------|:---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | System design, components, and data flow | Developers |
 | [CONFIGURATION.md](CONFIGURATION.md) | Model configuration and environment setup | Users & Developers |
+| [DATABASE.md](DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [API.md](API.md) | HTTP endpoint reference | Developers & Integration users |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 
@@ -18,6 +19,8 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 **Developers**: Read [ARCHITECTURE.md](ARCHITECTURE.md) to understand the system design, then review [API.md](API.md) for endpoint details.
 
 **Configuration**: See [CONFIGURATION.md](CONFIGURATION.md) for detailed model setup and advanced configuration options.
+
+**Database**: See [DATABASE.md](DATABASE.md) for schema details, maintenance procedures, and custom queries.
 
 **Issues**: Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for solutions to common problems.
 
