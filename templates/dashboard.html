@@ -98,58 +98,73 @@
 <body x-data="{
     currentTab: $persist('stats'),
     statsFilter: $persist({
-        mode: 'all',  // 'all' | 'quick' | 'custom'
-        quick: 'today',
         startDate: '',
         endDate: ''
     }),
     requestsFilter: $persist({
-        mode: 'all',
-        quick: 'today',
         startDate: '',
         endDate: ''
     }),
 
-    // Helper to build query string from filter
+    formatDate(date) {
+        return date.toISOString().split('T')[0];
+    },
+
+    // Set filter to quick range
+    setQuickFilter(filter, range) {
+        const today = new Date();
+
+        switch(range) {
+            case 'all':
+                filter.startDate = '';
+                filter.endDate = '';
+                break;
+            case 'today':
+                filter.startDate = filter.endDate = this.formatDate(today);
+                break;
+            case 'yesterday':
+                const yesterday = new Date(today);
+                yesterday.setDate(yesterday.getDate() - 1);
+                filter.startDate = filter.endDate = this.formatDate(yesterday);
+                break;
+            case 'this-week':
+                const weekStart = new Date(today);
+                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                filter.startDate = this.formatDate(weekStart);
+                filter.endDate = this.formatDate(today);
+                break;
+            case 'this-month':
+                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                filter.startDate = this.formatDate(monthStart);
+                filter.endDate = this.formatDate(today);
+                break;
+            case 'last-30-days':
+                const thirtyDaysAgo = new Date(today);
+                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+                filter.startDate = this.formatDate(thirtyDaysAgo);
+                filter.endDate = this.formatDate(today);
+                break;
+        }
+    },
+
+    // Check if filter matches a quick range
+    isQuickActive(filter, range) {
+        if (range === 'all') return !filter.startDate && !filter.endDate;
+
+        const temp = { startDate: '', endDate: '' };
+        this.setQuickFilter(temp, range);
+        return filter.startDate === temp.startDate && filter.endDate === temp.endDate;
+    },
+
+    // Build query string from filter
     buildQuery(filter) {
         const timezoneOffset = -new Date().getTimezoneOffset();
         let query = `?timezone_offset=${timezoneOffset}`;
 
-        if (filter.mode === 'custom' && filter.startDate && filter.endDate) {
+        if (filter.startDate && filter.endDate) {
             query += `&start_date=${filter.startDate}&end_date=${filter.endDate}`;
-        } else if (filter.mode === 'quick') {
-            const dates = this.getQuickDates(filter.quick);
-            query += `&start_date=${dates.start}&end_date=${dates.end}`;
         }
         return query;
-    },
-
-    // Convert quick filter to dates
-    getQuickDates(quick) {
-        const today = new Date();
-        const formatDate = (d) => d.toISOString().split('T')[0];
-
-        switch(quick) {
-            case 'today':
-                return { start: formatDate(today), end: formatDate(today) };
-            case 'yesterday':
-                const yesterday = new Date(today);
-                yesterday.setDate(yesterday.getDate() - 1);
-                return { start: formatDate(yesterday), end: formatDate(yesterday) };
-            case 'this-week':
-                const weekStart = new Date(today);
-                weekStart.setDate(weekStart.getDate() - weekStart.getDay());
-                return { start: formatDate(weekStart), end: formatDate(today) };
-            case 'this-month':
-                const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-                return { start: formatDate(monthStart), end: formatDate(today) };
-            case 'last-30-days':
-                const thirtyDaysAgo = new Date(today);
-                thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-                return { start: formatDate(thirtyDaysAgo), end: formatDate(today) };
-            default:
-                return { start: formatDate(today), end: formatDate(today) };
-        }
     }
 }" x-init="
     $watch('currentTab', value => onTabChange(value));
@@ -170,19 +185,18 @@
     <div id="stats-tab" x-show="currentTab === 'stats'">
         <div class="date-filter">
             <div class="filter-buttons">
-                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'all' }" @click="statsFilter.mode = 'all'">All Time</button>
-                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'today' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'today'">Today</button>
-                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'yesterday' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'yesterday'">Yesterday</button>
-                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'this-week' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'this-week'">This Week</button>
-                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'this-month' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'this-month'">This Month</button>
-                <button class="filter-btn" :class="{ 'active': statsFilter.mode === 'quick' && statsFilter.quick === 'last-30-days' }" @click="statsFilter.mode = 'quick'; statsFilter.quick = 'last-30-days'">Last 30 Days</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'all') }" @click="setQuickFilter(statsFilter, 'all')">All Time</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'today') }" @click="setQuickFilter(statsFilter, 'today')">Today</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'yesterday') }" @click="setQuickFilter(statsFilter, 'yesterday')">Yesterday</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'this-week') }" @click="setQuickFilter(statsFilter, 'this-week')">This Week</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'this-month') }" @click="setQuickFilter(statsFilter, 'this-month')">This Month</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'last-30-days') }" @click="setQuickFilter(statsFilter, 'last-30-days')">Last 30 Days</button>
             </div>
 
             <div class="filter-custom">
-                <span>Custom:</span>
-                <input type="date" x-model="statsFilter.startDate" @change="if (statsFilter.startDate && statsFilter.endDate) statsFilter.mode = 'custom'">
+                <input type="date" x-model="statsFilter.startDate">
                 <span>to</span>
-                <input type="date" x-model="statsFilter.endDate" @change="if (statsFilter.startDate && statsFilter.endDate) statsFilter.mode = 'custom'">
+                <input type="date" x-model="statsFilter.endDate">
             </div>
         </div>
 
@@ -219,19 +233,18 @@
     <div id="requests-tab" x-show="currentTab === 'requests'">
         <div class="date-filter">
             <div class="filter-buttons">
-                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'all' }" @click="requestsFilter.mode = 'all'">All Time</button>
-                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'today' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'today'">Today</button>
-                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'yesterday' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'yesterday'">Yesterday</button>
-                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'this-week' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'this-week'">This Week</button>
-                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'this-month' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'this-month'">This Month</button>
-                <button class="filter-btn" :class="{ 'active': requestsFilter.mode === 'quick' && requestsFilter.quick === 'last-30-days' }" @click="requestsFilter.mode = 'quick'; requestsFilter.quick = 'last-30-days'">Last 30 Days</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'all') }" @click="setQuickFilter(requestsFilter, 'all')">All Time</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'today') }" @click="setQuickFilter(requestsFilter, 'today')">Today</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'yesterday') }" @click="setQuickFilter(requestsFilter, 'yesterday')">Yesterday</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'this-week') }" @click="setQuickFilter(requestsFilter, 'this-week')">This Week</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'this-month') }" @click="setQuickFilter(requestsFilter, 'this-month')">This Month</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'last-30-days') }" @click="setQuickFilter(requestsFilter, 'last-30-days')">Last 30 Days</button>
             </div>
 
             <div class="filter-custom">
-                <span>Custom:</span>
-                <input type="date" x-model="requestsFilter.startDate" @change="if (requestsFilter.startDate && requestsFilter.endDate) requestsFilter.mode = 'custom'">
+                <input type="date" x-model="requestsFilter.startDate">
                 <span>to</span>
-                <input type="date" x-model="requestsFilter.endDate" @change="if (requestsFilter.startDate && requestsFilter.endDate) requestsFilter.mode = 'custom'">
+                <input type="date" x-model="requestsFilter.endDate">
             </div>
         </div>
 
