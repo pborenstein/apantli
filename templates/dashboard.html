@@ -133,13 +133,16 @@
             case 'this-week':
                 const weekStart = new Date(today);
                 weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+                const weekEnd = new Date(weekStart);
+                weekEnd.setDate(weekStart.getDate() + 6);
                 filter.startDate = this.formatDate(weekStart);
-                filter.endDate = this.formatDate(today);
+                filter.endDate = this.formatDate(weekEnd);
                 break;
             case 'this-month':
                 const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+                const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
                 filter.startDate = this.formatDate(monthStart);
-                filter.endDate = this.formatDate(today);
+                filter.endDate = this.formatDate(monthEnd);
                 break;
             case 'last-30-days':
                 const thirtyDaysAgo = new Date(today);
