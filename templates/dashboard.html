@@ -105,6 +105,7 @@
         startDate: '',
         endDate: ''
     }),
+    dbDateRange: { startDate: null, endDate: null },
 
     formatDate(date) {
         const year = date.getFullYear();
@@ -114,13 +115,28 @@
     },
 
     // Set filter to quick range
-    setQuickFilter(filter, range) {
+    async setQuickFilter(filter, range) {
         const today = new Date();
 
         switch(range) {
             case 'all':
-                filter.startDate = '';
-                filter.endDate = '';
+                // Fetch actual date range from database
+                try {
+                    const res = await fetch('/stats/date-range');
+                    const data = await res.json();
+                    if (data.start_date && data.end_date) {
+                        this.dbDateRange.startDate = data.start_date;
+                        this.dbDateRange.endDate = data.end_date;
+                        filter.startDate = data.start_date;
+                        filter.endDate = data.end_date;
+                    } else {
+                        filter.startDate = '';
+                        filter.endDate = '';
+                    }
+                } catch (e) {
+                    filter.startDate = '';
+                    filter.endDate = '';
+                }
                 break;
             case 'today':
                 filter.startDate = filter.endDate = this.formatDate(today);
@@ -155,7 +171,13 @@
 
     // Check if filter matches a quick range
     isQuickActive(filter, range) {
-        if (range === 'all') return !filter.startDate && !filter.endDate;
+        if (range === 'all') {
+            // Check if it matches the database range or is empty
+            return (!filter.startDate && !filter.endDate) ||
+                   (this.dbDateRange.startDate &&
+                    filter.startDate === this.dbDateRange.startDate &&
+                    filter.endDate === this.dbDateRange.endDate);
+        }
 
         const temp = { startDate: '', endDate: '' };
         this.setQuickFilter(temp, range);
@@ -207,6 +229,9 @@
         </div>
 
         <div id="totals"></div>
+
+        <h2>Provider Cost Breakdown</h2>
+        <div id="provider-breakdown"></div>
 
         <h2>By Model</h2>
         <table id="by-model"></table>
@@ -473,6 +498,43 @@
                     <div class="metric-label">AVG DURATION</div>
                 </div>
             `;
+
+            // Provider breakdown visualization
+            const totalCost = data.totals.cost;
+            const providerColors = {
+                'openai': '#10a37f',
+                'anthropic': '#d97757',
+                'google': '#4285f4'
+            };
+
+            let providerHtml = '';
+            if (data.by_provider.length > 0 && totalCost > 0) {
+                providerHtml = data.by_provider.map(p => {
+                    const percentage = (p.cost / totalCost * 100);
+                    const color = providerColors[p.provider] || '#999999';
+
+                    return `
+                        <div class="provider-bar">
+                            <div class="provider-header">
+                                <span class="provider-name">${p.provider}</span>
+                                <span class="provider-percentage">${percentage.toFixed(0)}%</span>
+                            </div>
+                            <div class="bar-container">
+                                <div class="bar-fill" style="width: ${percentage}%; background: ${color}"></div>
+                            </div>
+                            <div class="provider-details">
+                                $${p.cost.toFixed(4)} across ${p.requests} requests ($${(p.cost / p.requests).toFixed(4)} per request)
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+
+                providerHtml += `<div style="margin-top: 20px; font-weight: bold;">Total: $${totalCost.toFixed(4)} (${data.totals.requests} requests)</div>`;
+            } else {
+                providerHtml = '<div style="color: #666;">No data available</div>';
+            }
+
+            document.getElementById('provider-breakdown').innerHTML = providerHtml;
 
             // By model
             document.getElementById('by-model').innerHTML = `

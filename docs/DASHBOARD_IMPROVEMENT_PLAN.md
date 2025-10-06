@@ -1,52 +1,80 @@
 # Apantli Dashboard Improvement Plan
 
+## Implementation Status
+
+**Last Updated:** 2025-10-06
+
+**Completed Phases:**
+- ✅ Phase 1: Backend - Date Range API Enhancements (COMPLETE)
+- ✅ Phase 2: Calendar View UI (COMPLETE)
+- ✅ Phase 3.1: Provider Overview Section (COMPLETE)
+- ✅ Phase 4: Date Range Filtering UI (COMPLETE)
+
+**In Progress:**
+- None
+
+**Not Started:**
+- Phase 3.2: Provider Comparison Over Time
+- Phase 5: Enhanced Requests Explorer
+- Phase 6: Visual Polish and Accessibility
+- Phase 7: Advanced Analytics
+
+---
+
 ## Executive Summary
 
 This plan outlines incremental improvements to the Apantli dashboard to add date filtering, calendar views, provider breakdown, and enhanced analytics while maintaining the lightweight, embedded architecture.
 
-**Current State:**
+**Current State (as of 2025-10-06):**
 - Dashboard HTML served via Jinja2 template (`templates/dashboard.html`)
 - Decoupled from server code for easier development with `--reload`
-- Vanilla JavaScript, three tabs (Stats, Models, Requests)
-- Simple time-based filtering (hours dropdown)
-- Basic tables and metrics
-- Auto-refresh every 5 seconds
+- Vanilla JavaScript with Alpine.js, four tabs (Stats, Calendar, Models, Requests)
+- Flexible date range filtering with quick buttons and custom date pickers
+- Calendar view with daily cost heatmap
+- Provider cost breakdown visualization on Stats tab
+- All data persisted in localStorage via Alpine.js $persist
+- Auto-refresh every 5 seconds on Stats tab
 
 **Target State:**
-- Calendar view with daily cost visualization
-- Flexible date range filtering (single day, week, month, custom range)
-- Provider cost breakdown and comparison
-- Enhanced request exploration by date
-- Lightweight charting without heavy frameworks
-- Improved visual design and information hierarchy
+- ✅ Calendar view with daily cost visualization (DONE)
+- ✅ Flexible date range filtering (single day, week, month, custom range) (DONE)
+- ✅ Provider cost breakdown and comparison (PARTIALLY DONE - bars complete, trends not started)
+- ⏳ Enhanced request exploration by date (NOT STARTED)
+- ⏳ Lightweight charting without heavy frameworks (NOT STARTED - for provider trends)
+- ⏳ Improved visual design and information hierarchy (NOT STARTED)
 
 ---
 
-## Phase 1: Backend - Date Range API Enhancements
+## Phase 1: Backend - Date Range API Enhancements ✅ COMPLETE
 
 **Goal:** Add flexible date filtering to all API endpoints
 
-### 1.1 New Query Parameters
+### 1.1 New Query Parameters ✅ COMPLETE
 
-Modify existing endpoints to accept date range parameters:
+**Status:** DONE - Implemented in `apantli/server.py`
+
+Modified endpoints to accept date range parameters:
 
 **Parameters:**
-- `start_date` (ISO 8601 date: YYYY-MM-DD)
-- `end_date` (ISO 8601 date: YYYY-MM-DD)
-- `date` (single day shorthand)
-- Keep existing `hours` parameter for backward compatibility
+- `start_date` (ISO 8601 date: YYYY-MM-DD) ✅
+- `end_date` (ISO 8601 date: YYYY-MM-DD) ✅
+- `timezone_offset` (minutes from UTC) ✅
+- Keep existing `hours` parameter for backward compatibility ✅
 
-**Endpoints to modify:**
-- `/stats` - Add date range filtering
-- `/requests` - Add date range filtering
+**Endpoints modified:**
+- `/stats` - Added date range filtering (server.py:390) ✅
+- `/requests` - Added date range filtering (server.py:326) ✅
 
-### 1.2 New Endpoint: Daily Summary
+### 1.2 New Endpoint: Daily Summary ✅ COMPLETE
+
+**Status:** DONE - Implemented in `apantli/server.py:511-599`
 
 **Endpoint:** `GET /stats/daily`
 
 **Parameters:**
-- `start_date` (optional, defaults to 30 days ago)
-- `end_date` (optional, defaults to today)
+- `start_date` (optional, defaults to 30 days ago) ✅
+- `end_date` (optional, defaults to today) ✅
+- `timezone_offset` (minutes from UTC) ✅
 
 **Response:**
 ```json
@@ -87,51 +115,59 @@ GROUP BY DATE(timestamp), provider
 ORDER BY date DESC
 ```
 
-### 1.3 Database Index Optimization
+### 1.3 Database Index Optimization ✅ COMPLETE
 
-Add index on timestamp for faster date queries:
+**Status:** DONE - Implemented in `apantli/server.py:81-94`
+
+Added indexes for faster date queries:
 
 ```sql
 CREATE INDEX IF NOT EXISTS idx_timestamp ON requests(timestamp);
-CREATE INDEX IF NOT EXISTS idx_date_provider ON requests(DATE(timestamp), provider);
+CREATE INDEX IF NOT EXISTS idx_date_provider ON requests(DATE(timestamp), provider) WHERE error IS NULL;
+CREATE INDEX IF NOT EXISTS idx_cost ON requests(cost) WHERE error IS NULL;
 ```
 
 **Implementation Details:**
-- Add index creation to `init_db()` function
-- Backward compatible (IF NOT EXISTS)
-- Significant performance improvement for date-based queries
+- Added index creation to `init_db()` function ✅
+- Backward compatible (IF NOT EXISTS) ✅
+- Significant performance improvement for date-based queries ✅
 
-### 1.4 Timezone Handling
+### 1.4 Timezone Handling ✅ COMPLETE
 
-**Current:** Timestamps stored in UTC (ISO 8601)
+**Status:** DONE - Implemented via `timezone_offset` parameter (minutes from UTC)
 
-**Enhancement:** Add timezone conversion in responses
+**Implementation:**
+- All endpoints with date filtering accept `timezone_offset` parameter ✅
+- Frontend passes browser timezone offset automatically via `new Date().getTimezoneOffset()` ✅
+- SQLite DATE() function adjusted with timezone modifier (e.g., '+08:00') ✅
+- Simpler than pytz approach - uses SQLite's built-in datetime functions ✅
 
-- Add query parameter `?timezone=America/New_York` (optional)
-- Convert UTC timestamps to local timezone in responses
-- Frontend can pass browser timezone via `Intl.DateTimeFormat().resolvedOptions().timeZone`
-- Default to UTC if not specified
+### 1.5 New Endpoint: Date Range Discovery ✅ COMPLETE
 
-**Python implementation:**
-```python
-from datetime import timezone
-import pytz
+**Status:** DONE - Implemented in `apantli/server.py:602-626`
 
-def convert_to_timezone(utc_timestamp: str, tz_name: str = None):
-    if not tz_name:
-        return utc_timestamp
-    dt = datetime.fromisoformat(utc_timestamp.replace('Z', '+00:00'))
-    tz = pytz.timezone(tz_name)
-    return dt.astimezone(tz).isoformat()
+**Endpoint:** `GET /stats/date-range`
+
+Returns the actual date range of data in the database:
+
+```json
+{
+  "start_date": "2025-10-04",
+  "end_date": "2025-10-06"
+}
 ```
+
+**Use case:** Populating date pickers when "All Time" is selected, showing users the actual span of their data.
 
 ---
 
-## Phase 2: Calendar View UI
+## Phase 2: Calendar View UI ✅ COMPLETE
 
 **Goal:** Visual calendar showing daily spending patterns
 
-### 2.1 Calendar Component Design
+### 2.1 Calendar Component Design ✅ COMPLETE
+
+**Status:** DONE - Implemented in `templates/dashboard.html`
 
 **Visual Design:**
 - Month grid layout (7 columns, 5-6 rows)
@@ -252,49 +288,25 @@ Selected: October 4, 2025
 }
 ```
 
-### 2.3 JavaScript Implementation
+### 2.2-2.4 Implementation ✅ COMPLETE
 
-**Key Functions:**
-```javascript
-// State
-let currentMonth = new Date()
-let selectedDate = null
+**Status:** DONE - All calendar functionality implemented
 
-// Fetch daily data from API
-async function loadCalendarData(year, month) {
-  const startDate = new Date(year, month, 1).toISOString().split('T')[0]
-  const endDate = new Date(year, month + 1, 0).toISOString().split('T')[0]
-  const res = await fetch(`/stats/daily?start_date=${startDate}&end_date=${endDate}`)
-  return await res.json()
-}
+**Key Features Implemented:**
+- Calendar tab added to navigation (dashboard.html:186) ✅
+- Month navigation with previous/next buttons (dashboard.html:223-225) ✅
+- Calendar grid with CSS Grid layout (dashboard.html:42-63) ✅
+- Heatmap coloring based on daily cost (dashboard.html:531-536) ✅
+- Day click handler with provider breakdown detail view (dashboard.html:617-662) ✅
+- Timezone-aware date fetching ✅
+- Visual feedback for today's date ✅
+- Empty day cells for padding ✅
 
-// Generate calendar grid
-function renderCalendar(data) {
-  // Calculate max cost for color scaling
-  // Build grid with day cells
-  // Apply heatmap colors
-  // Add click handlers
-}
-
-// Color calculation
-function getCostColor(cost, maxCost) {
-  if (cost === 0) return '#f0f0f0'
-  const ratio = cost / maxCost
-  // Interpolate color based on ratio
-  return `hsl(210, 100%, ${100 - ratio * 50}%)`
-}
-
-// Day click handler
-function onDayClick(date) {
-  selectedDate = date
-  // Load detailed breakdown for that day
-  loadDayDetail(date)
-}
-```
-
-### 2.4 New Dashboard Tab
-
-Add "Calendar" tab between "Stats" and "Models":
+**Implementation Notes:**
+- Uses vanilla JavaScript (no frameworks) ✅
+- Fetches data from `/stats/daily` endpoint ✅
+- Color scale: HSL interpolation from light to dark blue ✅
+- Provider breakdown uses same bar visualization as Stats tab ✅
 
 ```html
 <nav>
@@ -316,87 +328,35 @@ Add "Calendar" tab between "Stats" and "Models":
 
 **Goal:** Visual comparison of provider costs and usage patterns
 
-### 3.1 Provider Overview Section
+### 3.1 Provider Overview Section ✅ COMPLETE
 
-Add to Stats tab, above existing tables:
+**Status:** DONE - Implemented in `templates/dashboard.html`
 
-**Visual Design:**
-```
-┌────────────────────────────────────────────┐
-│ Provider Cost Breakdown                    │
-├────────────────────────────────────────────┤
-│                                            │
-│ OpenAI      ████████████████░░░░  72%     │
-│             $5.23 across 150 requests      │
-│                                            │
-│ Anthropic   ███████░░░░░░░░░░░░░  28%     │
-│             $2.01 across 45 requests       │
-│                                            │
-│ Total:      $7.24 (195 requests)           │
-└────────────────────────────────────────────┘
-```
+**Implementation Details:**
+- Added "Provider Cost Breakdown" section to Stats tab (dashboard.html:211-212) ✅
+- Positioned between totals metrics and By Model table ✅
+- Visual bar chart with percentage bars (dashboard.html:480-515) ✅
+- Provider-specific brand colors implemented (dashboard.html:482-486) ✅
+- Shows total cost, request count, and average per request (dashboard.html:504) ✅
+- Updates automatically with date filter changes ✅
+- Includes total summary line ✅
 
-**Implementation:**
-```html
-<div id="provider-overview">
-  <h2>Provider Breakdown</h2>
-  <div class="provider-bars">
-    <!-- Generated for each provider -->
-    <div class="provider-bar">
-      <div class="provider-header">
-        <span class="provider-name">OpenAI</span>
-        <span class="provider-percentage">72%</span>
-      </div>
-      <div class="bar-container">
-        <div class="bar-fill" style="width: 72%; background: #10a37f"></div>
-      </div>
-      <div class="provider-details">
-        $5.23 across 150 requests
-      </div>
-    </div>
-  </div>
-</div>
-```
+**Provider Colors Used:**
+- OpenAI: #10a37f (brand teal) ✅
+- Anthropic: #d97757 (brand orange) ✅
+- Google: #4285f4 (brand blue) ✅
+- Default: #999999 (gray) ✅
 
-**CSS:**
-```css
-.provider-bar {
-  margin: 15px 0;
-}
+**Display Format:**
+Each provider bar shows:
+- Provider name and percentage
+- Horizontal bar filled proportionally
+- `$X.XXXX across N requests ($X.XXXX per request)` ✅
 
-.provider-header {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: 5px;
-  font-weight: bold;
-}
+**CSS Classes:**
+- `.provider-bar`, `.provider-header`, `.bar-container`, `.bar-fill`, `.provider-details` (dashboard.html:66-70) ✅
 
-.bar-container {
-  height: 24px;
-  background: #f0f0f0;
-  border-radius: 4px;
-  overflow: hidden;
-}
-
-.bar-fill {
-  height: 100%;
-  transition: width 0.3s ease;
-}
-
-.provider-details {
-  font-size: 12px;
-  color: #666;
-  margin-top: 4px;
-}
-```
-
-**Provider Colors:**
-- OpenAI: #10a37f (brand teal)
-- Anthropic: #d97757 (brand orange)
-- Google: #4285f4 (brand blue)
-- Default: #999999 (gray)
-
-### 3.2 Provider Comparison Over Time
+### 3.2 Provider Comparison Over Time ❌ NOT STARTED
 
 Add line chart showing provider costs over time:
 
@@ -447,13 +407,15 @@ function renderProviderTrend(dailyData) {
 
 ---
 
-## Phase 4: Date Range Filtering UI
+## Phase 4: Date Range Filtering UI ✅ COMPLETE
 
 **Goal:** Flexible date selection across all dashboard views
 
-### 4.1 Date Range Selector Component
+### 4.1 Date Range Selector Component ✅ COMPLETE
 
-Replace time dropdown with enhanced date selector:
+**Status:** DONE - Implemented in `templates/dashboard.html`
+
+Enhanced date selector with quick buttons and custom pickers:
 
 **Visual Design:**
 ```
@@ -646,45 +608,41 @@ function formatDate(date) {
 }
 ```
 
-### 4.2 URL State Management
+**Implementation Details:**
+- Quick filter buttons: All Time, Today, Yesterday, This Week, This Month, Last 30 Days (dashboard.html:194-199, 242-247) ✅
+- Custom date pickers with start and end dates (dashboard.html:202-206, 250-254) ✅
+- Applied to both Stats and Requests tabs ✅
+- Active button highlighting (dashboard.html:84-86) ✅
+- Alpine.js reactive state management (dashboard.html:100-107) ✅
+- All Time button fetches actual database date range via `/stats/date-range` endpoint ✅
+- Date pickers populated with actual data range when All Time selected ✅
 
-Persist filter state in URL for bookmarking and sharing:
+**Key Features:**
+- State persisted in localStorage via Alpine.js `$persist` ✅
+- Separate filter state for Stats and Requests tabs ✅
+- Timezone-aware filtering via `timezone_offset` parameter ✅
+- Reactive updates using Alpine.js `$watch` (dashboard.html:177-178) ✅
+- Active button detection with `isQuickActive()` method (dashboard.html:173-185) ✅
 
-```javascript
-// Update URL when filter changes
-function updateURLState() {
-  const params = new URLSearchParams()
+### 4.2 URL State Management ⚠️ PARTIALLY DONE
 
-  if (currentFilter.startDate) params.set('start', currentFilter.startDate)
-  if (currentFilter.endDate) params.set('end', currentFilter.endDate)
-  if (currentFilter.hours) params.set('hours', currentFilter.hours)
+**Status:** PARTIAL - State persisted in localStorage, but NOT in URL
 
-  history.replaceState({}, '', `?${params.toString()}`)
-}
+**What's Done:**
+- Filter state persisted via Alpine.js `$persist` in localStorage ✅
+- State survives page reloads ✅
+- Separate state for each tab ✅
 
-// Restore filter from URL on page load
-function loadFilterFromURL() {
-  const params = new URLSearchParams(window.location.search)
+**What's Missing:**
+- URL query string updates (no bookmarking/sharing support) ❌
+- History API integration ❌
+- Deep linking to specific date ranges ❌
 
-  if (params.has('start') && params.has('end')) {
-    currentFilter.startDate = params.get('start')
-    currentFilter.endDate = params.get('end')
-    document.getElementById('start-date').value = currentFilter.startDate
-    document.getElementById('end-date').value = currentFilter.endDate
-  } else if (params.has('hours')) {
-    currentFilter.hours = parseInt(params.get('hours'))
-  }
-
-  applyFilter()
-}
-
-// Call on page load
-document.addEventListener('DOMContentLoaded', loadFilterFromURL)
-```
+**Note:** Current implementation uses localStorage which is simpler but doesn't allow sharing filtered views via URL.
 
 ---
 
-## Phase 5: Enhanced Requests Explorer
+## Phase 5: Enhanced Requests Explorer ❌ NOT STARTED
 
 **Goal:** Better exploration and analysis of individual requests
 
