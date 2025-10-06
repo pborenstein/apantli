@@ -93,6 +93,13 @@
             font-size: 13px;
         }
         .filter-custom span { color: #666; font-size: 13px; }
+
+        /* Sortable table styles */
+        th.sortable { cursor: pointer; user-select: none; }
+        th.sortable:hover { background: #e0e0e0; }
+        th.sortable::after { content: ' ⇅'; color: #ccc; font-size: 10px; }
+        th.sortable.sort-asc::after { content: ' ▲'; color: #333; }
+        th.sortable.sort-desc::after { content: ' ▼'; color: #333; }
     </style>
 </head>
 <body x-data="{
@@ -286,34 +293,129 @@
     <script>
         let expandedRequests = new Set();
 
+        // Table sorting state: { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
+        let tableSortState = {};
+
+        function sortTable(tableId, columnIndex, data, renderCallback) {
+            if (!tableSortState[tableId]) {
+                tableSortState[tableId] = { column: null, direction: null, originalData: [...data] };
+            }
+
+            const state = tableSortState[tableId];
+
+            // Cycle through: null -> asc -> desc -> null
+            if (state.column === columnIndex) {
+                if (state.direction === 'asc') {
+                    state.direction = 'desc';
+                } else if (state.direction === 'desc') {
+                    state.direction = null;
+                    state.column = null;
+                } else {
+                    state.direction = 'asc';
+                }
+            } else {
+                state.column = columnIndex;
+                state.direction = 'asc';
+            }
+
+            let sortedData;
+            if (state.direction === null) {
+                // Return to original order
+                sortedData = [...state.originalData];
+            } else {
+                sortedData = [...data].sort((a, b) => {
+                    let aVal = a[columnIndex];
+                    let bVal = b[columnIndex];
+
+                    // Handle null/undefined
+                    if (aVal == null) return state.direction === 'asc' ? 1 : -1;
+                    if (bVal == null) return state.direction === 'asc' ? -1 : 1;
+
+                    // Detect type and compare
+                    if (typeof aVal === 'number' && typeof bVal === 'number') {
+                        return state.direction === 'asc' ? aVal - bVal : bVal - aVal;
+                    }
+
+                    // String comparison (case-insensitive)
+                    const aStr = String(aVal).toLowerCase();
+                    const bStr = String(bVal).toLowerCase();
+                    const comparison = aStr.localeCompare(bStr);
+                    return state.direction === 'asc' ? comparison : -comparison;
+                });
+            }
+
+            renderCallback(sortedData, state);
+        }
+
+        function makeSortableHeader(tableId, headers, onSort) {
+            return headers.map((header, i) =>
+                `<th class="sortable" onclick="${onSort}(${i})">${header}</th>`
+            ).join('');
+        }
+
+        function updateSortIndicators(tableElement, state) {
+            const headers = tableElement.querySelectorAll('th.sortable');
+            headers.forEach((th, i) => {
+                th.classList.remove('sort-asc', 'sort-desc');
+                if (state && state.column === i) {
+                    th.classList.add(state.direction === 'asc' ? 'sort-asc' : 'sort-desc');
+                }
+            });
+        }
+
         function onTabChange(tab) {
             if (tab === 'calendar') loadCalendar();
             if (tab === 'models') loadModels();
             if (tab === 'requests') loadRequests();
         }
 
+        let modelsData = [];
+
         async function loadModels() {
             const res = await fetch('/models');
             const data = await res.json();
 
-            document.getElementById('models-list').innerHTML = `
-                <tr>
-                    <th>Name</th>
-                    <th>Provider</th>
-                    <th>LiteLLM Model</th>
-                    <th>Input Cost/1M</th>
-                    <th>Output Cost/1M</th>
-                </tr>
-                ${data.models.map(m => `
+            // Convert to array format for sorting: [name, provider, litellm_model, input_cost, output_cost]
+            modelsData = data.models.map(m => [
+                m.name,
+                m.provider,
+                m.litellm_model,
+                m.input_cost_per_million || 0,
+                m.output_cost_per_million || 0
+            ]);
+
+            renderModelsTable(modelsData, tableSortState['models-list']);
+        }
+
+        function sortModelsTable(columnIndex) {
+            sortTable('models-list', columnIndex, modelsData, renderModelsTable);
+        }
+
+        function renderModelsTable(data, sortState) {
+            const table = document.getElementById('models-list');
+            table.innerHTML = `
+                <thead>
                     <tr>
-                        <td>${m.name}</td>
-                        <td>${m.provider}</td>
-                        <td>${m.litellm_model}</td>
-                        <td>${m.input_cost_per_million ? '$' + m.input_cost_per_million.toFixed(2) : 'N/A'}</td>
-                        <td>${m.output_cost_per_million ? '$' + m.output_cost_per_million.toFixed(2) : 'N/A'}</td>
+                        <th class="sortable" onclick="sortModelsTable(0)">Name</th>
+                        <th class="sortable" onclick="sortModelsTable(1)">Provider</th>
+                        <th class="sortable" onclick="sortModelsTable(2)">LiteLLM Model</th>
+                        <th class="sortable" onclick="sortModelsTable(3)">Input Cost/1M</th>
+                        <th class="sortable" onclick="sortModelsTable(4)">Output Cost/1M</th>
                     </tr>
-                `).join('')}
+                </thead>
+                <tbody>
+                    ${data.map(row => `
+                        <tr>
+                            <td>${row[0]}</td>
+                            <td>${row[1]}</td>
+                            <td>${row[2]}</td>
+                            <td>${row[3] ? '$' + row[3].toFixed(2) : 'N/A'}</td>
+                            <td>${row[4] ? '$' + row[4].toFixed(2) : 'N/A'}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
             `;
+            updateSortIndicators(table, sortState);
         }
 
         function escapeHtml(text) {
@@ -378,6 +480,9 @@
             }
         }
 
+        let requestsData = [];
+        let requestsObjects = []; // Store original request objects for detail rows
+
         async function loadRequests() {
             if (!alpineData) return;
             try {
@@ -386,69 +491,93 @@
                 const res = await fetch(url);
                 const data = await res.json();
 
-                const tbody = document.createElement('tbody');
+                // Store original objects and convert to array format for sorting
+                requestsObjects = data.requests;
+                requestsData = data.requests.map(r => [
+                    new Date(r.timestamp + 'Z').getTime(), // For sorting by time
+                    r.model,
+                    r.total_tokens,
+                    r.cost,
+                    r.duration_ms,
+                    r.timestamp // Store timestamp for detail row lookup
+                ]);
 
-                data.requests.forEach((r, i) => {
-                    let requestHtml = '<span class="error">Error parsing request</span>';
-                    let responseHtml = '<span class="error">Error parsing response</span>';
-
-                    try {
-                        const requestObj = JSON.parse(r.request_data);
-                        requestHtml = renderJsonTree(requestObj);
-                    } catch(e) {}
-
-                    try {
-                        const responseObj = JSON.parse(r.response_data);
-                        responseHtml = renderJsonTree(responseObj);
-                    } catch(e) {}
-
-                    // Use timestamp as unique identifier
-                    const requestId = r.timestamp;
-
-                    // Create main row
-                    const mainRow = document.createElement('tr');
-                    mainRow.className = 'request-row';
-                    mainRow.onclick = () => toggleDetail(requestId);
-                    mainRow.innerHTML = `
-                        <td>${escapeHtml(new Date(r.timestamp + 'Z').toLocaleString())}</td>
-                        <td>${escapeHtml(r.model)}</td>
-                        <td>${r.total_tokens}</td>
-                        <td>$${r.cost.toFixed(4)}</td>
-                        <td>${r.duration_ms}ms</td>
-                    `;
-
-                    // Create detail row, restore expanded state if it was previously expanded
-                    const detailRow = document.createElement('tr');
-                    detailRow.id = 'detail-' + requestId;
-                    detailRow.style.display = expandedRequests.has(requestId) ? 'table-row' : 'none';
-                    detailRow.innerHTML = `
-                        <td colspan="5" class="request-detail">
-                            <b>Request:</b>
-                            <div class="json-view json-tree">${requestHtml}</div>
-                            <b>Response:</b>
-                            <div class="json-view json-tree">${responseHtml}</div>
-                        </td>
-                    `;
-
-                    tbody.appendChild(mainRow);
-                    tbody.appendChild(detailRow);
-                });
-
-                document.getElementById('requests-list').innerHTML = `
-                    <thead>
-                        <tr>
-                            <th>Time</th>
-                            <th>Model</th>
-                            <th>Tokens</th>
-                            <th>Cost</th>
-                            <th>Duration</th>
-                        </tr>
-                    </thead>
-                `;
-                document.getElementById('requests-list').appendChild(tbody);
+                renderRequestsTable(requestsData, tableSortState['requests-list']);
             } catch(e) {
                 document.getElementById('requests-list').innerHTML = '<tr><td colspan="5">Error loading requests</td></tr>';
             }
+        }
+
+        function sortRequestsTable(columnIndex) {
+            sortTable('requests-list', columnIndex, requestsData, renderRequestsTable);
+        }
+
+        function renderRequestsTable(data, sortState) {
+            const tbody = document.createElement('tbody');
+
+            data.forEach(row => {
+                const timestamp = row[5];
+                const requestObj = requestsObjects.find(r => r.timestamp === timestamp);
+                if (!requestObj) return;
+
+                let requestHtml = '<span class="error">Error parsing request</span>';
+                let responseHtml = '<span class="error">Error parsing response</span>';
+
+                try {
+                    const req = JSON.parse(requestObj.request_data);
+                    requestHtml = renderJsonTree(req);
+                } catch(e) {}
+
+                try {
+                    const resp = JSON.parse(requestObj.response_data);
+                    responseHtml = renderJsonTree(resp);
+                } catch(e) {}
+
+                const requestId = timestamp;
+
+                // Create main row
+                const mainRow = document.createElement('tr');
+                mainRow.className = 'request-row';
+                mainRow.onclick = () => toggleDetail(requestId);
+                mainRow.innerHTML = `
+                    <td>${escapeHtml(new Date(timestamp + 'Z').toLocaleString())}</td>
+                    <td>${escapeHtml(row[1])}</td>
+                    <td>${row[2]}</td>
+                    <td>$${row[3].toFixed(4)}</td>
+                    <td>${row[4]}ms</td>
+                `;
+
+                // Create detail row, restore expanded state
+                const detailRow = document.createElement('tr');
+                detailRow.id = 'detail-' + requestId;
+                detailRow.style.display = expandedRequests.has(requestId) ? 'table-row' : 'none';
+                detailRow.innerHTML = `
+                    <td colspan="5" class="request-detail">
+                        <b>Request:</b>
+                        <div class="json-view json-tree">${requestHtml}</div>
+                        <b>Response:</b>
+                        <div class="json-view json-tree">${responseHtml}</div>
+                    </td>
+                `;
+
+                tbody.appendChild(mainRow);
+                tbody.appendChild(detailRow);
+            });
+
+            const table = document.getElementById('requests-list');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortRequestsTable(0)">Time</th>
+                        <th class="sortable" onclick="sortRequestsTable(1)">Model</th>
+                        <th class="sortable" onclick="sortRequestsTable(2)">Tokens</th>
+                        <th class="sortable" onclick="sortRequestsTable(3)">Cost</th>
+                        <th class="sortable" onclick="sortRequestsTable(4)">Duration</th>
+                    </tr>
+                </thead>
+            `;
+            table.appendChild(tbody);
+            updateSortIndicators(table, sortState);
         }
 
         function toggleDetail(id) {
@@ -471,6 +600,10 @@
         document.addEventListener('alpine:initialized', () => {
             alpineData = Alpine.$data(document.body);
         });
+
+        let byModelData = [];
+        let byProviderData = [];
+        let errorsData = [];
 
         async function refreshStats() {
             if (!alpineData) return;
@@ -536,47 +669,107 @@
 
             document.getElementById('provider-breakdown').innerHTML = providerHtml;
 
-            // By model
-            document.getElementById('by-model').innerHTML = `
-                <tr><th>Model</th><th>Requests</th><th>Cost</th><th>Tokens</th></tr>
-                ${data.by_model.map(m => `
-                    <tr>
-                        <td>${m.model}</td>
-                        <td>${m.requests}</td>
-                        <td>$${m.cost.toFixed(4)}</td>
-                        <td>${m.tokens.toLocaleString()}</td>
-                    </tr>
-                `).join('')}
-            `;
+            // By model - convert to sortable format
+            byModelData = data.by_model.map(m => [m.model, m.requests, m.cost, m.tokens]);
+            renderByModelTable(byModelData, tableSortState['by-model']);
 
-            // By provider
-            document.getElementById('by-provider').innerHTML = `
-                <tr><th>Provider</th><th>Requests</th><th>Cost</th><th>Tokens</th></tr>
-                ${data.by_provider.map(p => `
-                    <tr>
-                        <td>${p.provider}</td>
-                        <td>${p.requests}</td>
-                        <td>$${p.cost.toFixed(4)}</td>
-                        <td>${p.tokens.toLocaleString()}</td>
-                    </tr>
-                `).join('')}
-            `;
+            // By provider - convert to sortable format
+            byProviderData = data.by_provider.map(p => [p.provider, p.requests, p.cost, p.tokens]);
+            renderByProviderTable(byProviderData, tableSortState['by-provider']);
 
-            // Errors
-            if (data.recent_errors.length > 0) {
-                document.getElementById('errors').innerHTML = `
-                    <tr><th>Time</th><th>Model</th><th>Error</th></tr>
-                    ${data.recent_errors.map(e => `
+            // Errors - convert to sortable format
+            errorsData = data.recent_errors.map(e => [new Date(e.timestamp + 'Z').getTime(), e.model, e.error, e.timestamp]);
+            renderErrorsTable(errorsData, tableSortState['errors']);
+        }
+
+        function sortByModelTable(columnIndex) {
+            sortTable('by-model', columnIndex, byModelData, renderByModelTable);
+        }
+
+        function renderByModelTable(data, sortState) {
+            const table = document.getElementById('by-model');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortByModelTable(0)">Model</th>
+                        <th class="sortable" onclick="sortByModelTable(1)">Requests</th>
+                        <th class="sortable" onclick="sortByModelTable(2)">Cost</th>
+                        <th class="sortable" onclick="sortByModelTable(3)">Tokens</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(row => `
                         <tr>
-                            <td>${new Date(e.timestamp + 'Z').toLocaleString()}</td>
-                            <td>${e.model}</td>
-                            <td class="error">${e.error}</td>
+                            <td>${row[0]}</td>
+                            <td>${row[1]}</td>
+                            <td>$${row[2].toFixed(4)}</td>
+                            <td>${row[3].toLocaleString()}</td>
                         </tr>
                     `).join('')}
-                `;
-            } else {
-                document.getElementById('errors').innerHTML = '<tr><td>No errors</td></tr>';
+                </tbody>
+            `;
+            updateSortIndicators(table, sortState);
+        }
+
+        function sortByProviderTable(columnIndex) {
+            sortTable('by-provider', columnIndex, byProviderData, renderByProviderTable);
+        }
+
+        function renderByProviderTable(data, sortState) {
+            const table = document.getElementById('by-provider');
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortByProviderTable(0)">Provider</th>
+                        <th class="sortable" onclick="sortByProviderTable(1)">Requests</th>
+                        <th class="sortable" onclick="sortByProviderTable(2)">Cost</th>
+                        <th class="sortable" onclick="sortByProviderTable(3)">Tokens</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(row => `
+                        <tr>
+                            <td>${row[0]}</td>
+                            <td>${row[1]}</td>
+                            <td>$${row[2].toFixed(4)}</td>
+                            <td>${row[3].toLocaleString()}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            updateSortIndicators(table, sortState);
+        }
+
+        function sortErrorsTable(columnIndex) {
+            sortTable('errors', columnIndex, errorsData, renderErrorsTable);
+        }
+
+        function renderErrorsTable(data, sortState) {
+            const table = document.getElementById('errors');
+            if (data.length === 0) {
+                table.innerHTML = '<tr><td>No errors</td></tr>';
+                return;
             }
+
+            table.innerHTML = `
+                <thead>
+                    <tr>
+                        <th class="sortable" onclick="sortErrorsTable(0)">Time</th>
+                        <th class="sortable" onclick="sortErrorsTable(1)">Model</th>
+                        <th class="sortable" onclick="sortErrorsTable(2)">Error</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${data.map(row => `
+                        <tr>
+                            <td>${new Date(row[3] + 'Z').toLocaleString()}</td>
+                            <td>${row[1]}</td>
+                            <td class="error">${row[2]}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            `;
+            updateSortIndicators(table, sortState);
         }
 
         async function clearErrors() {
