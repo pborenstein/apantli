@@ -381,6 +381,41 @@ model_list:
       api_base: https://custom.openai.endpoint/v1
 ```
 
+## Client Integration
+
+### Obsidian Copilot
+
+Configure Obsidian Copilot to use Apantli as a custom provider:
+
+1. **Start Apantli**:
+   ```bash
+   apantli
+   ```
+
+2. **In Obsidian Copilot settings**:
+   - Go to **Copilot Basic Settings** → **API Keys**
+   - Click **Add Model** → **Custom Model**
+
+3. **Configure custom model**:
+   - **Provider**: Select "3rd party (openai format)"
+   - **Base URL**: `http://localhost:4000/v1`
+   - **Model Name**: Use any model from your `config.yaml` (e.g., `gpt-4.1-mini`, `claude-sonnet-4`)
+   - **API Key**: Enter any value (e.g., `not-used`) - Apantli handles the actual API keys
+
+4. **Use the model**: Select your custom model in Copilot and start chatting
+
+All requests will route through Apantli with full cost tracking and logging. Streaming responses are supported.
+
+### Other OpenAI-Compatible Clients
+
+Any tool that supports OpenAI's API format can use Apantli:
+
+- **Base URL**: `http://localhost:4000/v1`
+- **API Key**: Any value (ignored by Apantli)
+- **Model**: Use model names from your `config.yaml`
+
+Compatible tools include: LangChain, LlamaIndex, Continue.dev, Cursor, and custom applications using the OpenAI SDK.
+
 ## Configuration Best Practices
 
 ### Security

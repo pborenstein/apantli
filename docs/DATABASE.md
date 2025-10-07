@@ -204,6 +204,24 @@ The `VACUUM` command rebuilds the database file to reclaim unused space after de
 
 ## Querying the Database
 
+### Quick Reference
+
+For quick database queries from the command line:
+
+```bash
+# View recent requests
+sqlite3 requests.db "SELECT timestamp, model, cost FROM requests ORDER BY timestamp DESC LIMIT 10"
+
+# Calculate total costs
+sqlite3 requests.db "SELECT SUM(cost) FROM requests"
+
+# Count total requests
+sqlite3 requests.db "SELECT COUNT(*) FROM requests"
+
+# View errors
+sqlite3 requests.db "SELECT timestamp, model, error FROM requests WHERE error IS NOT NULL ORDER BY timestamp DESC LIMIT 10"
+```
+
 ### Common Queries
 
 **Cost by provider (last 7 days)**:

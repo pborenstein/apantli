@@ -439,6 +439,76 @@ Streaming responses are fully implemented (server.py:218-262):
 - Calculates cost and tokens after streaming completes
 - Logs to database with full conversation history
 
+## Project Structure
+
+```
+apantli/
+├── apantli/                 # Python package
+│   ├── __init__.py         # Package metadata
+│   ├── __main__.py         # CLI entry point
+│   ├── server.py           # FastAPI application
+│   └── static/             # Static files for dashboard
+│       ├── alpine.min.js   # Alpine.js framework (44KB, self-hosted)
+│       └── alpine-persist.min.js  # Alpine.js persistence plugin
+├── templates/              # Jinja2 templates
+│   └── dashboard.html      # Web dashboard UI
+├── docs/                   # Documentation
+│   ├── README.md           # Documentation index
+│   ├── ARCHITECTURE.md     # System design
+│   ├── CONFIGURATION.md    # Setup guide
+│   ├── DATABASE.md         # Database schema & maintenance
+│   ├── API.md              # Endpoint reference
+│   ├── TROUBLESHOOTING.md  # Common issues
+│   └── archive/            # Historical documents
+├── config.yaml             # Model configuration
+├── .env.example            # Example environment file
+├── .env                    # API keys (gitignored)
+├── requests.db             # SQLite database (gitignored)
+├── pyproject.toml          # Package metadata
+├── requirements.txt        # Dependencies
+└── test_proxy.py           # Test script
+```
+
+## Development
+
+### Running in Development Mode
+
+```bash
+apantli --reload
+```
+
+Auto-reloads server when Python files change (does not watch `config.yaml` or `.env`).
+
+### Running Tests
+
+```bash
+# Start server
+apantli
+
+# In another terminal, run test script
+python3 test_proxy.py
+```
+
+### Package Installation
+
+**Prerequisites**: Python 3.13 or higher
+
+**With uv (recommended)**:
+
+```bash
+uv sync
+```
+
+**With pip**:
+
+```bash
+python3.13 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**Note**: The `netifaces` dependency is used to display all available network addresses on startup. If installation fails on your system, the server will fall back to basic hostname lookup.
+
 ## Future Considerations
 
 ### Authentication
