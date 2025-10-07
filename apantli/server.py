@@ -18,6 +18,7 @@ from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
+from fastapi.staticfiles import StaticFiles
 import litellm
 from litellm import completion
 import uvicorn
@@ -168,6 +169,9 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="LLM Proxy", lifespan=lifespan)
+
+# Mount static files directory
+app.mount("/static", StaticFiles(directory="apantli/static"), name="static")
 
 # Add CORS middleware - allow all origins by using regex
 app.add_middleware(
@@ -428,8 +432,14 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
     - end_date: ISO 8601 date (YYYY-MM-DD)
     - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
     """
+    import time
+    start_time = time.time()
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+
+    db_connect_time = time.time()
+    print(f"[STATS] DB connect: {(db_connect_time - start_time)*1000:.1f}ms")
 
     # Build time filter using efficient timestamp comparisons
     time_filter = ""
@@ -459,6 +469,9 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
             end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
             time_filter = f"AND timestamp < '{end_dt.date()}T00:00:00'"
 
+    filter_build_time = time.time()
+    print(f"[STATS] Filter build: {(filter_build_time - db_connect_time)*1000:.1f}ms")
+
     # Total stats
     cursor.execute(f"""
         SELECT
@@ -471,6 +484,8 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
         WHERE error IS NULL {time_filter}
     """)
     totals = cursor.fetchone()
+    totals_time = time.time()
+    print(f"[STATS] Totals query: {(totals_time - filter_build_time)*1000:.1f}ms")
 
     # By model
     cursor.execute(f"""
@@ -485,6 +500,8 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
         ORDER BY cost DESC
     """)
     by_model = cursor.fetchall()
+    by_model_time = time.time()
+    print(f"[STATS] By model query: {(by_model_time - totals_time)*1000:.1f}ms")
 
     # By provider
     cursor.execute(f"""
@@ -499,6 +516,8 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
         ORDER BY cost DESC
     """)
     by_provider = cursor.fetchall()
+    by_provider_time = time.time()
+    print(f"[STATS] By provider query: {(by_provider_time - by_model_time)*1000:.1f}ms")
 
     # Recent errors (limit to same time range as other queries for consistency)
     cursor.execute(f"""
@@ -509,10 +528,12 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
         LIMIT 10
     """)
     errors = cursor.fetchall()
+    errors_time = time.time()
+    print(f"[STATS] Errors query: {(errors_time - by_provider_time)*1000:.1f}ms")
 
     conn.close()
 
-    return {
+    result = {
         "totals": {
             "requests": totals[0] or 0,
             "cost": round(totals[1] or 0, 4),
@@ -533,6 +554,10 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
             for row in errors
         ]
     }
+
+    end_time = time.time()
+    print(f"[STATS] TOTAL: {(end_time - start_time)*1000:.1f}ms\n")
+    return result
 
 
 @app.delete("/errors")
@@ -556,8 +581,12 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
     - end_date: ISO 8601 date (YYYY-MM-DD), defaults to today
     - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
     """
+    import time
+    start_time = time.time()
+
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
+    print(f"[DAILY] DB connect: {(time.time() - start_time)*1000:.1f}ms")
 
     # Set default date range if not provided
     if not end_date:
@@ -587,6 +616,9 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
         where_filter = f"timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
         date_expr = "DATE(timestamp)"
 
+    query_start = time.time()
+    print(f"[DAILY] Filter build: {(query_start - start_time)*1000:.1f}ms")
+
     # Get daily aggregates with provider breakdown
     cursor.execute(f"""
         SELECT
@@ -602,6 +634,8 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
         ORDER BY date DESC
     """)
     rows = cursor.fetchall()
+    query_end = time.time()
+    print(f"[DAILY] Query: {(query_end - query_start)*1000:.1f}ms")
 
     # Group by date
     daily_data = {}
@@ -637,12 +671,16 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
 
     conn.close()
 
-    return {
+    result = {
         'daily': daily_list,
         'total_days': len(daily_list),
         'total_cost': round(total_cost, 4),
         'total_requests': total_requests
     }
+
+    end_time = time.time()
+    print(f"[DAILY] TOTAL: {(end_time - start_time)*1000:.1f}ms\n")
+    return result
 
 
 @app.get("/stats/date-range")
