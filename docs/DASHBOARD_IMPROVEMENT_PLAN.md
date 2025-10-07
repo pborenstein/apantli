@@ -8,6 +8,7 @@
 - ✅ Phase 1: Backend - Date Range API Enhancements (COMPLETE)
 - ✅ Phase 2: Calendar View UI (COMPLETE)
 - ✅ Phase 3.1: Provider Overview Section (COMPLETE)
+- ✅ Phase 3.2: Provider Comparison Over Time (COMPLETE - Oct 2025)
 - ✅ Phase 4: Date Range Filtering UI (COMPLETE)
 - ✅ Phase 5.1-5.2: Request Filtering and Summary (COMPLETE)
 - ✅ Phase 5.3: Enhanced Request Detail View (COMPLETE)
@@ -15,13 +16,11 @@
 - ✅ Performance: Query Optimization (COMPLETE - Oct 2025)
 
 **Remaining Work:**
-- Phase 3.2: Provider Comparison Over Time (lightweight vanilla SVG line chart)
 - Phase 7: Advanced Analytics (cost trends, projections, time-of-day analysis, budgets)
 
 **Recommended Next Steps (in order):**
-1. **Phase 3.2** - Provider Trends Chart (visual insight, moderate complexity)
-2. **Phase 7.1** - Cost Projections (useful for budget planning)
-3. **Phase 7.2-7.4** - Advanced Analytics (nice-to-have features)
+1. **Phase 7.1** - Cost Projections (useful for budget planning)
+2. **Phase 7.2-7.4** - Advanced Analytics (nice-to-have features)
 
 ---
 
@@ -43,11 +42,11 @@ This plan outlines incremental improvements to the Apantli dashboard to add date
 - ✅ Calendar view with daily cost visualization (DONE)
 - ✅ Flexible date range filtering (single day, week, month, custom range) (DONE)
 - ✅ Provider cost breakdown with bar charts (DONE)
+- ✅ Provider trends over time with line chart (DONE)
 - ✅ Enhanced request filtering and summary (DONE)
 - ✅ Enhanced request detail view with conversation extraction (DONE)
 - ✅ Dark mode and visual polish (DONE)
 - ✅ Query performance optimization for snappy dashboard (DONE)
-- ⏳ Provider trends over time with line chart (NOT STARTED)
 - ⏳ Advanced analytics (cost trends, projections, budget tracking) (NOT STARTED)
 
 ---
@@ -363,15 +362,13 @@ Each provider bar shows:
 **CSS Classes:**
 - `.provider-bar`, `.provider-header`, `.bar-container`, `.bar-fill`, `.provider-details` (dashboard.html:66-70) ✅
 
-### 3.2 Provider Comparison Over Time ❌ NOT STARTED
+### 3.2 Provider Comparison Over Time ✅ COMPLETE
 
-Add line chart showing provider costs over time:
+**Status:** DONE - Implemented October 2025 in `templates/dashboard.html`
 
-**Chart Library:** Chart.js (lightweight, 64KB minified)
-- Alternative: uPlot (even lighter, 40KB)
-- Alternative: Vanilla SVG (no dependencies)
+Add line chart showing provider costs over time using vanilla SVG (0KB dependencies).
 
-**Recommendation: Vanilla SVG** for maximum lightness
+**Implementation: Vanilla SVG** (no dependencies, maximum lightness)
 
 **Visual Design:**
 ```
@@ -390,27 +387,75 @@ $0.00 ┼─────────╯
       Oct 1                         Oct 30
 ```
 
-**Implementation (Vanilla SVG):**
+**Features Implemented:**
+
+1. **Multi-line Chart** (dashboard.html:1968-2074) ✅
+   - One line per provider with distinct colors
+   - SVG paths generated from daily cost data
+   - Smooth line rendering with proper scaling
+
+2. **Axes and Grid** (dashboard.html:1997-2022) ✅
+   - Y-axis: Cost scale from $0 to max with 5 grid lines
+   - X-axis: Date labels (intelligently spaced to avoid crowding)
+   - Grid lines for easier reading
+
+3. **Interactive Dots** (dashboard.html:2041-2051) ✅
+   - Hover dots show tooltip with date, provider, and cost
+   - Only shown for days with non-zero cost
+   - Cursor changes to pointer on hover
+
+4. **Tooltip System** (dashboard.html:2076-2093) ✅
+   - Positioned near cursor on hover
+   - Shows date, provider name, and exact cost
+   - Auto-hides when mouse leaves dot
+
+5. **Interactive Legend** (dashboard.html:2060-2072, 2095-2102) ✅
+   - Click to toggle provider visibility
+   - Shows total cost per provider in legend
+   - Inactive providers shown with reduced opacity
+   - State persists during chart re-renders
+
+6. **Data Processing** (dashboard.html:1931-1960) ✅
+   - Fetches from `/stats/daily` endpoint
+   - Groups data by provider
+   - Fills gaps with zero cost for continuous lines
+   - Respects date filter from Stats tab
+
+7. **Shared Provider Colors** (dashboard.html:1900-1913) ✅
+   - Centralized PROVIDER_COLORS constant
+   - Used across bar charts, line chart, and calendar
+   - OpenAI: #10a37f, Anthropic: #d97757, Google: #4285f4
+
+8. **Auto-refresh** ✅
+   - Updates with Stats tab (every 5 seconds)
+   - Respects date filter changes
+   - Maintains legend toggle state
+
+**Technical Implementation:**
 ```javascript
-function renderProviderTrend(dailyData) {
-  const width = 800
-  const height = 300
-  const margin = {top: 20, right: 80, bottom: 30, left: 50}
+// Core chart rendering (dashboard.html:1968-2074)
+function renderChart(container, providerData, dates) {
+  // Calculate scales
+  const xScale = (dateIndex) => (dateIndex / (dates.length - 1 || 1)) * chartWidth
+  const yScale = (cost) => chartHeight - ((cost - minCost) / (maxCost - minCost)) * chartHeight
 
-  // Group by provider
-  const providers = {}
-  dailyData.forEach(day => {
-    day.by_provider.forEach(p => {
-      if (!providers[p.provider]) providers[p.provider] = []
-      providers[p.provider].push({date: day.date, cost: p.cost})
-    })
-  })
+  // Generate SVG paths for each provider
+  const pathData = data.map((d, i) => {
+    const x = xScale(i)
+    const y = yScale(d.cost)
+    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`
+  }).join(' ')
 
-  // Generate SVG paths
-  // Add legend
-  // Add axes
+  svg += `<path class="chart-line" d="${pathData}" stroke="${color}" />`
 }
 ```
+
+**CSS Styling** (dashboard.html:494-611) ✅
+- Responsive container with proper padding
+- SVG height: 300px with overflow: visible
+- Lines: 2px stroke width, rounded caps
+- Theme-aware colors for axes and grid
+- Tooltip with shadow and proper z-index
 
 ---
 
