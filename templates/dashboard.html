@@ -610,6 +610,94 @@
             color: var(--color-text-secondary);
         }
 
+        /* Model efficiency styles */
+        .efficiency-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .efficiency-card {
+            background: var(--color-background);
+            border: 1px solid var(--color-border);
+            border-radius: 6px;
+            padding: 15px;
+            transition: border-color 0.2s;
+        }
+
+        .efficiency-card:hover {
+            border-color: var(--color-primary);
+        }
+
+        .efficiency-card.highlight-economical {
+            border-color: #52c41a;
+            background: color-mix(in srgb, #52c41a 5%, var(--color-background));
+        }
+
+        .efficiency-card.highlight-tokens {
+            border-color: #1890ff;
+            background: color-mix(in srgb, #1890ff 5%, var(--color-background));
+        }
+
+        .efficiency-model-name {
+            font-size: 14px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            color: var(--color-text);
+        }
+
+        .efficiency-badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 6px;
+            font-weight: normal;
+        }
+
+        .efficiency-badge.economical {
+            background: #52c41a;
+            color: white;
+        }
+
+        .efficiency-badge.token-rich {
+            background: #1890ff;
+            color: white;
+        }
+
+        .efficiency-metrics {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            font-size: 12px;
+        }
+
+        .efficiency-metric {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .efficiency-metric-label {
+            color: var(--color-text-secondary);
+            font-size: 11px;
+            margin-bottom: 2px;
+        }
+
+        .efficiency-metric-value {
+            color: var(--color-text);
+            font-weight: bold;
+            font-family: var(--font-mono);
+        }
+
+        .efficiency-summary {
+            margin-top: 15px;
+            padding-top: 15px;
+            border-top: 1px solid var(--color-border);
+            font-size: 12px;
+            color: var(--color-text-secondary);
+        }
+
         /* Date filter styles */
         .date-filter {
             background: var(--color-background-secondary);
@@ -1103,6 +1191,9 @@
 
         <h2>By Model</h2>
         <table id="by-model"></table>
+
+        <h2>Model Efficiency</h2>
+        <div id="model-efficiency"></div>
 
         <h2>By Provider</h2>
         <table id="by-provider"></table>
@@ -2174,6 +2265,9 @@
             }
             renderByModelTable(applySortIfNeeded('by-model', byModelData), tableSortState['by-model']);
 
+            // Model efficiency
+            renderModelEfficiency(byModelData);
+
             // By provider - convert to sortable format
             byProviderData = data.by_provider.map(p => [p.provider, p.requests, p.cost, p.tokens]);
             if (!tableSortState['by-provider']) {
@@ -2220,6 +2314,81 @@
                 </tbody>
             `;
             updateSortIndicators(table, sortState);
+        }
+
+        function renderModelEfficiency(modelData) {
+            const container = document.getElementById('model-efficiency');
+
+            if (!modelData || modelData.length === 0) {
+                container.innerHTML = '<div class="chart-empty">No model data available</div>';
+                return;
+            }
+
+            // Calculate efficiency metrics
+            const efficiencyData = modelData.map(row => ({
+                model: row[0],
+                requests: row[1],
+                cost: row[2],
+                tokens: row[3],
+                avgCostPerRequest: row[2] / row[1],
+                avgTokensPerRequest: row[3] / row[1]
+            }));
+
+            // Find most economical (lowest avg cost)
+            const mostEconomical = efficiencyData.reduce((min, curr) =>
+                curr.avgCostPerRequest < min.avgCostPerRequest ? curr : min
+            );
+
+            // Find most token-rich (highest avg tokens)
+            const mostTokenRich = efficiencyData.reduce((max, curr) =>
+                curr.avgTokensPerRequest > max.avgTokensPerRequest ? curr : max
+            );
+
+            // Render efficiency cards
+            const cards = efficiencyData.map(data => {
+                const isEconomical = data.model === mostEconomical.model;
+                const isTokenRich = data.model === mostTokenRich.model;
+                const highlightClass = isEconomical ? 'highlight-economical' : (isTokenRich ? 'highlight-tokens' : '');
+
+                return `
+                    <div class="efficiency-card ${highlightClass}">
+                        <div class="efficiency-model-name">
+                            ${data.model}
+                            ${isEconomical ? '<span class="efficiency-badge economical">Most Economical</span>' : ''}
+                            ${isTokenRich ? '<span class="efficiency-badge token-rich">Most Token-Rich</span>' : ''}
+                        </div>
+                        <div class="efficiency-metrics">
+                            <div class="efficiency-metric">
+                                <div class="efficiency-metric-label">Avg Cost/Request</div>
+                                <div class="efficiency-metric-value">$${data.avgCostPerRequest.toFixed(4)}</div>
+                            </div>
+                            <div class="efficiency-metric">
+                                <div class="efficiency-metric-label">Avg Tokens/Request</div>
+                                <div class="efficiency-metric-value">${Math.round(data.avgTokensPerRequest).toLocaleString()}</div>
+                            </div>
+                            <div class="efficiency-metric">
+                                <div class="efficiency-metric-label">Total Requests</div>
+                                <div class="efficiency-metric-value">${data.requests.toLocaleString()}</div>
+                            </div>
+                            <div class="efficiency-metric">
+                                <div class="efficiency-metric-label">Total Cost</div>
+                                <div class="efficiency-metric-value">$${data.cost.toFixed(4)}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="efficiency-grid">
+                    ${cards}
+                </div>
+                <div class="efficiency-summary">
+                    Most economical: <strong>${mostEconomical.model}</strong> at $${mostEconomical.avgCostPerRequest.toFixed(4)}/request
+                    &nbsp;•&nbsp;
+                    Most token-rich: <strong>${mostTokenRich.model}</strong> at ${Math.round(mostTokenRich.avgTokensPerRequest).toLocaleString()} tokens/request
+                </div>
+            `;
         }
 
         function sortByProviderTable(columnIndex) {
