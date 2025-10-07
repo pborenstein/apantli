@@ -48,7 +48,7 @@ Apantli is a FastAPI-based HTTP proxy that intercepts OpenAI-compatible API requ
 │  │  - Provider routing │      │  - log_request()        │       │
 │  │  - Cost calculation │      │  - SQLite operations    │       │
 │  │  - Response parsing │      │  - JSON serialization   │       │
-│  └─────────┬───────────┘      └──────────┬──────────────┘       │
+│  └─────────┬───────────┘      └───────────┬─────────────┘       │
 │            │                              │                     │
 └────────────┼──────────────────────────────┼─────────────────────┘
              │                              │
@@ -72,9 +72,9 @@ Apantli is a FastAPI-based HTTP proxy that intercepts OpenAI-compatible API requ
        │ POST /v1/chat/completions
        │ { "model": "gpt-4.1-mini", "messages": [...] }
        ↓
-┌──────────────────────────────────────────────────────────────────────┐
-│                          Apantli Server                              │
-│                                                                      │
+┌─────────────────────────────────────────────────────────────────────┐
+│                          Apantli Server                             │
+│                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐    │
 │  │ 1. Model Lookup                                             │    │
 │  │    MODEL_MAP["gpt-4.1-mini"] →                              │    │
