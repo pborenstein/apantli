@@ -56,7 +56,7 @@ Served via Jinja2 templates from `templates/dashboard.html`. Uses vanilla JavaSc
 **Table: requests**
 
 | Column | Type | Notes |
-|--------|------|-------|
+|:-------|:-----|:------|
 | timestamp | TEXT | ISO 8601 UTC timestamp |
 | model | TEXT | Client-requested model name |
 | provider | TEXT | Actual provider (openai, anthropic, etc.) |
