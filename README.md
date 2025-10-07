@@ -105,6 +105,8 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 - Python 3.13 or higher
 - API keys for desired providers (OpenAI, Anthropic, etc.)
 
+**Note**: The `netifaces` dependency is used to display all available network addresses on startup. If installation fails on your system, the server will fall back to basic hostname lookup.
+
 ### Install with uv (recommended)
 
 ```bash
@@ -137,14 +139,21 @@ python3 -m apantli.server
 
 ### Environment Variables (.env)
 
-Create a `.env` file with your API keys:
+Copy `.env.example` to `.env` and add your API keys:
+
+```bash
+cp .env.example .env
+# Edit .env with your actual keys
+```
+
+Example `.env` contents:
 
 ```bash
 OPENAI_API_KEY=sk-proj-your-key-here
 ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
 ```
 
-Never commit this file to version control (already in `.gitignore`).
+Never commit `.env` to version control (already in `.gitignore`).
 
 ### Model Configuration (config.yaml)
 
@@ -308,8 +317,10 @@ Open http://localhost:4000/ in your browser.
 |:---------|:-------|:------------|
 | `/v1/chat/completions` | POST | OpenAI-compatible chat completions (streaming supported) |
 | `/models` | GET | List available models with pricing |
-| `/stats?hours=N` | GET | Usage statistics (optional time filter) |
-| `/requests` | GET | Recent request history (last 50) |
+| `/stats` | GET | Usage statistics with date filtering |
+| `/stats/daily` | GET | Daily aggregated statistics with provider breakdown |
+| `/stats/date-range` | GET | Get actual date range of data in database |
+| `/requests` | GET | Request history with filtering (last 50) |
 | `/errors` | DELETE | Clear all error records |
 | `/health` | GET | Health check |
 | `/` | GET | Web dashboard |
@@ -421,7 +432,12 @@ apantli/
 ├── apantli/                 # Python package
 │   ├── __init__.py         # Package metadata
 │   ├── __main__.py         # CLI entry point
-│   └── server.py           # FastAPI application
+│   ├── server.py           # FastAPI application
+│   └── static/             # Static files for dashboard
+│       ├── alpine.min.js   # Alpine.js framework (44KB, self-hosted)
+│       └── alpine-persist.min.js  # Alpine.js persistence plugin
+├── templates/              # Jinja2 templates
+│   └── dashboard.html      # Web dashboard UI
 ├── docs/                   # Documentation
 │   ├── README.md           # Documentation index
 │   ├── ARCHITECTURE.md     # System design
@@ -431,6 +447,7 @@ apantli/
 │   ├── TROUBLESHOOTING.md  # Common issues
 │   └── archive/            # Historical documents
 ├── config.yaml             # Model configuration
+├── .env.example            # Example environment file
 ├── .env                    # API keys (gitignored)
 ├── requests.db             # SQLite database (gitignored)
 ├── pyproject.toml          # Package metadata
@@ -461,12 +478,12 @@ apantli/
 
 ## Future Enhancements
 
-- Cost alerts and budgets
+- Cost alerts and budget tracking
+- Monthly cost projections
 - Data export (CSV, JSON)
 - Authentication for network exposure
 - Additional provider support
-- Provider cost trends over time
-- Enhanced request detail view with message extraction
+- Time-of-day usage analysis
 
 ## License
 

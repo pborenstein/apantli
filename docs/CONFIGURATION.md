@@ -265,8 +265,8 @@ Expected output:
       "name": "gpt-4.1-mini",
       "litellm_model": "openai/gpt-4.1-mini",
       "provider": "openai",
-      "input_cost_per_1k": 0.00015,
-      "output_cost_per_1k": 0.0006
+      "input_cost_per_million": 0.15,
+      "output_cost_per_million": 0.60
     },
     ...
   ]

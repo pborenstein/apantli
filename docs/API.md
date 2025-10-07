@@ -27,6 +27,8 @@ For network exposure, add authentication layer (reverse proxy with basic auth, A
 | `/health` | GET | Health check |
 | `/models` | GET | List available models |
 | `/stats` | GET | Usage statistics |
+| `/stats/daily` | GET | Daily aggregated statistics with provider breakdown |
+| `/stats/date-range` | GET | Get actual date range of data in database |
 | `/requests` | GET | Recent request history |
 | `/errors` | DELETE | Clear all error records |
 | `/` | GET | Web dashboard (HTML) |
@@ -347,7 +349,12 @@ GET /stats?hours=24 HTTP/1.1
 
 | Parameter | Type | Required | Description |
 |:----------|:-----|:---------|:------------|
-| `hours` | integer | No | Filter to last N hours (1, 4, 6, 12, 24, 168, 720; omit for all time) |
+| `hours` | integer | No | Filter to last N hours (any positive integer; omit for all time) |
+| `start_date` | string | No | ISO date (YYYY-MM-DD) for range start |
+| `end_date` | string | No | ISO date (YYYY-MM-DD) for range end |
+| `timezone_offset` | integer | No | Timezone offset in minutes from UTC (e.g., -480 for PST) |
+
+**Note**: Use either `hours` OR (`start_date` + `end_date`), not both. When using date ranges, `timezone_offset` ensures correct date boundary calculations.
 
 ### Response Format
 
@@ -459,17 +466,14 @@ curl "http://localhost:4000/stats?hours=168" | jq
 curl "http://localhost:4000/stats?hours=720" | jq
 ```
 
-**Other time ranges**:
+**Custom date range**:
 
 ```bash
-# Last 4 hours
-curl "http://localhost:4000/stats?hours=4" | jq
+# October 1-7, 2025 (Pacific Time, UTC-8 = -480 minutes)
+curl "http://localhost:4000/stats?start_date=2025-10-01&end_date=2025-10-07&timezone_offset=-480" | jq
 
-# Last 6 hours
-curl "http://localhost:4000/stats?hours=6" | jq
-
-# Last 12 hours
-curl "http://localhost:4000/stats?hours=12" | jq
+# Single day (October 5, 2025, Eastern Time, UTC-5 = -300 minutes)
+curl "http://localhost:4000/stats?start_date=2025-10-05&end_date=2025-10-05&timezone_offset=-300" | jq
 ```
 
 **Python example**:
@@ -499,6 +503,17 @@ Returns the last 50 successful requests with full request and response data.
 ```http
 GET /requests HTTP/1.1
 ```
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|:----------|:-----|:---------|:------------|
+| `hours` | integer | No | Filter to last N hours (any positive integer; omit for all time) |
+| `start_date` | string | No | ISO date (YYYY-MM-DD) for range start |
+| `end_date` | string | No | ISO date (YYYY-MM-DD) for range end |
+| `timezone_offset` | integer | No | Timezone offset in minutes from UTC (e.g., -480 for PST) |
+
+**Note**: Use either `hours` OR (`start_date` + `end_date`), not both. When using date ranges, `timezone_offset` ensures correct date boundary calculations.
 
 ### Response Format
 
@@ -550,7 +565,6 @@ response_json = json.loads(request["response_data"])
 - Only successful requests (errors excluded)
 - Limited to last 50 requests
 - Ordered by timestamp descending (newest first)
-- No pagination or filtering
 
 ### Usage
 
@@ -572,6 +586,195 @@ for req in requests_data[:5]:  # First 5
     request_json = json.loads(req["request_data"])
     user_message = request_json["messages"][-1]["content"]
     print(f"  User: {user_message[:50]}...")
+```
+
+## GET /stats/daily
+
+Returns daily aggregated statistics with provider breakdown for the specified date range. Used by the Calendar tab for heatmap visualization.
+
+### Request
+
+```http
+GET /stats/daily?start_date=2025-10-01&end_date=2025-10-07&timezone_offset=-480 HTTP/1.1
+```
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|:----------|:-----|:---------|:------------|
+| `start_date` | string | No | ISO date (YYYY-MM-DD) for range start (defaults to 30 days ago) |
+| `end_date` | string | No | ISO date (YYYY-MM-DD) for range end (defaults to today) |
+| `timezone_offset` | integer | No | Timezone offset in minutes from UTC (e.g., -480 for PST) |
+
+### Response Format
+
+```json
+{
+  "daily": [
+    {
+      "date": "2025-10-04",
+      "requests": 15,
+      "cost": 0.0234,
+      "total_tokens": 12450,
+      "by_provider": [
+        {
+          "provider": "openai",
+          "requests": 10,
+          "cost": 0.0150
+        },
+        {
+          "provider": "anthropic",
+          "requests": 5,
+          "cost": 0.0084
+        }
+      ]
+    },
+    {
+      "date": "2025-10-05",
+      "requests": 22,
+      "cost": 0.0389,
+      "total_tokens": 18900,
+      "by_provider": [
+        {
+          "provider": "openai",
+          "requests": 12,
+          "cost": 0.0201
+        },
+        {
+          "provider": "anthropic",
+          "requests": 10,
+          "cost": 0.0188
+        }
+      ]
+    }
+  ],
+  "total_days": 30,
+  "total_cost": 0.7020,
+  "total_requests": 450
+}
+```
+
+### Response Fields
+
+**Top-level fields**:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `daily` | array | Array of daily statistics objects |
+| `total_days` | integer | Number of days in the range |
+| `total_cost` | number | Sum of all daily costs (USD) |
+| `total_requests` | integer | Sum of all requests across all days |
+
+**Daily object fields**:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `date` | string | ISO date (YYYY-MM-DD) |
+| `requests` | integer | Total requests for this day |
+| `cost` | number | Total cost for this day (USD) |
+| `total_tokens` | integer | Total tokens for this day |
+| `by_provider` | array | Per-provider breakdown for this day |
+
+**Provider object fields**:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `provider` | string | Provider name (openai, anthropic, etc.) |
+| `requests` | integer | Requests to this provider on this day |
+| `cost` | number | Cost for this provider on this day (USD) |
+
+### Usage
+
+```bash
+# Get last 30 days (Pacific Time)
+curl "http://localhost:4000/stats/daily?timezone_offset=-480" | jq
+
+# Get specific date range (October 1-7, 2025, Eastern Time)
+curl "http://localhost:4000/stats/daily?start_date=2025-10-01&end_date=2025-10-07&timezone_offset=-300" | jq
+```
+
+```python
+import requests
+from datetime import datetime, timedelta
+
+# Get last 7 days with timezone
+end_date = datetime.now().date()
+start_date = end_date - timedelta(days=7)
+timezone_offset = -480  # PST (UTC-8)
+
+response = requests.get(
+    "http://localhost:4000/stats/daily",
+    params={
+        "start_date": start_date.isoformat(),
+        "end_date": end_date.isoformat(),
+        "timezone_offset": timezone_offset
+    }
+)
+
+data = response.json()
+print(f"Total cost over {data['total_days']} days: ${data['total_cost']:.4f}")
+
+for day in data['daily']:
+    print(f"{day['date']}: ${day['cost']:.4f} ({day['requests']} requests)")
+    for provider in day['by_provider']:
+        print(f"  {provider['provider']}: ${provider['cost']:.4f}")
+```
+
+## GET /stats/date-range
+
+Returns the actual date range of data available in the database. Useful for populating date pickers when "All Time" is selected.
+
+### Request
+
+```http
+GET /stats/date-range HTTP/1.1
+```
+
+### Query Parameters
+
+None.
+
+### Response Format
+
+```json
+{
+  "start_date": "2025-10-04",
+  "end_date": "2025-10-07"
+}
+```
+
+If no data exists in the database:
+
+```json
+{
+  "start_date": null,
+  "end_date": null
+}
+```
+
+### Response Fields
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `start_date` | string/null | Earliest date with data (YYYY-MM-DD) or null if no data |
+| `end_date` | string/null | Latest date with data (YYYY-MM-DD) or null if no data |
+
+### Usage
+
+```bash
+curl http://localhost:4000/stats/date-range | jq
+```
+
+```python
+import requests
+
+response = requests.get("http://localhost:4000/stats/date-range")
+date_range = response.json()
+
+if date_range["start_date"]:
+    print(f"Data available from {date_range['start_date']} to {date_range['end_date']}")
+else:
+    print("No data in database")
 ```
 
 ## DELETE /errors
