@@ -14,7 +14,7 @@ Client → FastAPI (`/v1/chat/completions`) → Model lookup in `MODEL_MAP` → 
 
 ### Key Components
 
-- **apantli/server.py**: Single-file FastAPI application containing all server logic (routes, database, LiteLLM integration, dashboard HTML)
+- **apantli/server.py**: Single-file FastAPI application containing all server logic (routes, database, LiteLLM integration)
 - **config.yaml**: Model configuration with provider mappings and API key references
 - **.env**: API keys (gitignored, never committed)
 - **requests.db**: SQLite database with full request/response logging and cost tracking
@@ -37,15 +37,19 @@ API keys use format `os.environ/VARIABLE_NAME` and are resolved at request time 
 All endpoints are in `apantli/server.py`:
 
 - `/v1/chat/completions` - Main proxy endpoint (OpenAI compatible)
-- `/stats` - Usage statistics with optional `?hours=N` parameter
+- `/chat/completions` - Alternate path for chat completions
+- `/stats` - Usage statistics with optional date range parameters
+- `/stats/daily` - Daily aggregated statistics with provider breakdown
+- `/stats/date-range` - Get actual date range of data in database
 - `/models` - List available models with pricing
-- `/requests` - Last 50 requests with full JSON
+- `/requests` - Last 50 requests with full JSON and filtering
 - `/errors` - DELETE to clear error records
 - `/` - Dashboard HTML (from templates/dashboard.html)
+- `/static` - Static assets (Alpine.js) for dashboard
 
 ## Dashboard
 
-Served via Jinja2 templates from `templates/dashboard.html`. Uses vanilla JavaScript with three tabs (Stats, Models, Requests). Auto-refreshes every 5 seconds for Stats tab.
+Served via Jinja2 templates from `templates/dashboard.html`. Uses vanilla JavaScript with Alpine.js for reactivity. Four tabs: Stats, Calendar, Models, Requests. Stats tab auto-refreshes every 5 seconds.
 
 ## Database Schema
 
@@ -64,6 +68,11 @@ Served via Jinja2 templates from `templates/dashboard.html`. Uses vanilla JavaSc
 | request_data | TEXT | Full request JSON serialized |
 | response_data | TEXT | Full response JSON serialized |
 | error | TEXT | NULL on success, error message on failure |
+
+**Indexes** (for dashboard query performance):
+- `idx_timestamp` - On timestamp column for date range queries
+- `idx_date_provider` - On DATE(timestamp) and provider for daily aggregations
+- `idx_cost` - On cost column for cost-based filtering
 
 ## LiteLLM Integration
 

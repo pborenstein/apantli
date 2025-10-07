@@ -191,7 +191,7 @@ User clicks row → toggleDetail() → Show full request/response JSON
 - Single interface for multiple providers
 - Automatic cost calculation
 - Consistent response format
-- Supports streaming (future)
+- Streaming responses supported
 
 ### Configuration System
 
@@ -422,16 +422,24 @@ Minimal validation:
 - No sanitization of messages (passed through to provider)
 - Relies on LiteLLM and provider for validation
 
-## Future Considerations
+## Implemented Features
 
 ### Streaming Support
 
-LiteLLM supports streaming responses. To add:
+Streaming responses are fully implemented (server.py:218-262):
 
-1. Modify `/v1/chat/completions` to handle `stream=true` parameter
-2. Return FastAPI `StreamingResponse`
-3. Accumulate chunks for final database logging
-4. Update dashboard to show in-progress requests
+1. `/v1/chat/completions` handles `stream=true` parameter
+2. Returns FastAPI `StreamingResponse` with Server-Sent Events
+3. Accumulates chunks for post-stream database logging
+4. Complete request/response logged after stream finishes
+
+**Implementation Details**:
+- Uses async generator to yield SSE-formatted chunks
+- Buffers all chunks to reconstruct complete response
+- Calculates cost and tokens after streaming completes
+- Logs to database with full conversation history
+
+## Future Considerations
 
 ### Authentication
 
