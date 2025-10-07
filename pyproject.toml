@@ -1,8 +1,23 @@
 [project]
 name = "apantli"
 version = "0.1.0"
-description = "Apantli - Lightweight LLM proxy with SQLite cost tracking"
+description = "Lightweight LLM proxy with SQLite cost tracking"
+readme = "README.md"
+license = {text = "MIT"}
+authors = [
+    {name = "Philip Borenstein", email = "pborenstein@gmail.com"}
+]
 requires-python = ">=3.13"
+keywords = ["llm", "proxy", "litellm", "openai", "anthropic", "cost-tracking", "sqlite"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Internet :: Proxy Servers",
+]
 dependencies = [
     "fastapi",
     "uvicorn",
@@ -11,6 +26,11 @@ dependencies = [
     "python-dotenv",
     "netifaces",
 ]
+
+[project.urls]
+Homepage = "https://github.com/pborenstein/apantli"
+Repository = "https://github.com/pborenstein/apantli"
+Issues = "https://github.com/pborenstein/apantli/issues"
 
 [project.scripts]
 apantli = "apantli.server:main"

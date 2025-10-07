@@ -250,7 +250,7 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-considerations) for det
 
 ## License
 
-See project repository for license information.
+MIT License - see [LICENSE](LICENSE) file for details.
 
 ## Name Origin
 
