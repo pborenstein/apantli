@@ -111,98 +111,18 @@ model_list:
 
 ## Provider-Specific Configuration
 
-### OpenAI
+### Supported Providers
 
-**Model identifier format**: `openai/model-name`
+| Provider | Format | Example Models | API Key Source | Env Variable | Key Format |
+|:---------|:-------|:--------------|:---------------|:-------------|:-----------|
+| **OpenAI** | `openai/model` | `gpt-4.1`, `gpt-4.1-mini`, `gpt-4.1-nano`, `gpt-4-turbo`, `gpt-3.5-turbo` | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | `OPENAI_API_KEY` | `sk-proj-...` or `sk-...` |
+| **Anthropic** | `anthropic/model` | `claude-sonnet-4-20250514`, `claude-3-5-haiku-20241022`, `claude-3-5-sonnet-20241022`, `claude-3-opus-20240229` | [console.anthropic.com/settings/keys](https://console.anthropic.com/settings/keys) | `ANTHROPIC_API_KEY` | `sk-ant-api03-...` |
+| **Google Gemini** | `gemini/model` | `gemini-pro`, `gemini-pro-vision`, `gemini-1.5-pro` | [makersuite.google.com/app/apikey](https://makersuite.google.com/app/apikey) | `GEMINI_API_KEY` | 39-char string |
+| **Cohere** | `cohere/model` | `command-r`, `command-r-plus`, `command-light` | [dashboard.cohere.com/api-keys](https://dashboard.cohere.com/api-keys) | `COHERE_API_KEY` | Alphanumeric |
 
-**Supported models**:
+### Azure OpenAI (Special Configuration)
 
-- `openai/gpt-4.1`
-- `openai/gpt-4.1-mini`
-- `openai/gpt-4.1-nano`
-- `openai/gpt-4-turbo`
-- `openai/gpt-3.5-turbo`
-
-**API key**:
-
-- Obtain from https://platform.openai.com/api-keys
-- Format: `sk-proj-...` (new format) or `sk-...` (legacy)
-
-**Environment variable**:
-
-```bash
-OPENAI_API_KEY=sk-proj-your-key-here
-```
-
-### Anthropic
-
-**Model identifier format**: `anthropic/model-name`
-
-**Supported models**:
-
-- `anthropic/claude-sonnet-4-20250514`
-- `anthropic/claude-3-5-haiku-20241022`
-- `anthropic/claude-3-5-sonnet-20241022`
-- `anthropic/claude-3-opus-20240229`
-
-**API key**:
-
-- Obtain from https://console.anthropic.com/settings/keys
-- Format: `sk-ant-api03-...`
-
-**Environment variable**:
-
-```bash
-ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
-```
-
-### Google Gemini
-
-**Model identifier format**: `gemini/model-name`
-
-**Supported models**:
-
-- `gemini/gemini-pro`
-- `gemini/gemini-pro-vision`
-- `gemini/gemini-1.5-pro`
-
-**API key**:
-
-- Obtain from https://makersuite.google.com/app/apikey
-- Format: 39-character string
-
-**Environment variable**:
-
-```bash
-GEMINI_API_KEY=your-key-here
-```
-
-### Cohere
-
-**Model identifier format**: `cohere/model-name`
-
-**Supported models**:
-
-- `cohere/command-r`
-- `cohere/command-r-plus`
-- `cohere/command-light`
-
-**API key**:
-
-- Obtain from https://dashboard.cohere.com/api-keys
-- Format: Alphanumeric string
-
-**Environment variable**:
-
-```bash
-COHERE_API_KEY=your-key-here
-```
-
-### Azure OpenAI
-
-**Model identifier format**: `azure/deployment-name`
-
-**Additional configuration required**:
+Azure OpenAI requires additional parameters beyond the standard config:
 
 ```yaml
 model_list:

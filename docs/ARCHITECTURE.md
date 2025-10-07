@@ -12,43 +12,43 @@ Apantli is a FastAPI-based HTTP proxy that intercepts OpenAI-compatible API requ
 ┌─────────────────────────────────────────────────────────────────┐
 │                        Apantli Server                           │
 │                                                                 │
-│  ┌────────────────────┐      ┌──────────────────────────────┐  │
-│  │  FastAPI           │      │  Lifespan Manager            │  │
-│  │  Application       │◄─────┤  - load_config()             │  │
-│  │                    │      │  - init_db()                 │  │
-│  └─────────┬──────────┘      └──────────────────────────────┘  │
+│  ┌────────────────────┐      ┌──────────────────────────────┐   │
+│  │  FastAPI           │      │  Lifespan Manager            │   │
+│  │  Application       │◄─────┤  - load_config()             │   │
+│  │                    │      │  - init_db()                 │   │
+│  └─────────┬──────────┘      └──────────────────────────────┘   │
 │            │                                                    │
 │            │ HTTP Routes                                        │
 │            ↓                                                    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  API Endpoints                                          │   │
-│  │  - POST /v1/chat/completions (primary)                  │   │
-│  │  - GET  /stats (usage statistics)                       │   │
-│  │  - GET  /models (available models)                      │   │
-│  │  - GET  /requests (recent activity)                     │   │
-│  │  - GET  / (dashboard HTML)                              │   │
-│  └─────────┬───────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  API Endpoints                                          │    │
+│  │  - POST /v1/chat/completions (primary)                  │    │
+│  │  - GET  /stats (usage statistics)                       │    │
+│  │  - GET  /models (available models)                      │    │
+│  │  - GET  /requests (recent activity)                     │    │
+│  │  - GET  / (dashboard HTML)                              │    │
+│  └─────────┬───────────────────────────────────────────────┘    │
 │            │                                                    │
 │            ↓                                                    │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │  Request Processing Pipeline                            │   │
-│  │  1. Parse incoming JSON                                 │   │
-│  │  2. Look up model in MODEL_MAP                          │   │
-│  │  3. Resolve API key from environment                    │   │
-│  │  4. Call LiteLLM completion()                           │   │
-│  │  5. Extract provider from response                      │   │
-│  │  6. Calculate cost and duration                         │   │
-│  │  7. Log to database                                     │   │
-│  │  8. Return response to client                           │   │
-│  └─────────┬───────────────────────────────────────────────┘   │
+│  ┌─────────────────────────────────────────────────────────┐    │
+│  │  Request Processing Pipeline                            │    │
+│  │  1. Parse incoming JSON                                 │    │
+│  │  2. Look up model in MODEL_MAP                          │    │
+│  │  3. Resolve API key from environment                    │    │
+│  │  4. Call LiteLLM completion()                           │    │
+│  │  5. Extract provider from response                      │    │
+│  │  6. Calculate cost and duration                         │    │
+│  │  7. Log to database                                     │    │
+│  │  8. Return response to client                           │    │
+│  └─────────┬───────────────────────────────────────────────┘    │
 │            │                                                    │
 │            ↓                                                    │
-│  ┌─────────────────────┐      ┌─────────────────────────┐     │
-│  │  LiteLLM SDK        │      │  Database Logger        │     │
-│  │  - Provider routing │      │  - log_request()        │     │
-│  │  - Cost calculation │      │  - SQLite operations    │     │
-│  │  - Response parsing │      │  - JSON serialization   │     │
-│  └─────────┬───────────┘      └──────────┬──────────────┘     │
+│  ┌─────────────────────┐      ┌─────────────────────────┐       │
+│  │  LiteLLM SDK        │      │  Database Logger        │       │
+│  │  - Provider routing │      │  - log_request()        │       │
+│  │  - Cost calculation │      │  - SQLite operations    │       │
+│  │  - Response parsing │      │  - JSON serialization   │       │
+│  └─────────┬───────────┘      └──────────┬──────────────┘       │
 │            │                              │                     │
 └────────────┼──────────────────────────────┼─────────────────────┘
              │                              │
