@@ -10,7 +10,7 @@ import sqlite3
 import json
 import argparse
 import logging
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 from contextlib import asynccontextmanager
 
@@ -55,6 +55,26 @@ def load_config():
     except Exception as e:
         print(f"Warning: Could not load config.yaml: {e}")
         print("Models will need to be specified with provider prefix (e.g., 'openai/gpt-4')")
+
+
+def convert_local_date_to_utc_range(date_str: str, timezone_offset_minutes: int):
+    """Convert a local date string to UTC timestamp range.
+
+    Args:
+        date_str: ISO date like "2025-10-06"
+        timezone_offset_minutes: Minutes from UTC (negative for west, positive for east)
+
+    Returns:
+        (start_utc, end_utc) as ISO timestamp strings (inclusive start, exclusive end)
+    """
+    # Parse local date at midnight
+    local_date = datetime.fromisoformat(date_str)
+
+    # Convert to UTC by subtracting the timezone offset
+    utc_start = local_date - timedelta(minutes=timezone_offset_minutes)
+    utc_end = utc_start + timedelta(days=1)
+
+    return utc_start.isoformat(), utc_end.isoformat()
 
 
 def init_db():
@@ -336,26 +356,37 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # Build date expression with timezone conversion if offset provided
-    if timezone_offset is not None:
-        hours_offset = abs(timezone_offset) // 60
-        minutes_offset = abs(timezone_offset) % 60
-        sign = '+' if timezone_offset >= 0 else '-'
-        tz_modifier = f"{sign}{hours_offset:02d}:{minutes_offset:02d}"
-        date_expr = f"DATE(timestamp, '{tz_modifier}')"
-    else:
-        date_expr = "DATE(timestamp)"
-
-    # Build time filter
+    # Build time filter using efficient timestamp comparisons
     time_filter = ""
     if hours:
         time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
     elif start_date and end_date:
-        time_filter = f"AND {date_expr} >= DATE('{start_date}') AND {date_expr} <= DATE('{end_date}')"
+        if timezone_offset is not None:
+            # Convert local date range to UTC timestamps for efficient indexed queries
+            start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
+            _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
+            time_filter = f"AND timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
+        else:
+            # No timezone conversion needed
+            time_filter = f"AND timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_date}T00:00:00' + interval '1 day'"
+            # SQLite doesn't have interval, so we'll use date arithmetic
+            from datetime import datetime as dt
+            end_dt = dt.fromisoformat(end_date) + timedelta(days=1)
+            time_filter = f"AND timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
     elif start_date:
-        time_filter = f"AND {date_expr} >= DATE('{start_date}')"
+        if timezone_offset is not None:
+            start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
+            time_filter = f"AND timestamp >= '{start_utc}'"
+        else:
+            time_filter = f"AND timestamp >= '{start_date}T00:00:00'"
     elif end_date:
-        time_filter = f"AND {date_expr} <= DATE('{end_date}')"
+        if timezone_offset is not None:
+            _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
+            time_filter = f"AND timestamp < '{end_utc}'"
+        else:
+            from datetime import datetime as dt
+            end_dt = dt.fromisoformat(end_date) + timedelta(days=1)
+            time_filter = f"AND timestamp < '{end_dt.date()}T00:00:00'"
 
     cursor.execute(f"""
         SELECT timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
@@ -400,26 +431,33 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
 
-    # Build date expression with timezone conversion if offset provided
-    if timezone_offset is not None:
-        hours_offset = abs(timezone_offset) // 60
-        minutes_offset = abs(timezone_offset) % 60
-        sign = '+' if timezone_offset >= 0 else '-'
-        tz_modifier = f"{sign}{hours_offset:02d}:{minutes_offset:02d}"
-        date_expr = f"DATE(timestamp, '{tz_modifier}')"
-    else:
-        date_expr = "DATE(timestamp)"
-
-    # Build time filter
+    # Build time filter using efficient timestamp comparisons
     time_filter = ""
     if hours:
         time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
     elif start_date and end_date:
-        time_filter = f"AND {date_expr} >= DATE('{start_date}') AND {date_expr} <= DATE('{end_date}')"
+        if timezone_offset is not None:
+            # Convert local date range to UTC timestamps for efficient indexed queries
+            start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
+            _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
+            time_filter = f"AND timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
+        else:
+            # No timezone conversion needed
+            end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
+            time_filter = f"AND timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
     elif start_date:
-        time_filter = f"AND {date_expr} >= DATE('{start_date}')"
+        if timezone_offset is not None:
+            start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
+            time_filter = f"AND timestamp >= '{start_utc}'"
+        else:
+            time_filter = f"AND timestamp >= '{start_date}T00:00:00'"
     elif end_date:
-        time_filter = f"AND {date_expr} <= DATE('{end_date}')"
+        if timezone_offset is not None:
+            _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
+            time_filter = f"AND timestamp < '{end_utc}'"
+        else:
+            end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
+            time_filter = f"AND timestamp < '{end_dt.date()}T00:00:00'"
 
     # Total stats
     cursor.execute(f"""
@@ -462,11 +500,11 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
     """)
     by_provider = cursor.fetchall()
 
-    # Recent errors
-    cursor.execute("""
+    # Recent errors (limit to same time range as other queries for consistency)
+    cursor.execute(f"""
         SELECT timestamp, model, error
         FROM requests
-        WHERE error IS NOT NULL
+        WHERE error IS NOT NULL {time_filter}
         ORDER BY timestamp DESC
         LIMIT 10
     """)
@@ -526,19 +564,27 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
         end_date = datetime.utcnow().strftime('%Y-%m-%d')
     if not start_date:
         # Default to 30 days ago
-        from datetime import timedelta
         start = datetime.utcnow() - timedelta(days=30)
         start_date = start.strftime('%Y-%m-%d')
 
-    # Build date expression with timezone conversion if offset provided
+    # Build WHERE clause using efficient timestamp comparisons
+    # and GROUP BY using timezone-adjusted dates
     if timezone_offset is not None:
-        # Convert minutes to SQLite modifier format (+/-HH:MM)
+        # Convert local date range to UTC timestamps for efficient WHERE clause
+        start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
+        _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
+        where_filter = f"timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
+
+        # Still need timezone conversion for GROUP BY to group by local date
         hours = abs(timezone_offset) // 60
         minutes = abs(timezone_offset) % 60
         sign = '+' if timezone_offset >= 0 else '-'
         tz_modifier = f"{sign}{hours:02d}:{minutes:02d}"
         date_expr = f"DATE(timestamp, '{tz_modifier}')"
     else:
+        # No timezone conversion needed
+        end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
+        where_filter = f"timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
         date_expr = "DATE(timestamp)"
 
     # Get daily aggregates with provider breakdown
@@ -551,11 +597,10 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
             SUM(total_tokens) as tokens
         FROM requests
         WHERE error IS NULL
-          AND {date_expr} >= DATE(?)
-          AND {date_expr} <= DATE(?)
+          AND {where_filter}
         GROUP BY {date_expr}, provider
         ORDER BY date DESC
-    """, (start_date, end_date))
+    """)
     rows = cursor.fetchall()
 
     # Group by date
