@@ -132,6 +132,151 @@
             background: var(--color-background-secondary);
         }
 
+        /* Enhanced request detail styles */
+        .detail-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid var(--color-border);
+        }
+
+        .detail-stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .detail-stat {
+            font-size: 12px;
+        }
+
+        .detail-stat-label {
+            color: var(--color-text-secondary);
+        }
+
+        .detail-stat-value {
+            font-weight: bold;
+            color: var(--color-text);
+        }
+
+        .detail-toggle {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+        }
+
+        .toggle-btn {
+            padding: 4px 12px;
+            border: 1px solid var(--color-border);
+            background: var(--color-background);
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            color: var(--color-text);
+        }
+
+        .toggle-btn:hover {
+            background: var(--color-hover);
+        }
+
+        .toggle-btn.active {
+            background: var(--color-text);
+            color: var(--color-background);
+        }
+
+        .conversation-view {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            display: flex;
+            gap: 10px;
+            padding: 12px;
+            background: var(--color-background);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+        }
+
+        .message-icon {
+            font-size: 20px;
+            flex-shrink: 0;
+        }
+
+        .message-content {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .message-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+        }
+
+        .message-role {
+            font-weight: bold;
+            color: var(--color-text);
+        }
+
+        .message-meta {
+            font-size: 11px;
+            color: var(--color-text-secondary);
+        }
+
+        .message-text {
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            line-height: 1.5;
+            color: var(--color-text);
+        }
+
+        .copy-btn {
+            padding: 2px 8px;
+            border: 1px solid var(--color-border);
+            background: var(--color-background-secondary);
+            border-radius: 3px;
+            cursor: pointer;
+            font-family: var(--font-mono);
+            font-size: 11px;
+            color: var(--color-text);
+        }
+
+        .copy-btn:hover {
+            background: var(--color-hover);
+        }
+
+        .copy-btn:active {
+            background: var(--color-success);
+            color: white;
+        }
+
+        /* Code highlighting */
+        .message-text pre {
+            background: var(--color-background-tertiary);
+            padding: 12px;
+            border-radius: 4px;
+            overflow-x: auto;
+            margin: 8px 0;
+        }
+
+        .message-text code {
+            font-family: var(--font-mono);
+            font-size: 12px;
+        }
+
+        .message-text :not(pre) > code {
+            background: var(--color-background-tertiary);
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+
         .json-view {
             font-size: 11px;
             overflow-x: auto;
@@ -965,9 +1110,162 @@
         }
 
         let expandedRequests = new Set();
+        let detailViewMode = {}; // Track view mode per request: 'conversation' or 'json'
 
         // Table sorting state: { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
         let tableSortState = {};
+
+        // Extract conversation messages from request/response
+        function extractConversation(requestObj) {
+            try {
+                const request = JSON.parse(requestObj.request_data);
+                const response = JSON.parse(requestObj.response_data);
+
+                const messages = [];
+
+                // Extract request messages
+                if (request.messages && Array.isArray(request.messages)) {
+                    request.messages.forEach(msg => {
+                        messages.push({
+                            role: msg.role,
+                            content: msg.content,
+                            isRequest: true
+                        });
+                    });
+                }
+
+                // Extract response message
+                if (response.choices && response.choices[0] && response.choices[0].message) {
+                    const assistantMsg = response.choices[0].message;
+                    messages.push({
+                        role: assistantMsg.role || 'assistant',
+                        content: assistantMsg.content,
+                        isRequest: false
+                    });
+                }
+
+                return messages;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        // Estimate token count for a message (rough approximation)
+        function estimateTokens(text) {
+            if (!text) return 0;
+            // Rough estimate: ~4 characters per token
+            return Math.ceil(text.length / 4);
+        }
+
+        // Format message content with markdown-like code block detection
+        function formatMessageContent(content) {
+            if (!content) return '';
+
+            // Escape HTML
+            const escaped = escapeHtml(content);
+
+            // Convert markdown code blocks to HTML
+            let formatted = escaped.replace(/```(\w+)?\n([\s\S]*?)```/g, (match, lang, code) => {
+                return `<pre><code>${code.trim()}</code></pre>`;
+            });
+
+            // Convert inline code
+            formatted = formatted.replace(/`([^`]+)`/g, '<code>$1</code>');
+
+            return formatted;
+        }
+
+        // Copy text to clipboard
+        function copyToClipboard(text, button) {
+            navigator.clipboard.writeText(text).then(() => {
+                const originalText = button.textContent;
+                button.textContent = 'Copied!';
+                setTimeout(() => {
+                    button.textContent = originalText;
+                }, 1500);
+            }).catch(err => {
+                console.error('Failed to copy:', err);
+            });
+        }
+
+        // Render conversation view
+        function renderConversationView(requestObj) {
+            const messages = extractConversation(requestObj);
+            if (!messages) {
+                return '<p class="error">Could not extract conversation from request/response data</p>';
+            }
+
+            let html = '<div class="conversation-view">';
+
+            messages.forEach((msg, index) => {
+                const icon = msg.role === 'user' ? '⊙' : msg.role === 'assistant' ? '◈' : '⚙';
+                const roleLabel = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
+                const tokens = estimateTokens(msg.content);
+                const formattedContent = formatMessageContent(msg.content);
+
+                html += `
+                    <div class="message">
+                        <div class="message-icon">${icon}</div>
+                        <div class="message-content">
+                            <div class="message-header">
+                                <div>
+                                    <span class="message-role">${roleLabel}</span>
+                                    <span class="message-meta">~${tokens.toLocaleString()} tokens</span>
+                                </div>
+                                <button class="copy-btn" onclick="copyToClipboard(\`${escapeHtml(msg.content).replace(/`/g, '\\`')}\`, this)">Copy</button>
+                            </div>
+                            <div class="message-text">${formattedContent}</div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += '</div>';
+            return html;
+        }
+
+        // Toggle between conversation and JSON view
+        function toggleDetailView(requestId, mode) {
+            detailViewMode[requestId] = mode;
+            const requestObj = requestsObjects.find(r => r.timestamp === requestId);
+            if (!requestObj) return;
+
+            const detailRow = document.getElementById('detail-' + requestId);
+            const contentDiv = detailRow.querySelector('.detail-content');
+
+            if (mode === 'conversation') {
+                contentDiv.innerHTML = renderConversationView(requestObj);
+            } else {
+                // JSON view
+                let requestHtml = '<span class="error">Error parsing request</span>';
+                let responseHtml = '<span class="error">Error parsing response</span>';
+
+                try {
+                    const req = JSON.parse(requestObj.request_data);
+                    requestHtml = renderJsonTree(req);
+                } catch(e) {}
+
+                try {
+                    const resp = JSON.parse(requestObj.response_data);
+                    responseHtml = renderJsonTree(resp);
+                } catch(e) {}
+
+                contentDiv.innerHTML = `
+                    <b>Request:</b>
+                    <div class="json-view json-tree">${requestHtml}</div>
+                    <b>Response:</b>
+                    <div class="json-view json-tree">${responseHtml}</div>
+                `;
+            }
+
+            // Update toggle buttons
+            detailRow.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.mode === mode) {
+                    btn.classList.add('active');
+                }
+            });
+        }
 
         function sortTable(tableId, columnIndex, data, renderCallback) {
             if (!tableSortState[tableId]) {
@@ -1330,20 +1628,18 @@
                 const requestObj = requestsObjects.find(r => r.timestamp === timestamp);
                 if (!requestObj) return;
 
-                let requestHtml = '<span class="error">Error parsing request</span>';
-                let responseHtml = '<span class="error">Error parsing response</span>';
-
-                try {
-                    const req = JSON.parse(requestObj.request_data);
-                    requestHtml = renderJsonTree(req);
-                } catch(e) {}
-
-                try {
-                    const resp = JSON.parse(requestObj.response_data);
-                    responseHtml = renderJsonTree(resp);
-                } catch(e) {}
-
                 const requestId = timestamp;
+                const currentMode = detailViewMode[requestId] || 'conversation';
+
+                // Calculate cost breakdown
+                const promptTokens = requestObj.prompt_tokens || 0;
+                const completionTokens = requestObj.completion_tokens || 0;
+                const totalTokens = requestObj.total_tokens || 0;
+                const cost = requestObj.cost || 0;
+
+                // Rough cost split based on token counts (not exact but reasonable)
+                const promptCost = totalTokens > 0 ? (promptTokens / totalTokens) * cost : 0;
+                const completionCost = cost - promptCost;
 
                 // Create main row
                 const mainRow = document.createElement('tr');
@@ -1352,7 +1648,7 @@
                 mainRow.innerHTML = `
                     <td>${escapeHtml(new Date(timestamp + 'Z').toLocaleString())}</td>
                     <td>${escapeHtml(row[1])}</td>
-                    <td>${row[2]}</td>
+                    <td>${row[2].toLocaleString()}</td>
                     <td>$${row[3].toFixed(4)}</td>
                     <td>${row[4]}ms</td>
                 `;
@@ -1361,12 +1657,75 @@
                 const detailRow = document.createElement('tr');
                 detailRow.id = 'detail-' + requestId;
                 detailRow.style.display = expandedRequests.has(requestId) ? 'table-row' : 'none';
-                detailRow.innerHTML = `
-                    <td colspan="5" class="request-detail">
+
+                // Build detail content
+                const detailHeader = `
+                    <div class="detail-header">
+                        <div class="detail-stats">
+                            <div class="detail-stat">
+                                <span class="detail-stat-label">Model: </span>
+                                <span class="detail-stat-value">${escapeHtml(requestObj.model)}</span>
+                            </div>
+                            <div class="detail-stat">
+                                <span class="detail-stat-label">Provider: </span>
+                                <span class="detail-stat-value">${escapeHtml(requestObj.provider || 'unknown')}</span>
+                            </div>
+                            <div class="detail-stat">
+                                <span class="detail-stat-label">Tokens: </span>
+                                <span class="detail-stat-value">${promptTokens.toLocaleString()} in / ${completionTokens.toLocaleString()} out = ${totalTokens.toLocaleString()} total</span>
+                            </div>
+                            <div class="detail-stat">
+                                <span class="detail-stat-label">Cost: </span>
+                                <span class="detail-stat-value">$${cost.toFixed(4)} ($${promptCost.toFixed(4)} in + $${completionCost.toFixed(4)} out)</span>
+                            </div>
+                            <div class="detail-stat">
+                                <span class="detail-stat-label">Duration: </span>
+                                <span class="detail-stat-value">${requestObj.duration_ms}ms</span>
+                            </div>
+                        </div>
+                    </div>
+                `;
+
+                const toggleButtons = `
+                    <div class="detail-toggle">
+                        <button class="toggle-btn ${currentMode === 'conversation' ? 'active' : ''}" data-mode="conversation" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'conversation')">Conversation</button>
+                        <button class="toggle-btn ${currentMode === 'json' ? 'active' : ''}" data-mode="json" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'json')">Raw JSON</button>
+                    </div>
+                `;
+
+                // Generate initial content
+                let contentHtml = '';
+                if (currentMode === 'conversation') {
+                    contentHtml = renderConversationView(requestObj);
+                } else {
+                    let requestHtml = '<span class="error">Error parsing request</span>';
+                    let responseHtml = '<span class="error">Error parsing response</span>';
+
+                    try {
+                        const req = JSON.parse(requestObj.request_data);
+                        requestHtml = renderJsonTree(req);
+                    } catch(e) {}
+
+                    try {
+                        const resp = JSON.parse(requestObj.response_data);
+                        responseHtml = renderJsonTree(resp);
+                    } catch(e) {}
+
+                    contentHtml = `
                         <b>Request:</b>
                         <div class="json-view json-tree">${requestHtml}</div>
                         <b>Response:</b>
                         <div class="json-view json-tree">${responseHtml}</div>
+                    `;
+                }
+
+                detailRow.innerHTML = `
+                    <td colspan="5" class="request-detail">
+                        ${detailHeader}
+                        ${toggleButtons}
+                        <div class="detail-content">
+                            ${contentHtml}
+                        </div>
                     </td>
                 `;
 
