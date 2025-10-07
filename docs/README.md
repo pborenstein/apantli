@@ -61,13 +61,13 @@ Apantli is a local proxy server that:
 │  │  - Parse model name        │ │
 │  │  - Load config/API keys    │ │
 │  └────────────┬───────────────┘ │
-│               ↓                  │
+│               ↓                 │
 │  ┌────────────────────────────┐ │
 │  │  LiteLLM SDK               │ │
 │  │  - Route to provider       │ │
 │  │  - Calculate costs         │ │
 │  └────────────┬───────────────┘ │
-│               ↓                  │
+│               ↓                 │
 │  ┌────────────────────────────┐ │
 │  │  SQLite Logger             │ │
 │  │  - Store request/response  │ │
