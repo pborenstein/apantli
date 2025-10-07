@@ -66,61 +66,65 @@ Apantli is a FastAPI-based HTTP proxy that intercepts OpenAI-compatible API requ
 ### Request Flow
 
 ```
-1. Client Request
-   ↓
-   POST /v1/chat/completions
-   {
-     "model": "gpt-4.1-mini",
-     "messages": [...]
-   }
-   ↓
-2. Model Lookup
-   ↓
-   MODEL_MAP["gpt-4.1-mini"] → {
-     "model": "openai/gpt-4.1-mini",
-     "api_key": "os.environ/OPENAI_API_KEY"
-   }
-   ↓
-3. API Key Resolution
-   ↓
-   os.environ["OPENAI_API_KEY"] → "sk-..."
-   ↓
-4. LiteLLM Call
-   ↓
-   completion(
-     model="openai/gpt-4.1-mini",
-     messages=[...],
-     api_key="sk-..."
-   )
-   ↓
-5. Provider Response
-   ↓
-   {
-     "id": "chatcmpl-...",
-     "choices": [...],
-     "usage": {
-       "prompt_tokens": 10,
-       "completion_tokens": 20,
-       "total_tokens": 30
-     }
-   }
-   ↓
-6. Cost Calculation
-   ↓
-   litellm.completion_cost(response) → 0.0015
-   ↓
-7. Database Logging
-   ↓
-   INSERT INTO requests (
-     timestamp, model, provider,
-     prompt_tokens, completion_tokens,
-     total_tokens, cost, duration_ms,
-     request_data, response_data
-   )
-   ↓
-8. Client Response
-   ↓
-   Return original LiteLLM response
+┌──────────────┐
+│   Client     │
+└──────┬───────┘
+       │ POST /v1/chat/completions
+       │ { "model": "gpt-4.1-mini", "messages": [...] }
+       ↓
+┌──────────────────────────────────────────────────────────────────────┐
+│                          Apantli Server                              │
+│                                                                      │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ 1. Model Lookup                                             │    │
+│  │    MODEL_MAP["gpt-4.1-mini"] →                              │    │
+│  │    { "model": "openai/gpt-4.1-mini",                        │    │
+│  │      "api_key": "os.environ/OPENAI_API_KEY" }               │    │
+│  └─────────────────────────────┬───────────────────────────────┘    │
+│                                ↓                                    │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ 2. API Key Resolution                                       │    │
+│  │    os.environ["OPENAI_API_KEY"] → "sk-..."                  │    │
+│  └─────────────────────────────┬───────────────────────────────┘    │
+│                                ↓                                    │
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │ 3. LiteLLM Call                                             │    │
+│  │    completion(model="openai/gpt-4.1-mini",                  │    │
+│  │               messages=[...], api_key="sk-...")             │    │
+│  └─────────────────────────────┬───────────────────────────────┘    │
+└────────────────────────────────┼──────────────────────────────────┬─┘
+                                 ↓                                  │
+                       ┌──────────────────┐                         │
+                       │ Provider (OpenAI)│                         │
+                       └──────────┬───────┘                         │
+                                  │ Response                        │
+                                  │ { "id": "chatcmpl-...",         │
+                                  │   "choices": [...],             │
+                                  │   "usage": { tokens, ... } }    │
+                                  ↓                                 │
+┌────────────────────────────────────────────────────────────────┐  │
+│                          Apantli Server                        │  │
+│  ┌─────────────────────────────────────────────────────────┐   │  │
+│  │ 4. Cost Calculation                                     │   │  │
+│  │    litellm.completion_cost(response) → 0.0015           │   │  │
+│  └─────────────────────────────┬───────────────────────────┘   │  │
+│                                ↓                               │  │
+│  ┌─────────────────────────────────────────────────────────┐   │  │
+│  │ 5. Database Logging                                     │   │  │
+│  │    INSERT INTO requests (timestamp, model, provider,    │◄──┼──┘
+│  │                          tokens, cost, duration_ms,     │   │
+│  │                          request_data, response_data)   │   │
+│  └─────────────────────────────┬───────────────────────────┘   │
+│                                ↓                               │
+│  ┌─────────────────────────────────────────────────────────┐   │
+│  │ 6. Return Response                                      │   │
+│  │    Original LiteLLM response                            │   │
+│  └─────────────────────────────┬───────────────────────────┘   │
+└────────────────────────────────┼───────────────────────────────┘
+                                 ↓
+                         ┌──────────────┐
+                         │    Client    │
+                         └──────────────┘
 ```
 
 ### Dashboard Flow
