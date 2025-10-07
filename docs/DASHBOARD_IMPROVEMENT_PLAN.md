@@ -2,7 +2,7 @@
 
 ## Implementation Status
 
-**Last Updated:** 2025-10-06
+**Last Updated:** 2025-10-07
 
 **Completed Phases:**
 - ✅ Phase 1: Backend - Date Range API Enhancements (COMPLETE)
@@ -10,18 +10,18 @@
 - ✅ Phase 3.1: Provider Overview Section (COMPLETE)
 - ✅ Phase 4: Date Range Filtering UI (COMPLETE)
 - ✅ Phase 5.1-5.2: Request Filtering and Summary (COMPLETE)
+- ✅ Phase 5.3: Enhanced Request Detail View (COMPLETE)
 - ✅ Phase 6: Visual Polish and Accessibility (COMPLETE)
+- ✅ Performance: Query Optimization (COMPLETE - Oct 2025)
 
 **Remaining Work:**
 - Phase 3.2: Provider Comparison Over Time (lightweight vanilla SVG line chart)
-- Phase 5.3: Enhanced Request Detail View (conversation extraction, syntax highlighting)
 - Phase 7: Advanced Analytics (cost trends, projections, time-of-day analysis, budgets)
 
 **Recommended Next Steps (in order):**
-1. **Phase 5.3** - Enhanced Request Detail View (high user value, moderate complexity)
-2. **Phase 3.2** - Provider Trends Chart (visual insight, moderate complexity)
-3. **Phase 7.1** - Cost Projections (useful for budget planning)
-4. **Phase 7.2-7.4** - Advanced Analytics (nice-to-have features)
+1. **Phase 3.2** - Provider Trends Chart (visual insight, moderate complexity)
+2. **Phase 7.1** - Cost Projections (useful for budget planning)
+3. **Phase 7.2-7.4** - Advanced Analytics (nice-to-have features)
 
 ---
 
@@ -44,9 +44,10 @@ This plan outlines incremental improvements to the Apantli dashboard to add date
 - ✅ Flexible date range filtering (single day, week, month, custom range) (DONE)
 - ✅ Provider cost breakdown with bar charts (DONE)
 - ✅ Enhanced request filtering and summary (DONE)
+- ✅ Enhanced request detail view with conversation extraction (DONE)
 - ✅ Dark mode and visual polish (DONE)
+- ✅ Query performance optimization for snappy dashboard (DONE)
 - ⏳ Provider trends over time with line chart (NOT STARTED)
-- ⏳ Enhanced request detail view with conversation extraction (NOT STARTED)
 - ⏳ Advanced analytics (cost trends, projections, budget tracking) (NOT STARTED)
 
 ---
@@ -746,18 +747,29 @@ Shows aggregate stats for filtered requests:
 </div>
 ```
 
-### 5.3 Enhanced Request Detail View ❌ NOT STARTED
+### 5.3 Enhanced Request Detail View ✅ COMPLETE
 
-Improve the expandable request detail:
+**Status:** DONE - Implemented in `templates/dashboard.html` (lines 1119-1225)
 
-**Current:** JSON tree (good)
+Improved the expandable request detail with conversation view:
 
-**Enhancements:**
-- Message extraction (show just the conversation)
-- Syntax highlighting for code in messages
-- Copy buttons for messages
-- Token count per message
-- Cost breakdown (input vs output)
+**Implementation Details:**
+- Toggle between "Conversation" and "Raw JSON" views (dashboard.html:1689-1693) ✅
+- Message extraction from request/response data (dashboard.html:1119-1151) ✅
+- Markdown-like formatting with code block detection (dashboard.html:1161-1176) ✅
+- Copy buttons for each message (dashboard.html:1179-1189, 1215) ✅
+- Token count estimation per message (dashboard.html:1154-1158, 1213) ✅
+- Cost breakdown (input vs output) in detail header (dashboard.html:1641-1679) ✅
+- User/assistant icons for visual distinction (dashboard.html:1201) ✅
+- Persisted view mode preference per request (dashboard.html:1632) ✅
+
+**Key Features:**
+- Extracts conversation from request.messages and response.choices ✅
+- Displays role-based icons (⊙ for user, ◈ for assistant) ✅
+- Code blocks rendered with syntax highlighting ✅
+- Inline code wrapped with proper formatting ✅
+- Approximate token counts shown (~4 chars per token heuristic) ✅
+- Cost split shown: prompt cost + completion cost = total ✅
 
 **Visual Design:**
 ```
@@ -884,6 +896,114 @@ Improve the expandable request detail:
 - HTTP status codes included in error messages ✅
 - Non-blocking error display ✅
 - Accessible via ARIA role="alert" ✅
+
+---
+
+## Performance Optimization ✅ COMPLETE
+
+**Status:** DONE - Implemented October 2025
+
+**Goal:** Eliminate 5-second delays on Stats page by optimizing database queries
+
+### Problem Identified
+
+The Stats page was taking ~5 seconds to render due to inefficient SQL queries in three endpoints:
+- `/stats` - Main statistics aggregation
+- `/requests` - Request list with filtering
+- `/stats/daily` - Daily aggregates for calendar view
+
+**Root Cause:** All three endpoints used `DATE(timestamp, tz_modifier)` function calls in WHERE clauses, preventing SQLite from using the `idx_timestamp` index:
+
+```sql
+-- INEFFICIENT (forces full table scan):
+WHERE DATE(timestamp, '+08:00') >= DATE('2025-10-01')
+
+-- Each row required computing DATE(timestamp, '+08:00') before comparison
+```
+
+### Solution Implemented
+
+**Key Insight:** Convert local date ranges to UTC timestamp ranges, enabling index usage.
+
+**Helper Function Added (server.py:60-77):**
+```python
+def convert_local_date_to_utc_range(date_str: str, timezone_offset_minutes: int):
+    """Convert local date to UTC timestamp range for efficient indexed queries."""
+    local_date = datetime.fromisoformat(date_str)
+    utc_start = local_date - timedelta(minutes=timezone_offset_minutes)
+    utc_end = utc_start + timedelta(days=1)
+    return utc_start.isoformat(), utc_end.isoformat()
+```
+
+**Optimized Query Pattern:**
+```sql
+-- EFFICIENT (uses idx_timestamp index):
+WHERE timestamp >= '2025-10-06T08:00:00' AND timestamp < '2025-10-07T08:00:00'
+
+-- Direct timestamp comparison leverages index
+```
+
+### Changes Made
+
+**1. `/stats` endpoint (server.py:421-511)** ✅
+- Replaced `DATE(timestamp, tz)` in WHERE clauses with direct timestamp comparisons
+- Maintained timezone conversion for display purposes
+- Applied time filter to errors query for consistency
+
+**2. `/requests` endpoint (server.py:346-418)** ✅
+- Converted date range parameters to UTC timestamps
+- Used efficient `timestamp >= X AND timestamp < Y` pattern
+- Preserved exact same filtering behavior with better performance
+
+**3. `/stats/daily` endpoint (server.py:550-604)** ✅
+- Optimized WHERE clause with UTC timestamp comparisons
+- Kept `DATE(timestamp, tz)` only in SELECT/GROUP BY where necessary
+- Index used for filtering, timezone conversion only for grouping
+
+### Performance Impact
+
+**Before:**
+- Stats page: ~5 seconds (reported by user)
+- Full table scan on every query with date filtering
+- DATE() function computed for every row before filtering
+
+**After:**
+- Expected: <100ms for typical datasets
+- Index-based range scans
+- Efficient filtering before aggregation
+
+**Benefits:**
+- 50x+ performance improvement expected
+- Scales well with database growth
+- No change to API behavior or frontend code
+- Maintains correct timezone handling
+
+### Technical Details
+
+**Index Utilization:**
+```sql
+-- Index can now be used because we compare the indexed column directly
+CREATE INDEX idx_timestamp ON requests(timestamp);
+
+-- Before: DATE(timestamp) != timestamp, so index not used
+-- After: timestamp >= X AND timestamp < Y uses index range scan
+```
+
+**Timezone Handling:**
+- Frontend sends `timezone_offset` in minutes from UTC (negative for west)
+- Backend converts local date boundaries to UTC timestamps
+- Database comparisons happen in UTC (as stored)
+- Display conversions happen after filtering (minimal overhead)
+
+**Example:**
+```
+User requests: 2025-10-06 in PST (timezone_offset = -480)
+Backend converts:
+  - Start: 2025-10-06 00:00:00 PST → 2025-10-06 08:00:00 UTC
+  - End:   2025-10-07 00:00:00 PST → 2025-10-07 08:00:00 UTC
+Query: timestamp >= '2025-10-06T08:00:00' AND timestamp < '2025-10-07T08:00:00'
+Result: Index range scan, no full table scan
+```
 
 ---
 
