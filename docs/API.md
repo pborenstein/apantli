@@ -18,6 +18,54 @@ Currently none. All endpoints are unauthenticated.
 
 For network exposure, add authentication layer (reverse proxy with basic auth, API key middleware, etc.).
 
+## Quick Start Examples
+
+### Using curl
+
+```bash
+curl http://localhost:4000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4.1-mini",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+### Using OpenAI SDK
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:4000/v1",
+    api_key="not-used"  # Proxy handles API keys
+)
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+
+print(response.choices[0].message.content)
+```
+
+### Using requests library
+
+```python
+import requests
+
+response = requests.post(
+    "http://localhost:4000/v1/chat/completions",
+    json={
+        "model": "claude-haiku-3.5",
+        "messages": [{"role": "user", "content": "Hello!"}]
+    }
+)
+
+data = response.json()
+print(data["choices"][0]["message"]["content"])
+```
+
 ## Endpoints Overview
 
 | Endpoint | Method | Purpose |
