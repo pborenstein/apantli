@@ -1480,6 +1480,7 @@
         }
 
         function onTabChange(tab) {
+            if (tab === 'stats') refreshStats();
             if (tab === 'calendar') loadCalendar();
             if (tab === 'models') loadModels();
             if (tab === 'requests') loadRequests();
