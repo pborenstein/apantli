@@ -12,13 +12,16 @@
 - ✅ Phase 5.1-5.2: Request Filtering and Summary (COMPLETE)
 - ✅ Phase 6: Visual Polish and Accessibility (COMPLETE)
 
-**In Progress:**
-- None
+**Remaining Work:**
+- Phase 3.2: Provider Comparison Over Time (lightweight vanilla SVG line chart)
+- Phase 5.3: Enhanced Request Detail View (conversation extraction, syntax highlighting)
+- Phase 7: Advanced Analytics (cost trends, projections, time-of-day analysis, budgets)
 
-**Not Started:**
-- Phase 3.2: Provider Comparison Over Time
-- Phase 5.3: Enhanced Request Detail View
-- Phase 7: Advanced Analytics
+**Recommended Next Steps (in order):**
+1. **Phase 5.3** - Enhanced Request Detail View (high user value, moderate complexity)
+2. **Phase 3.2** - Provider Trends Chart (visual insight, moderate complexity)
+3. **Phase 7.1** - Cost Projections (useful for budget planning)
+4. **Phase 7.2-7.4** - Advanced Analytics (nice-to-have features)
 
 ---
 
@@ -39,10 +42,12 @@ This plan outlines incremental improvements to the Apantli dashboard to add date
 **Target State:**
 - ✅ Calendar view with daily cost visualization (DONE)
 - ✅ Flexible date range filtering (single day, week, month, custom range) (DONE)
-- ✅ Provider cost breakdown and comparison (PARTIALLY DONE - bars complete, trends not started)
-- ⏳ Enhanced request exploration by date (NOT STARTED)
-- ⏳ Lightweight charting without heavy frameworks (NOT STARTED - for provider trends)
-- ⏳ Improved visual design and information hierarchy (NOT STARTED)
+- ✅ Provider cost breakdown with bar charts (DONE)
+- ✅ Enhanced request filtering and summary (DONE)
+- ✅ Dark mode and visual polish (DONE)
+- ⏳ Provider trends over time with line chart (NOT STARTED)
+- ⏳ Enhanced request detail view with conversation extraction (NOT STARTED)
+- ⏳ Advanced analytics (cost trends, projections, budget tracking) (NOT STARTED)
 
 ---
 
