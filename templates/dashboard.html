@@ -1056,8 +1056,6 @@
     });
     $watch('statsFilter', value => refreshStats(), { deep: true });
     $watch('requestsFilter', value => loadRequests(), { deep: true });
-    // Trigger initial load
-    refreshStats();
 ">
     <h1>
         <span>LLM Proxy Statistics</span>
@@ -1891,6 +1889,8 @@
         let alpineData = null;
         document.addEventListener('alpine:initialized', () => {
             alpineData = Alpine.$data(document.body);
+            // Trigger initial data load now that Alpine is ready
+            onTabChange(alpineData.currentTab || 'stats');
         });
 
         let byModelData = [];
