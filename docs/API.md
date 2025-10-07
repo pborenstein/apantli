@@ -892,6 +892,13 @@ http://localhost:4000/
 - Recent errors with "Clear Errors" button
 - All timestamps displayed in local timezone
 
+**Calendar Tab**:
+
+- Monthly calendar grid showing daily costs with heatmap coloring
+- Request counts per day
+- Click any day to see provider breakdown
+- Navigate between months
+
 **Models Tab**:
 
 - List of configured models
