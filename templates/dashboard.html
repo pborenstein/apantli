@@ -2104,9 +2104,13 @@
         async function refreshStats() {
             if (!alpineData) return;
             const query = alpineData.buildQuery(alpineData.statsFilter);
-            const url = `/stats${query}`;
-            const res = await fetch(url);
-            const data = await res.json();
+
+            // Fetch stats and daily data in parallel for faster loading
+            const [statsRes, _] = await Promise.all([
+                fetch(`/stats${query}`),
+                renderProviderTrends() // Start chart fetch in parallel
+            ]);
+            const data = await statsRes.json();
 
             // Totals
             document.getElementById('totals').innerHTML = `
@@ -2186,9 +2190,6 @@
                 tableSortState['errors'].originalData = [...errorsData];
             }
             renderErrorsTable(applySortIfNeeded('errors', errorsData), tableSortState['errors']);
-
-            // Render provider trends chart
-            renderProviderTrends();
         }
 
         function sortByModelTable(columnIndex) {
