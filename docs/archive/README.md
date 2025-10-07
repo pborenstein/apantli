@@ -6,6 +6,8 @@ Historical documents and development notes.
 
 | File | Date | Description |
 |:-----|:-----|:------------|
+| [DASHBOARD_IMPROVEMENT_PLAN.md](DASHBOARD_IMPROVEMENT_PLAN.md) | 2025-10-07 | Dashboard enhancement roadmap and feature proposals |
+| [DOCUMENTATION_AUDIT_2025-10-07.md](DOCUMENTATION_AUDIT_2025-10-07.md) | 2025-10-07 | Comprehensive documentation audit by two specialized agents (completed) |
 | [development-session-2025-10-04.md](development-session-2025-10-04.md) | 2025-10-04 | Initial development session notes |
 
 ## Purpose
