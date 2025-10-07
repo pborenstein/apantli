@@ -10,6 +10,7 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 | [CONFIGURATION.md](CONFIGURATION.md) | Model configuration and environment setup | Users & Developers |
 | [DATABASE.md](DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [API.md](API.md) | HTTP endpoint reference | Developers & Integration users |
+| [DASHBOARD.md](DASHBOARD.md) | Web dashboard guide - features, customization, and how it works | Users & Developers |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 
 ## Quick Navigation
@@ -21,6 +22,8 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 **Configuration**: See [CONFIGURATION.md](CONFIGURATION.md) for detailed model setup and advanced configuration options.
 
 **Database**: See [DATABASE.md](DATABASE.md) for schema details, maintenance procedures, and custom queries.
+
+**Dashboard**: See [DASHBOARD.md](DASHBOARD.md) for web dashboard features, Jinja2/Alpine.js explanation, and customization guide.
 
 **Issues**: Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for solutions to common problems.
 
