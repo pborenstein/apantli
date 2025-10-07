@@ -57,6 +57,17 @@ model_list:
       api_key: os.environ/ENV_VAR_NAME
 ```
 
+### What are litellm_params?
+
+`litellm_params` is a dictionary containing parameters passed directly to the [LiteLLM SDK's completion() function](https://docs.litellm.ai/docs/completion/input). These parameters control:
+
+- **Model routing** - Which provider and model to use
+- **Authentication** - API keys, base URLs, organization IDs
+- **Default behavior** - Temperature, max_tokens, top_p, etc.
+- **Provider-specific settings** - Azure API version, custom endpoints, etc.
+
+Any parameter accepted by `litellm.completion()` can be set here. Parameters set in `litellm_params` become defaults for that model alias - clients can override them in individual requests.
+
 ### Configuration Fields
 
 | Field | Required | Description |
@@ -64,6 +75,16 @@ model_list:
 | `model_name` | Yes | Alias clients use in API requests |
 | `litellm_params.model` | Yes | LiteLLM model identifier (format: `provider/model`) |
 | `litellm_params.api_key` | Yes | API key reference (format: `os.environ/VAR_NAME`) |
+
+**Common Optional Parameters**:
+- `temperature` - Sampling temperature (0.0-2.0)
+- `max_tokens` - Maximum tokens to generate
+- `top_p` - Nucleus sampling parameter
+- `api_base` - Custom API endpoint URL
+- `api_version` - API version (for Azure)
+- `organization` - Organization ID (for OpenAI)
+
+See [LiteLLM's Input documentation](https://docs.litellm.ai/docs/completion/input) for all available parameters.
 
 ### Example Configuration
 
