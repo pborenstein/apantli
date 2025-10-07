@@ -491,6 +491,125 @@
             margin-top: 4px;
         }
 
+        /* Provider trends chart styles */
+        #provider-trends-chart {
+            margin: 20px 0;
+            padding: 20px;
+            background: var(--color-background);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+        }
+
+        .chart-svg {
+            width: 100%;
+            height: 300px;
+            overflow: visible;
+        }
+
+        .chart-line {
+            fill: none;
+            stroke-width: 2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .chart-dot {
+            fill: var(--color-background);
+            stroke-width: 2;
+            cursor: pointer;
+        }
+
+        .chart-dot:hover {
+            r: 5;
+        }
+
+        .chart-axis {
+            stroke: var(--color-border);
+            stroke-width: 1;
+        }
+
+        .chart-axis-text {
+            fill: var(--color-text-secondary);
+            font-size: 11px;
+            font-family: var(--font-mono);
+        }
+
+        .chart-grid {
+            stroke: var(--color-border);
+            stroke-width: 1;
+            opacity: 0.3;
+        }
+
+        .chart-legend {
+            display: flex;
+            gap: 20px;
+            margin-top: 15px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        .chart-legend-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .chart-legend-item:hover {
+            background: var(--color-hover);
+        }
+
+        .chart-legend-item.inactive {
+            opacity: 0.3;
+        }
+
+        .chart-legend-color {
+            width: 20px;
+            height: 3px;
+            border-radius: 2px;
+        }
+
+        .chart-legend-label {
+            font-size: 12px;
+            color: var(--color-text);
+            font-family: var(--font-mono);
+        }
+
+        .chart-tooltip {
+            position: absolute;
+            background: var(--color-background-secondary);
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            padding: 8px 12px;
+            font-size: 11px;
+            pointer-events: none;
+            box-shadow: 0 2px 8px var(--color-shadow);
+            z-index: 1000;
+            display: none;
+        }
+
+        .chart-tooltip-date {
+            font-weight: bold;
+            margin-bottom: 4px;
+            color: var(--color-text);
+        }
+
+        .chart-tooltip-item {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            color: var(--color-text);
+        }
+
+        .chart-empty {
+            text-align: center;
+            padding: 40px;
+            color: var(--color-text-secondary);
+        }
+
         /* Date filter styles */
         .date-filter {
             background: var(--color-background-secondary);
@@ -949,6 +1068,7 @@
     </h1>
 
     <div id="error-banner" class="error-banner" role="alert"></div>
+    <div id="chart-tooltip" class="chart-tooltip"></div>
 
     <nav>
         <a href="#" :class="{ 'active': currentTab === 'stats' }" @click.prevent="currentTab = 'stats'">Stats</a>
@@ -979,6 +1099,9 @@
 
         <h2>Provider Cost Breakdown</h2>
         <div id="provider-breakdown"></div>
+
+        <h2>Provider Cost Trends</h2>
+        <div id="provider-trends-chart"></div>
 
         <h2>By Model</h2>
         <table id="by-model"></table>
@@ -1774,6 +1897,210 @@
         let byProviderData = [];
         let errorsData = [];
 
+        // Provider trends chart state
+        let hiddenProviders = new Set();
+
+        // Provider colors (shared with bar chart)
+        const PROVIDER_COLORS = {
+            'openai': '#10a37f',
+            'anthropic': '#d97757',
+            'google': '#4285f4',
+            'default': '#999999'
+        };
+
+        function getProviderColor(provider) {
+            return PROVIDER_COLORS[provider] || PROVIDER_COLORS.default;
+        }
+
+        async function renderProviderTrends() {
+            if (!alpineData) return;
+
+            const container = document.getElementById('provider-trends-chart');
+            const query = alpineData.buildQuery(alpineData.statsFilter);
+
+            try {
+                // Use same date range as stats filter
+                const res = await fetch(`/stats/daily${query}`);
+                const data = await res.json();
+
+                if (!data.daily || data.daily.length === 0) {
+                    container.innerHTML = '<div class="chart-empty">No data available for selected date range</div>';
+                    return;
+                }
+
+                // Sort daily data by date ascending for proper line rendering
+                const dailyData = data.daily.sort((a, b) => a.date.localeCompare(b.date));
+
+                // Group data by provider
+                const providerData = {};
+                dailyData.forEach(day => {
+                    day.by_provider.forEach(p => {
+                        if (!providerData[p.provider]) {
+                            providerData[p.provider] = [];
+                        }
+                        providerData[p.provider].push({
+                            date: day.date,
+                            cost: p.cost
+                        });
+                    });
+                });
+
+                // Fill in missing dates with 0 cost for each provider
+                const allDates = dailyData.map(d => d.date);
+                Object.keys(providerData).forEach(provider => {
+                    const existingDates = new Set(providerData[provider].map(d => d.date));
+                    allDates.forEach(date => {
+                        if (!existingDates.has(date)) {
+                            providerData[provider].push({ date, cost: 0 });
+                        }
+                    });
+                    // Re-sort after filling gaps
+                    providerData[provider].sort((a, b) => a.date.localeCompare(b.date));
+                });
+
+                renderChart(container, providerData, allDates);
+            } catch (e) {
+                console.error('Failed to load provider trends:', e);
+                container.innerHTML = '<div class="chart-empty">Failed to load chart data</div>';
+            }
+        }
+
+        function renderChart(container, providerData, dates) {
+            const width = container.offsetWidth - 40; // Account for padding
+            const height = 300;
+            const margin = { top: 20, right: 80, bottom: 60, left: 60 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            // Calculate scales
+            const maxCost = Math.max(...Object.values(providerData).flatMap(d => d.map(p => p.cost)), 0.0001);
+            const minCost = 0;
+
+            // X scale: date to pixel
+            const xScale = (dateIndex) => (dateIndex / (dates.length - 1 || 1)) * chartWidth;
+
+            // Y scale: cost to pixel (inverted because SVG Y increases downward)
+            const yScale = (cost) => chartHeight - ((cost - minCost) / (maxCost - minCost)) * chartHeight;
+
+            // Format date for display
+            const formatDate = (dateStr) => {
+                const date = new Date(dateStr);
+                return `${date.getMonth() + 1}/${date.getDate()}`;
+            };
+
+            // Create SVG
+            let svg = `
+                <svg class="chart-svg" viewBox="0 0 ${width} ${height + 40}" xmlns="http://www.w3.org/2000/svg">
+                    <g transform="translate(${margin.left}, ${margin.top})">
+            `;
+
+            // Add grid lines
+            const gridSteps = 5;
+            for (let i = 0; i <= gridSteps; i++) {
+                const y = (i / gridSteps) * chartHeight;
+                svg += `<line class="chart-grid" x1="0" y1="${y}" x2="${chartWidth}" y2="${y}" />`;
+            }
+
+            // Add Y axis
+            svg += `<line class="chart-axis" x1="0" y1="0" x2="0" y2="${chartHeight}" />`;
+            for (let i = 0; i <= gridSteps; i++) {
+                const y = (i / gridSteps) * chartHeight;
+                const cost = maxCost - (i / gridSteps) * (maxCost - minCost);
+                svg += `<text class="chart-axis-text" x="-10" y="${y + 4}" text-anchor="end">$${cost.toFixed(3)}</text>`;
+            }
+
+            // Add X axis
+            svg += `<line class="chart-axis" x1="0" y1="${chartHeight}" x2="${chartWidth}" y2="${chartHeight}" />`;
+
+            // Add X axis labels (show fewer labels to avoid crowding)
+            const labelStep = Math.ceil(dates.length / 8);
+            dates.forEach((date, i) => {
+                if (i % labelStep === 0 || i === dates.length - 1) {
+                    const x = xScale(i);
+                    svg += `<text class="chart-axis-text" x="${x}" y="${chartHeight + 20}" text-anchor="middle">${formatDate(date)}</text>`;
+                }
+            });
+
+            // Draw lines for each provider
+            Object.entries(providerData).forEach(([provider, data]) => {
+                const color = getProviderColor(provider);
+                const isHidden = hiddenProviders.has(provider);
+
+                if (isHidden) return;
+
+                // Generate path
+                const pathData = data.map((d, i) => {
+                    const x = xScale(i);
+                    const y = yScale(d.cost);
+                    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
+                }).join(' ');
+
+                svg += `<path class="chart-line" d="${pathData}" stroke="${color}" />`;
+
+                // Add dots
+                data.forEach((d, i) => {
+                    if (d.cost > 0) {
+                        const x = xScale(i);
+                        const y = yScale(d.cost);
+                        svg += `
+                            <circle class="chart-dot" cx="${x}" cy="${y}" r="3" stroke="${color}"
+                                    onmouseover="showChartTooltip(event, '${d.date}', '${provider}', ${d.cost})"
+                                    onmouseout="hideChartTooltip()" />
+                        `;
+                    }
+                });
+            });
+
+            svg += `
+                    </g>
+                </svg>
+            `;
+
+            // Add legend
+            const legend = Object.keys(providerData).map(provider => {
+                const color = getProviderColor(provider);
+                const isHidden = hiddenProviders.has(provider);
+                const totalCost = providerData[provider].reduce((sum, d) => sum + d.cost, 0);
+
+                return `
+                    <div class="chart-legend-item ${isHidden ? 'inactive' : ''}" onclick="toggleProvider('${provider}')">
+                        <div class="chart-legend-color" style="background: ${color}"></div>
+                        <div class="chart-legend-label">${provider} ($${totalCost.toFixed(4)})</div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = svg + `<div class="chart-legend">${legend}</div>`;
+        }
+
+        function showChartTooltip(event, date, provider, cost) {
+            const tooltip = document.getElementById('chart-tooltip');
+            tooltip.innerHTML = `
+                <div class="chart-tooltip-date">${date}</div>
+                <div class="chart-tooltip-item">
+                    <span>${provider}:</span>
+                    <span>$${cost.toFixed(4)}</span>
+                </div>
+            `;
+            tooltip.style.display = 'block';
+            tooltip.style.left = (event.pageX + 10) + 'px';
+            tooltip.style.top = (event.pageY - 30) + 'px';
+        }
+
+        function hideChartTooltip() {
+            const tooltip = document.getElementById('chart-tooltip');
+            tooltip.style.display = 'none';
+        }
+
+        function toggleProvider(provider) {
+            if (hiddenProviders.has(provider)) {
+                hiddenProviders.delete(provider);
+            } else {
+                hiddenProviders.add(provider);
+            }
+            renderProviderTrends();
+        }
+
         async function refreshStats() {
             if (!alpineData) return;
             const query = alpineData.buildQuery(alpineData.statsFilter);
@@ -1803,17 +2130,12 @@
 
             // Provider breakdown visualization
             const totalCost = data.totals.cost;
-            const providerColors = {
-                'openai': '#10a37f',
-                'anthropic': '#d97757',
-                'google': '#4285f4'
-            };
 
             let providerHtml = '';
             if (data.by_provider.length > 0 && totalCost > 0) {
                 providerHtml = data.by_provider.map(p => {
                     const percentage = (p.cost / totalCost * 100);
-                    const color = providerColors[p.provider] || '#999999';
+                    const color = getProviderColor(p.provider);
 
                     return `
                         <div class="provider-bar">
@@ -1864,6 +2186,9 @@
                 tableSortState['errors'].originalData = [...errorsData];
             }
             renderErrorsTable(applySortIfNeeded('errors', errorsData), tableSortState['errors']);
+
+            // Render provider trends chart
+            renderProviderTrends();
         }
 
         function sortByModelTable(columnIndex) {
@@ -2098,13 +2423,7 @@
 
             dayData.by_provider.forEach(p => {
                 const percentage = totalCost > 0 ? (p.cost / totalCost * 100) : 0;
-                const providerColors = {
-                    'openai': '#10a37f',
-                    'anthropic': '#d97757',
-                    'google': '#4285f4',
-                    'unknown': '#999999'
-                };
-                const color = providerColors[p.provider] || '#999999';
+                const color = getProviderColor(p.provider);
 
                 providersHtml += `
                     <div class="provider-bar">
