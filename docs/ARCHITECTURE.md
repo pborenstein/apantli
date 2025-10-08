@@ -426,7 +426,7 @@ Minimal validation:
 
 ### Streaming Support
 
-Streaming responses are fully implemented (server.py:218-262):
+Streaming responses are fully implemented (server.py:244-288):
 
 1. `/v1/chat/completions` handles `stream=true` parameter
 2. Returns FastAPI `StreamingResponse` with Server-Sent Events
@@ -434,10 +434,12 @@ Streaming responses are fully implemented (server.py:218-262):
 4. Complete request/response logged after stream finishes
 
 **Implementation Details**:
-- Uses async generator to yield SSE-formatted chunks
+- Uses async generator to yield SSE-formatted chunks (line 258)
 - Buffers all chunks to reconstruct complete response
+- Accumulates content from delta fields (lines 265-270)
+- Captures usage data from final chunk (line 276)
 - Calculates cost and tokens after streaming completes
-- Logs to database with full conversation history
+- Logs to database with full conversation history (line 284)
 
 ## Project Structure
 

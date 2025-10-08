@@ -204,13 +204,14 @@ See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#client-integration) for Obsidi
 | Endpoint | Method | Description |
 |:---------|:-------|:------------|
 | `/v1/chat/completions` | POST | OpenAI-compatible chat completions (streaming supported) |
+| `/chat/completions` | POST | Alternate path for chat completions |
+| `/health` | GET | Health check |
 | `/models` | GET | List available models with pricing |
-| `/stats` | GET | Usage statistics with date filtering |
+| `/stats` | GET | Usage statistics with date filtering and performance metrics |
 | `/stats/daily` | GET | Daily aggregated statistics with provider breakdown |
 | `/stats/date-range` | GET | Get actual date range of data in database |
 | `/requests` | GET | Request history with filtering (last 50) |
 | `/errors` | DELETE | Clear all error records |
-| `/health` | GET | Health check |
 | `/` | GET | Web dashboard |
 
 See [docs/API.md](docs/API.md) for complete endpoint documentation.
@@ -227,26 +228,15 @@ See [docs/DATABASE.md](docs/DATABASE.md) for schema, queries, and maintenance.
 
 ## Compatibility
 
-Works with any OpenAI-compatible client:
+Works with any OpenAI-compatible client. Point at `http://localhost:4000/v1` and use model names from `config.yaml`.
 
-- OpenAI Python SDK
-- LangChain
-- LlamaIndex
-- Continue.dev
-- Cursor
-- Obsidian Copilot
-- Any custom application using OpenAI API
-
-Point your client at `http://localhost:4000/v1` and use model names from `config.yaml`.
+Compatible tools: OpenAI SDK, LangChain, LlamaIndex, Continue.dev, Cursor, Obsidian Copilot.
 
 ## Security
 
-- **API Keys**: Stored in `.env`, never logged or exposed in responses
-- **Dashboard**: No authentication (local use only - do not expose to network without adding authentication)
-- **Database**: `requests.db` contains full conversation history - protect file permissions
-- **Network**: Default binding is `0.0.0.0` (all interfaces). Use `--host 127.0.0.1` for localhost-only
+**Default configuration is for local use only.** Do not expose to network without authentication.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-considerations) for detailed security information.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-considerations) for security details.
 
 ## License
 

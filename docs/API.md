@@ -443,6 +443,17 @@ GET /stats?hours=24 HTTP/1.1
       "tokens": 2000
     }
   ],
+  "performance": [
+    {
+      "model": "gpt-4.1-mini",
+      "requests": 30,
+      "avg_tokens_per_sec": 45.23,
+      "avg_duration_ms": 850.5,
+      "min_tokens_per_sec": 22.10,
+      "max_tokens_per_sec": 68.50,
+      "avg_cost_per_request": 0.0026
+    }
+  ],
   "recent_errors": [
     {
       "timestamp": "2025-10-04T12:34:56",
@@ -473,6 +484,18 @@ GET /stats?hours=24 HTTP/1.1
 | `requests` | integer | Request count |
 | `cost` | number | Total cost (USD) |
 | `tokens` | integer | Total tokens |
+
+**Performance array** (new feature):
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `model` | string | Model name |
+| `requests` | integer | Number of requests |
+| `avg_tokens_per_sec` | number | Average output tokens per second |
+| `avg_duration_ms` | number | Average request duration |
+| `min_tokens_per_sec` | number | Minimum tokens/sec seen |
+| `max_tokens_per_sec` | number | Maximum tokens/sec seen |
+| `avg_cost_per_request` | number | Average cost per request |
 
 **Recent errors array**:
 
