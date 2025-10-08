@@ -2,6 +2,8 @@
 
 Lightweight local LLM proxy with SQLite cost tracking. Routes requests to multiple providers through a unified OpenAI-compatible API.
 
+
+
 ## Quick Start
 
 1. **Install dependencies**:
@@ -39,11 +41,20 @@ Lightweight local LLM proxy with SQLite cost tracking. Routes requests to multip
 
 Apantli is a local proxy server that routes LLM requests to multiple providers while tracking usage and costs in a SQLite database. It provides an OpenAI-compatible API and a web dashboard for monitoring.
 
+
 **Why Apantli?** Lighter alternative to LiteLLM's proxy (which requires Postgres and Docker). Runs entirely locally with no cloud dependencies.
 
 > **⚠️ Security Notice**
 >
 > Apantli is designed for local use only and provides **no authentication or authorization**. Do not expose to the network without adding proper security controls. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-considerations) for details.
+
+### Screenshots
+
+- [Stats tab](docs/stats-tab.png)
+- [Requests tab](docs/requests-tab.png)
+
+
+
 
 ## Documentation
 
