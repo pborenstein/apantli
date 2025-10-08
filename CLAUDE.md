@@ -19,7 +19,7 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 
 ## Implementation Details
 
-**Model Config**: Aliases in `config.yaml` loaded into `MODEL_MAP` dict. API keys referenced as `os.environ/VAR_NAME`, resolved at request time.
+**Model Config**: Aliases in `config.yaml` loaded into `MODEL_MAP` dict. API keys referenced as `os.environ/VAR_NAME`, resolved at request time. All `litellm_params` (except `model` and `api_key` which are specially handled) passed through to LiteLLM SDK for per-model configuration.
 
 **LiteLLM Integration**: Single SDK for multi-provider routing, automatic cost calculation via `litellm.completion_cost()`, OpenAI format normalization, streaming support.
 
@@ -29,10 +29,21 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 
 **Dashboard**: Jinja2 template at `/`, Alpine.js for reactivity, 4 tabs (Stats, Calendar, Models, Requests), 5-second auto-refresh on Stats tab.
 
-**Error Handling**:
-- Request errors: Caught, logged to DB (error column), return HTTP 500
+**Error Handling**: Comprehensive implementation with configurable timeouts/retries. See ERROR_HANDLING.md for design decisions.
+- Timeout: `--timeout` CLI arg (default 120s), per-model override via `timeout` in litellm_params
+- Retries: `--retries` CLI arg (default 3), per-model override via `num_retries`
+- Status codes: 429 (rate limit), 401 (auth), 403 (permission), 404 (not found), 503 (provider error/overload), 504 (timeout), 502 (connection), 500 (other)
+- Response format: OpenAI-compatible `{"error": {"message", "type", "code"}}`
+- Streaming errors: SSE format `data: {"error": {...}}` then `data: [DONE]`
+- Socket errors: Logged once per request (deduplication to avoid spam)
+- Request errors: Caught, logged to DB with error context, return appropriate HTTP status
 - Database errors: Not caught (fail-fast for data consistency)
 - Config errors: Warning printed, continue with empty `MODEL_MAP`
+
+**Testing**: Two test scripts in project root:
+- `test_proxy.py` - Basic functionality tests
+- `test_error_handling.py` - Comprehensive error handling suite (authentication, model not found, streaming, disconnect, error format validation)
+See TESTING.md for manual test procedures and validation strategies.
 
 **Security**: API keys only in `.env`, never logged. Dashboard unauthenticated (local use only). Database contains full conversation history - protect file permissions. Default `0.0.0.0` binding - use `--host 127.0.0.1` for localhost-only.
 

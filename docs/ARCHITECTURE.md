@@ -320,16 +320,105 @@ For complete schema details, indexes, maintenance procedures, and troubleshootin
 
 ## Error Handling
 
+Apantli implements comprehensive error handling with configurable timeouts, automatic retries, and OpenAI-compatible error responses. For detailed design decisions and implementation details, see [ERROR_HANDLING.md](ERROR_HANDLING.md).
+
+### Configuration
+
+Error handling behavior is controlled by CLI arguments and per-model configuration:
+
+**Global defaults** (via CLI):
+- `--timeout 120` - Request timeout in seconds (default: 120)
+- `--retries 3` - Number of retry attempts for transient errors (default: 3)
+
+**Per-model overrides** (in config.yaml):
+```yaml
+litellm_params:
+  timeout: 60        # Override global timeout
+  num_retries: 5     # Override global retries
+```
+
+### Timeout Strategy
+
+Default timeout of 120 seconds balances patience for slow providers with interactive usability. Per-model configuration allows tuning for specific model characteristics (fast models get lower timeout, slow models get higher timeout).
+
+### Retry Strategy
+
+Automatic retries for transient errors with exponential backoff (handled by LiteLLM):
+
+**Retry-eligible errors**:
+- Rate limit errors (429)
+- Internal server errors (500)
+- Service unavailable (503)
+- Timeout errors (504)
+- API connection errors (502)
+
+**Non-retryable errors**:
+- Authentication errors (401)
+- Permission denied (403)
+- Not found (404)
+
+### HTTP Status Code Mapping
+
+| LiteLLM Exception | HTTP Status | Retry? | Use Case |
+|:------------------|:------------|:-------|:---------|
+| RateLimitError | 429 | Yes | Provider quota exceeded |
+| AuthenticationError | 401 | No | Invalid API key |
+| PermissionDeniedError | 403 | No | API key lacks permission |
+| NotFoundError | 404 | No | Model not found |
+| InternalServerError | 503 | Yes | Provider internal error |
+| ServiceUnavailableError | 503 | Yes | Provider overloaded (Anthropic 529) |
+| Timeout | 504 | Yes | Request exceeded timeout |
+| APIConnectionError | 502 | Yes | Network connectivity issue |
+| Other/Unknown | 500 | No | Unhandled error |
+
+### Error Response Format
+
+All errors return OpenAI-compatible JSON format:
+
+```json
+{
+  "error": {
+    "message": "Human-readable error message",
+    "type": "rate_limit_error",
+    "code": "rate_limit_exceeded"
+  }
+}
+```
+
+This ensures compatibility with OpenAI SDK and other clients expecting this format.
+
+### Streaming Error Handling
+
+Streaming requests receive errors via Server-Sent Events:
+
+```
+data: {"error": {"message": "...", "type": "...", "code": "..."}}\n\n
+data: [DONE]\n\n
+```
+
+**Socket error deduplication**: Client disconnections (socket errors) are logged once per request, not per chunk, to avoid log spam.
+
 ### Request Errors
 
 ```
 Try:
   Call LiteLLM completion()
+Except RateLimitError:
+  - Return HTTP 429 with error detail
+  - Log to database with error context
+Except AuthenticationError:
+  - Return HTTP 401
+  - Log to database
+Except Timeout:
+  - Return HTTP 504
+  - Log to database
 Except Exception:
-  - Log error to database (error column populated)
-  - Calculate duration (still tracked)
   - Return HTTP 500 with error detail
+  - Log to database (error column populated)
+  - Calculate duration (still tracked)
 ```
+
+All errors are logged to database for monitoring and debugging.
 
 ### Database Errors
 
@@ -445,30 +534,33 @@ Streaming responses are fully implemented (server.py:244-288):
 
 ```
 apantli/
-├── apantli/                 # Python package
-│   ├── __init__.py         # Package metadata
-│   ├── __main__.py         # CLI entry point
-│   ├── server.py           # FastAPI application
-│   └── static/             # Static files for dashboard
-│       ├── alpine.min.js   # Alpine.js framework (44KB, self-hosted)
+├── apantli/                    # Python package
+│   ├── __init__.py            # Package metadata
+│   ├── __main__.py            # CLI entry point
+│   ├── server.py              # FastAPI application
+│   └── static/                # Static files for dashboard
+│       ├── alpine.min.js      # Alpine.js framework (44KB, self-hosted)
 │       └── alpine-persist.min.js  # Alpine.js persistence plugin
-├── templates/              # Jinja2 templates
-│   └── dashboard.html      # Web dashboard UI
-├── docs/                   # Documentation
-│   ├── README.md           # Documentation index
-│   ├── ARCHITECTURE.md     # System design
-│   ├── CONFIGURATION.md    # Setup guide
-│   ├── DATABASE.md         # Database schema & maintenance
-│   ├── API.md              # Endpoint reference
-│   ├── TROUBLESHOOTING.md  # Common issues
-│   └── archive/            # Historical documents
-├── config.yaml             # Model configuration
-├── .env.example            # Example environment file
-├── .env                    # API keys (gitignored)
-├── requests.db             # SQLite database (gitignored)
-├── pyproject.toml          # Package metadata
-├── requirements.txt        # Dependencies
-└── test_proxy.py           # Test script
+├── templates/                 # Jinja2 templates
+│   └── dashboard.html         # Web dashboard UI
+├── docs/                      # Documentation
+│   ├── README.md              # Documentation index
+│   ├── ARCHITECTURE.md        # System design
+│   ├── CONFIGURATION.md       # Setup guide
+│   ├── DATABASE.md            # Database schema & maintenance
+│   ├── API.md                 # Endpoint reference
+│   ├── ERROR_HANDLING.md      # Error handling design & implementation
+│   ├── TESTING.md             # Test suite and validation procedures
+│   ├── TROUBLESHOOTING.md     # Common issues
+│   └── archive/               # Historical documents
+├── config.yaml                # Model configuration
+├── .env.example               # Example environment file
+├── .env                       # API keys (gitignored)
+├── requests.db                # SQLite database (gitignored)
+├── pyproject.toml             # Package metadata
+├── requirements.txt           # Dependencies
+├── test_proxy.py              # Basic functionality test
+└── test_error_handling.py     # Comprehensive error handling test suite
 ```
 
 ## Development
@@ -487,9 +579,12 @@ Auto-reloads server when Python files change (does not watch `config.yaml` or `.
 # Start server
 apantli
 
-# In another terminal, run test script
-python3 test_proxy.py
+# In another terminal, run test scripts
+python3 test_proxy.py              # Basic functionality tests
+python3 test_error_handling.py     # Comprehensive error handling tests
 ```
+
+For complete testing procedures, manual test scenarios, and validation strategies, see [TESTING.md](TESTING.md).
 
 ### Package Installation
 

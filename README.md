@@ -49,6 +49,8 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Model setup and environment configuration | Users & Developers |
 | [docs/DATABASE.md](docs/DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [docs/API.md](docs/API.md) | HTTP endpoint reference | Developers & Integration users |
+| [docs/ERROR_HANDLING.md](docs/ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
+| [docs/TESTING.md](docs/TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 
 ## Core Features
@@ -61,6 +63,7 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 | Web dashboard | Real-time statistics with time-range filtering and error management |
 | SQLite storage | Lightweight database with full request/response logging |
 | OpenAI compatible | Drop-in replacement for OpenAI API clients with streaming support |
+| Error handling | Configurable timeouts, automatic retries, and OpenAI-compatible error responses |
 | CORS enabled | Works with web-based clients like Obsidian Copilot |
 
 ## System Architecture
@@ -144,6 +147,16 @@ model_list:
     litellm_params:
       model: anthropic/claude-sonnet-4-20250514
       api_key: os.environ/ANTHROPIC_API_KEY
+
+  # Optional: Per-model configuration
+  - model_name: gpt-4.1-mini-fast
+    litellm_params:
+      model: openai/gpt-4.1-mini
+      api_key: os.environ/OPENAI_API_KEY
+      timeout: 30          # Override default timeout
+      num_retries: 5       # Override default retries
+      temperature: 0.7     # Default temperature
+      max_tokens: 1000     # Default max tokens
 ```
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed configuration options, provider-specific setup, and client integration guides.
@@ -153,13 +166,18 @@ See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed configuration op
 ### Starting the Server
 
 ```bash
-# Default (port 4000)
+# Default (port 4000, 120s timeout, 3 retries)
 apantli
 
-# Options
+# Common options
 apantli --port 8080           # Custom port
+apantli --timeout 60          # Request timeout in seconds (default: 120)
+apantli --retries 5           # Number of retries for transient errors (default: 3)
 apantli --reload              # Development mode with auto-reload
 apantli --config custom.yaml  # Custom config file
+
+# Combined options
+apantli --port 8080 --timeout 60 --retries 5
 ```
 
 ### Making Requests

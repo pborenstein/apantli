@@ -11,6 +11,8 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 | [DATABASE.md](DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [API.md](API.md) | HTTP endpoint reference | Developers & Integration users |
 | [DASHBOARD.md](DASHBOARD.md) | Web dashboard guide - features, customization, and how it works | Users & Developers |
+| [ERROR_HANDLING.md](ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
+| [TESTING.md](TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 
 ## Quick Navigation
@@ -24,6 +26,10 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 **Database**: See [DATABASE.md](DATABASE.md) for schema details, maintenance procedures, and custom queries.
 
 **Dashboard**: See [DASHBOARD.md](DASHBOARD.md) for web dashboard features, Jinja2/Alpine.js explanation, and customization guide.
+
+**Error Handling**: See [ERROR_HANDLING.md](ERROR_HANDLING.md) for timeout/retry configuration, error response format, and design decisions.
+
+**Testing**: See [TESTING.md](TESTING.md) for running the test suite, manual testing procedures, and validation strategies.
 
 **Issues**: Check [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for solutions to common problems.
 
@@ -46,6 +52,7 @@ Apantli is a local proxy server that:
 | Web dashboard | Real-time statistics with time-range filtering |
 | SQLite storage | Lightweight database with full request/response logging |
 | OpenAI compatible | Drop-in replacement for OpenAI API clients |
+| Error handling | Configurable timeouts, automatic retries, and proper error responses |
 
 ## Architecture at a Glance
 
