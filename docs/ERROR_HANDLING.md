@@ -165,8 +165,37 @@ data: [DONE]\n\n
 
 ## Testing Strategy
 
-1. **Timeout testing**: Set very low timeout (5s), make request to slow model
-2. **Retry testing**: Trigger rate limit or overload, verify retries happen
-3. **Streaming error testing**: Kill provider connection mid-stream
-4. **Socket error testing**: Client disconnects during streaming
-5. **Error format testing**: Verify OpenAI SDK can parse our errors
+### Test Script: `test_error_handling.py`
+
+Comprehensive test script covering all error scenarios. Located at project root.
+
+**Usage**:
+```bash
+# Start server
+apantli
+
+# Run tests in another terminal
+python test_error_handling.py
+```
+
+**Tests Included**:
+
+1. **Normal Request** - Baseline test to verify basic functionality
+2. **Authentication Error** - Tests 401 handling with invalid API key
+3. **Model Not Found** - Tests 404/500 handling with nonexistent model
+4. **Normal Streaming** - Validates streaming works and [DONE] is sent
+5. **Streaming Disconnect** - Tests client disconnect handling (check logs for deduplication)
+6. **Error Response Format** - Validates OpenAI-compatible error structure
+
+**Features**:
+- Color-coded output for readability
+- Detailed logging of responses and status codes
+- Validates error response structure
+- Tests socket error deduplication (check server logs)
+- Summary report at end
+
+**Manual Tests** (not automated):
+
+1. **Timeout testing**: Start server with `apantli --timeout 5`, make request to slow model
+2. **Retry testing**: Trigger rate limit or overload (requires hitting actual limits)
+3. **Provider overload**: Wait for Anthropic 529 error in production use
