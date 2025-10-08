@@ -216,6 +216,10 @@ async def chat_completions(request: Request):
 
         # Handle streaming responses
         if request_data.get('stream', False):
+            # Extract provider before creating generator (from remapped litellm model name)
+            litellm_model = request_data.get('model', '')
+            provider = litellm_model.split('/')[0] if '/' in litellm_model else 'unknown'
+
             # Collect chunks for logging
             chunks = []
             full_response = {
@@ -250,10 +254,6 @@ async def chat_completions(request: Request):
 
                 # Log after streaming completes
                 try:
-                    # Extract provider from model name in request
-                    litellm_model = request_data.get('model', '')
-                    provider = litellm_model.split('/')[0] if '/' in litellm_model else 'unknown'
-
                     duration_ms = int((time.time() - start_time) * 1000)
                     log_request(model, provider, full_response, duration_ms, request_data)
                 except Exception as e:
@@ -270,8 +270,11 @@ async def chat_completions(request: Request):
         else:
             response_dict = json.loads(response.json())
 
-        # Extract provider from response metadata
-        provider = getattr(response, 'model', '').split('/')[0] if '/' in getattr(response, 'model', '') else 'unknown'
+        # Extract provider from request_data (which has the remapped litellm model name)
+        litellm_model = request_data.get('model', '')
+        provider = litellm_model.split('/')[0] if '/' in litellm_model else 'unknown'
+
+        # Fallback: try response metadata
         if provider == 'unknown' and hasattr(response, '_hidden_params'):
             provider = response._hidden_params.get('custom_llm_provider', 'unknown')
 
