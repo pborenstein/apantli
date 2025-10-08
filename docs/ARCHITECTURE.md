@@ -475,41 +475,18 @@ FastAPI uses async handlers, allowing concurrent request processing. However:
 
 ## Security Considerations
 
-### API Key Storage
+**Apantli provides no authentication or authorization.** It is designed for local use only on a trusted machine.
 
-API keys stored in `.env` file:
+**Network exposure**: By default, the server binds to `0.0.0.0:4000` (all network interfaces). Anyone who can reach this port can:
+- Send requests to any configured LLM model (using your API keys)
+- Access the web dashboard and view all conversation history
+- Read all stored requests and responses
 
-- Not committed to git (via `.gitignore`)
-- Readable only by server process
-- Resolved at request time from environment
+For localhost-only access, use `apantli --host 127.0.0.1`. For network exposure, implement authentication (see Future Considerations below).
 
-Never logged to database or returned in API responses.
+**API keys**: Stored in `.env` file (gitignored), resolved at request time, never logged to database or returned in responses.
 
-### Request/Response Logging
-
-Full request and response JSON stored in database, including:
-
-- User messages (potentially sensitive)
-- Model outputs
-- Metadata
-
-**Implication**: The `requests.db` file contains all conversation history. Protect with appropriate file permissions. See [DATABASE.md](DATABASE.md#security-considerations) for details.
-
-### Web Dashboard
-
-Dashboard has no authentication:
-
-- Accessible to anyone on `localhost:4000`
-- Acceptable for local development
-- Do not expose to network without adding authentication
-
-### Input Validation
-
-Minimal validation:
-
-- Model name required (HTTP 400 if missing)
-- No sanitization of messages (passed through to provider)
-- Relies on LiteLLM and provider for validation
+**Database**: `requests.db` contains full conversation history. Protect with appropriate file permissions. See [DATABASE.md](DATABASE.md#security-considerations) for details.
 
 ## Implemented Features
 
