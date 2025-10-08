@@ -610,6 +610,15 @@
             color: var(--color-text-secondary);
         }
 
+        .chart-empty p {
+            margin: 10px 0;
+        }
+
+        .chart-empty-hint {
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+
         /* Model efficiency styles */
         .efficiency-grid {
             display: grid;
@@ -2061,6 +2070,17 @@
         }
 
         function renderChart(container, providerData, dates) {
+            // Need at least 3 data points for a meaningful trend chart
+            if (dates.length < 3) {
+                container.innerHTML = `
+                    <div class="chart-empty">
+                        <p>Not enough data for trends chart</p>
+                        <p class="chart-empty-hint">Charts require at least 3 days of data. Keep using Apantli to see trends!</p>
+                    </div>
+                `;
+                return;
+            }
+
             const width = container.offsetWidth - 40; // Account for padding
             const height = 300;
             const margin = { top: 20, right: 80, bottom: 60, left: 60 };
