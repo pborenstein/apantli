@@ -1339,6 +1339,29 @@
         // Table sorting state: { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
         let tableSortState = {};
 
+        // Extract text from content (handles both string and multimodal array formats)
+        function extractContentText(content) {
+            if (!content) return '';
+
+            // If content is a string, return as-is
+            if (typeof content === 'string') {
+                return content;
+            }
+
+            // If content is an array (multimodal format), extract text parts
+            if (Array.isArray(content)) {
+                return content.map(part => {
+                    if (typeof part === 'string') return part;
+                    if (part.type === 'text' && part.text) return part.text;
+                    if (part.type === 'image_url') return '[Image]';
+                    return '';
+                }).filter(Boolean).join('\n\n');
+            }
+
+            // Fallback for unexpected formats
+            return String(content);
+        }
+
         // Extract conversation messages from request/response
         function extractConversation(requestObj) {
             try {
@@ -1352,7 +1375,7 @@
                     request.messages.forEach(msg => {
                         messages.push({
                             role: msg.role,
-                            content: msg.content,
+                            content: extractContentText(msg.content),
                             isRequest: true
                         });
                     });
@@ -1363,7 +1386,7 @@
                     const assistantMsg = response.choices[0].message;
                     messages.push({
                         role: assistantMsg.role || 'assistant',
-                        content: assistantMsg.content,
+                        content: extractContentText(assistantMsg.content),
                         isRequest: false
                     });
                 }
