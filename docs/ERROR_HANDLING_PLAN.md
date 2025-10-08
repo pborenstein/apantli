@@ -46,12 +46,23 @@
 
 ### Phase 4: Testing & Validation
 
-- [ ] Test timeout behavior (low timeout value)
+Test script created: `test_error_handling.py`
+
+Automated tests:
+- [x] Create test script with color-coded output
+- [ ] Test normal request (baseline)
+- [ ] Test authentication error (401)
+- [ ] Test model not found (404/500)
+- [ ] Test normal streaming
 - [ ] Test client disconnection during streaming
-- [ ] Test rate limit handling
-- [ ] Test provider overload (Anthropic 529)
-- [ ] Test error logging and database records
-- [ ] Verify no log spam from socket errors
+- [ ] Test error response format validation
+
+Manual tests needed:
+- [ ] Test timeout behavior (requires `apantli --timeout 5`)
+- [ ] Test rate limit handling (requires hitting actual limits)
+- [ ] Test provider overload (Anthropic 529 in production)
+- [ ] Verify no log spam from socket errors (check logs during disconnect test)
+- [ ] Test error logging and database records (query DB after tests)
 
 ## Configuration Schema Changes
 
