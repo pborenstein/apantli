@@ -995,17 +995,17 @@ def main():
         """Filter out noisy dashboard GET requests from access logs."""
         def filter(self, record):
             # Suppress logs for dashboard polling endpoints
-            if hasattr(record, 'request_line'):
-                request = record.request_line
-                # Filter out dashboard GET requests that auto-refresh
-                noisy_patterns = [
-                    'GET /stats?',
-                    'GET /stats/daily?',
-                    'GET /stats/date-range',
-                    'GET /static/',
-                ]
-                return not any(pattern in request for pattern in noisy_patterns)
-            return True
+            # Check the formatted message since uvicorn log records vary
+            message = record.getMessage() if hasattr(record, 'getMessage') else str(record.msg)
+
+            # Filter out dashboard GET requests that auto-refresh
+            noisy_patterns = [
+                'GET /stats?',
+                'GET /stats/daily?',
+                'GET /stats/date-range',
+                'GET /static/',
+            ]
+            return not any(pattern in message for pattern in noisy_patterns)
 
     # Apply filter to access logger
     logging.getLogger("uvicorn.access").addFilter(DashboardFilter())
