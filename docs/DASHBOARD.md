@@ -119,23 +119,23 @@ This means:
 │  │  ┌─────────────────────────────────────────────────────┐   │  │
 │  │  │ currentTab: 'stats'                                 │   │  │
 │  │  │ theme: 'dark'                                       │   │  │
-│  │  │ statsFilter: { startDate: '', endDate: '' }        │   │  │
-│  │  │ requestsFilter: { startDate: '', endDate: '' }     │   │  │
+│  │  │ statsFilter: { startDate: '', endDate: '' }         │   │  │
+│  │  │ requestsFilter: { startDate: '', endDate: '' }      │   │  │
 │  │  └────────────┬────────────────────────────────────────┘   │  │
-│  └───────────────┼─────────────────────────────────────────────┘  │
-│                  │                                                │
-│                  │ Triggers JavaScript Functions                  │
-│                  ↓                                                │
+│  └───────────────┼────────────────────────────────────────────┘  │
+│                  │                                               │
+│                  │ Triggers JavaScript Functions                 │
+│                  ↓                                               │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │  JavaScript Functions                                      │  │
-│  │  - refreshStats()      ← called on statsFilter change     │  │
-│  │  - loadRequests()      ← called on requestsFilter change  │  │
-│  │  - loadCalendar()      ← called when switching to calendar│  │
-│  │  - loadModels()        ← called when switching to models  │  │
+│  │  - refreshStats()      ← called on statsFilter change      │  │
+│  │  - loadRequests()      ← called on requestsFilter change   │  │
+│  │  - loadCalendar()      ← called when switching to calendar │  │
+│  │  - loadModels()        ← called when switching to models   │  │
 │  └────────────┬───────────────────────────────────────────────┘  │
-│               │                                                   │
-│               │ fetch(url)                                        │
-│               ↓                                                   │
+│               │                                                  │
+│               │ fetch(url)                                       │
+│               ↓                                                  │
 └──────────────────────────────────────────────────────────────────┘
                  │
                  │ HTTP GET
@@ -151,15 +151,15 @@ This means:
 │  │  GET /requests        → Recent request history             │  │
 │  │  GET /stats/date-range → Database date range               │  │
 │  └────────────┬───────────────────────────────────────────────┘  │
-│               │                                                   │
-│               │ SQL Query                                         │
-│               ↓                                                   │
+│               │                                                  │
+│               │ SQL Query                                        │
+│               ↓                                                  │
 │  ┌────────────────────────────────────────────────────────────┐  │
 │  │  requests.db (SQLite)                                      │  │
 │  └────────────┬───────────────────────────────────────────────┘  │
-│               │                                                   │
-│               │ JSON Response                                     │
-└───────────────┼───────────────────────────────────────────────────┘
+│               │                                                  │
+│               │ JSON Response                                    │
+└───────────────┼──────────────────────────────────────────────────┘
                 │
                 ↓
 ┌──────────────────────────────────────────────────────────────────┐
@@ -285,9 +285,9 @@ async function refreshStats() {
 **Calendar Grid Structure**:
 
 ```
-┌─────────────────────────────────────────────────────┐
-│  Sun   Mon   Tue   Wed   Thu   Fri   Sat           │
-├─────────────────────────────────────────────────────┤
+┌────────────────────────────────────────────────────┐
+│  Sun    Mon    Tue    Wed    Thu   F ri    Sat     │
+├────────────────────────────────────────────────────┤
 │       │      │      │   1  │   2  │   3  │   4     │  ← Empty cells for
 │       │      │      │ $0.02│ $0.15│ $0.08│ $0.05   │    week alignment
 │       │      │      │ 3 req│ 12req│ 5 req│ 2 req   │
@@ -295,7 +295,7 @@ async function refreshStats() {
 │   5   │   6  │  ... │  ... │  ... │  ... │  ...    │
 │ $0.03 │ $0.12│      │      │      │      │         │
 │ 4 req │ 9 req│      │      │      │      │         │
-└─────────────────────────────────────────────────────┘
+└────────────────────────────────────────────────────┘
 ```
 
 Each day cell shows:
