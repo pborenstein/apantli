@@ -25,6 +25,7 @@ dependencies = [
     "pyyaml",
     "python-dotenv",
     "netifaces",
+    "tenacity",
 ]
 
 [project.urls]
