@@ -21,9 +21,9 @@ Complete schema for the main requests table:
 | Column | Type | Description |
 |:-------|:-----|:------------|
 | id | INTEGER | Primary key (autoincrement) |
-| timestamp | TEXT | ISO 8601 timestamp (UTC) |
+| timestamp | TEXT | ISO 8601 timestamp (UTC) - when request was made |
 | model | TEXT | Model name as requested by client |
-| provider | TEXT | Provider name (openai, anthropic, etc.) |
+| provider | TEXT | Provider name (openai, anthropic, etc.) - inferred from model or response |
 | prompt_tokens | INTEGER | Input token count |
 | completion_tokens | INTEGER | Output token count |
 | total_tokens | INTEGER | Sum of prompt + completion |
