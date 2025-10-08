@@ -990,6 +990,26 @@ def main():
     log_config["formatters"]["access"]["fmt"] = '%(asctime)s %(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s'
     log_config["formatters"]["access"]["datefmt"] = '%Y-%m-%d %H:%M:%S'
 
+    # Add filter to suppress noisy dashboard endpoints
+    class DashboardFilter(logging.Filter):
+        """Filter out noisy dashboard GET requests from access logs."""
+        def filter(self, record):
+            # Suppress logs for dashboard polling endpoints
+            if hasattr(record, 'request_line'):
+                request = record.request_line
+                # Filter out dashboard GET requests that auto-refresh
+                noisy_patterns = [
+                    'GET /stats?',
+                    'GET /stats/daily?',
+                    'GET /stats/date-range',
+                    'GET /static/',
+                ]
+                return not any(pattern in request for pattern in noisy_patterns)
+            return True
+
+    # Apply filter to access logger
+    logging.getLogger("uvicorn.access").addFilter(DashboardFilter())
+
     # Print available URLs
     print(f"\n🚀 Apantli server starting...")
     if args.host == "0.0.0.0":
