@@ -1195,6 +1195,9 @@
         <h2>Model Efficiency</h2>
         <div id="model-efficiency"></div>
 
+        <h2>Model Performance (Speed)</h2>
+        <div id="model-performance"></div>
+
         <h2>By Provider</h2>
         <table id="by-provider"></table>
 
@@ -2268,6 +2271,9 @@
             // Model efficiency
             renderModelEfficiency(byModelData);
 
+            // Model performance (speed)
+            renderModelPerformance(data.performance || []);
+
             // By provider - convert to sortable format
             byProviderData = data.by_provider.map(p => [p.provider, p.requests, p.cost, p.tokens]);
             if (!tableSortState['by-provider']) {
@@ -2387,6 +2393,64 @@
                     Most economical: <strong>${mostEconomical.model}</strong> at $${mostEconomical.avgCostPerRequest.toFixed(4)}/request
                     &nbsp;•&nbsp;
                     Most token-rich: <strong>${mostTokenRich.model}</strong> at ${Math.round(mostTokenRich.avgTokensPerRequest).toLocaleString()} tokens/request
+                </div>
+            `;
+        }
+
+        function renderModelPerformance(performanceData) {
+            const container = document.getElementById('model-performance');
+
+            if (!performanceData || performanceData.length === 0) {
+                container.innerHTML = '<div class="chart-empty">No performance data available (requires requests with completion tokens)</div>';
+                return;
+            }
+
+            // Find fastest model
+            const fastest = performanceData.reduce((max, curr) =>
+                curr.avg_tokens_per_sec > max.avg_tokens_per_sec ? curr : max
+            );
+
+            // Render performance cards
+            const cards = performanceData.map(data => {
+                const isFastest = data.model === fastest.model;
+                const highlightClass = isFastest ? 'highlight-tokens' : '';
+
+                return `
+                    <div class="efficiency-card ${highlightClass}">
+                        <div class="efficiency-model-name">
+                            ${data.model}
+                            ${isFastest ? '<span class="efficiency-badge token-rich">Fastest</span>' : ''}
+                        </div>
+                        <div class="efficiency-metrics">
+                            <div class="efficiency-metric">
+                                <div class="efficiency-metric-label">Avg Speed</div>
+                                <div class="efficiency-metric-value">${data.avg_tokens_per_sec.toFixed(1)} tok/s</div>
+                            </div>
+                            <div class="efficiency-metric">
+                                <div class="efficiency-metric-label">Speed Range</div>
+                                <div class="efficiency-metric-value">${data.min_tokens_per_sec.toFixed(1)} - ${data.max_tokens_per_sec.toFixed(1)}</div>
+                            </div>
+                            <div class="efficiency-metric">
+                                <div class="efficiency-metric-label">Avg Duration</div>
+                                <div class="efficiency-metric-value">${Math.round(data.avg_duration_ms)}ms</div>
+                            </div>
+                            <div class="efficiency-metric">
+                                <div class="efficiency-metric-label">Requests Measured</div>
+                                <div class="efficiency-metric-value">${data.requests.toLocaleString()}</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            container.innerHTML = `
+                <div class="efficiency-grid">
+                    ${cards}
+                </div>
+                <div class="efficiency-summary">
+                    Fastest: <strong>${fastest.model}</strong> at ${fastest.avg_tokens_per_sec.toFixed(1)} tokens/second
+                    &nbsp;•&nbsp;
+                    Note: Duration includes network latency and prompt processing time
                 </div>
             `;
         }

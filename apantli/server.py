@@ -533,6 +533,26 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
     """)
     by_provider = cursor.fetchall()
 
+    # Model performance metrics (tokens/second, avg duration, etc.)
+    cursor.execute(f"""
+        SELECT
+            model,
+            COUNT(*) as requests,
+            AVG(CAST(completion_tokens AS REAL) / (CAST(duration_ms AS REAL) / 1000.0)) as avg_tokens_per_sec,
+            AVG(duration_ms) as avg_duration_ms,
+            MIN(CAST(completion_tokens AS REAL) / (CAST(duration_ms AS REAL) / 1000.0)) as min_tokens_per_sec,
+            MAX(CAST(completion_tokens AS REAL) / (CAST(duration_ms AS REAL) / 1000.0)) as max_tokens_per_sec,
+            AVG(cost) as avg_cost_per_request
+        FROM requests
+        WHERE error IS NULL
+          AND completion_tokens > 0
+          AND duration_ms > 0
+          {time_filter}
+        GROUP BY model
+        ORDER BY avg_tokens_per_sec DESC
+    """)
+    performance = cursor.fetchall()
+
     # Recent errors (limit to same time range as other queries for consistency)
     cursor.execute(f"""
         SELECT timestamp, model, error
@@ -560,6 +580,18 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
         "by_provider": [
             {"provider": row[0], "requests": row[1], "cost": round(row[2] or 0, 4), "tokens": row[3]}
             for row in by_provider
+        ],
+        "performance": [
+            {
+                "model": row[0],
+                "requests": row[1],
+                "avg_tokens_per_sec": round(row[2] or 0, 2),
+                "avg_duration_ms": round(row[3] or 0, 2),
+                "min_tokens_per_sec": round(row[4] or 0, 2),
+                "max_tokens_per_sec": round(row[5] or 0, 2),
+                "avg_cost_per_request": round(row[6] or 0, 6)
+            }
+            for row in performance
         ],
         "recent_errors": [
             {"timestamp": row[0], "model": row[1], "error": row[2]}
