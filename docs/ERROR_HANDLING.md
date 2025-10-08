@@ -157,6 +157,17 @@ data: [DONE]\n\n
 ### Blocked
 - (None)
 
+## Dependencies
+
+**Important**: The retry functionality requires the `tenacity` library. While LiteLLM lists it as optional, it's required if you use `num_retries` parameter.
+
+Without `tenacity`, you'll see:
+```
+UnexpectedError: tenacity import failed please run `pip install tenacity`
+```
+
+The dependency is included in Apantli's `pyproject.toml` and will be installed automatically with `uv sync`.
+
 ## Open Questions
 
 - Should we log retries (to track which providers are flaky)?
