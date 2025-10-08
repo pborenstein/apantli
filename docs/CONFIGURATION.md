@@ -223,6 +223,8 @@ apantli --help
 | `--port` | `4000` | Port to bind to |
 | `--config` | `config.yaml` | Path to config file |
 | `--db` | `requests.db` | Path to SQLite database |
+| `--timeout` | `120` | Request timeout in seconds |
+| `--retries` | `3` | Number of retries for transient errors (rate limits, overload) |
 | `--reload` | `false` | Enable auto-reload for development |
 
 ### Usage Examples
@@ -261,6 +263,19 @@ apantli --host 127.0.0.1
 
 ```bash
 apantli --host 127.0.0.1 --port 8080 --config prod-config.yaml
+```
+
+**Configure timeout and retries**:
+
+```bash
+# Lower timeout for fast models
+apantli --timeout 30
+
+# More retries for unreliable connections
+apantli --retries 5
+
+# Combined
+apantli --timeout 60 --retries 5
 ```
 
 ## Configuration Validation
@@ -372,9 +387,37 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
       temperature: 1.2
       max_tokens: 2000
+      timeout: 60        # Override global timeout for this model
+      num_retries: 5     # Override global retries for this model
 ```
 
 These become defaults for this model alias. Clients can still override in individual requests.
+
+**Per-model timeout and retry configuration**:
+
+- `timeout` - Request timeout in seconds (overrides `--timeout` global default)
+- `num_retries` - Number of retry attempts for transient errors (overrides `--retries` global default)
+
+Use per-model configuration for models with different performance characteristics:
+
+```yaml
+model_list:
+  # Fast model with low timeout
+  - model_name: gpt-4.1-mini-fast
+    litellm_params:
+      model: openai/gpt-4.1-mini
+      api_key: os.environ/OPENAI_API_KEY
+      timeout: 30
+      num_retries: 3
+
+  # Slow model with high timeout
+  - model_name: claude-opus-patient
+    litellm_params:
+      model: anthropic/claude-3-opus-20240229
+      api_key: os.environ/ANTHROPIC_API_KEY
+      timeout: 300
+      num_retries: 5
+```
 
 ### Organization/Project IDs
 
