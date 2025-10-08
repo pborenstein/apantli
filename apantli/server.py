@@ -21,6 +21,16 @@ from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import litellm
 from litellm import completion
+from litellm.exceptions import (
+    RateLimitError,
+    InternalServerError,
+    ServiceUnavailableError,
+    APIConnectionError,
+    AuthenticationError,
+    Timeout,
+    PermissionDeniedError,
+    NotFoundError,
+)
 import uvicorn
 import yaml
 from dotenv import load_dotenv
@@ -31,6 +41,10 @@ load_dotenv()
 
 # Database setup
 DB_PATH = "requests.db"
+
+# Default configuration
+DEFAULT_TIMEOUT = 120  # seconds
+DEFAULT_RETRIES = 3    # number of retry attempts
 
 # Model mapping from config.yaml
 MODEL_MAP = {}
@@ -48,11 +62,11 @@ def load_config():
 
         for model in config.get('model_list', []):
             model_name = model['model_name']
-            litellm_params = model['litellm_params']
-            MODEL_MAP[model_name] = {
-                'model': litellm_params['model'],
-                'api_key': litellm_params.get('api_key', '')
-            }
+            litellm_params = model['litellm_params'].copy()
+
+            # Store all litellm_params for pass-through to LiteLLM
+            # We'll handle 'model' and 'api_key' specially at request time
+            MODEL_MAP[model_name] = litellm_params
     except Exception as e:
         print(f"Warning: Could not load config.yaml: {e}")
         print("Models will need to be specified with provider prefix (e.g., 'openai/gpt-4')")
@@ -183,6 +197,27 @@ app.add_middleware(
 )
 
 
+def build_error_response(error_type: str, message: str, code: str = None) -> dict:
+    """Build OpenAI-compatible error response.
+
+    Args:
+        error_type: Error type (e.g., 'invalid_request_error', 'rate_limit_error')
+        message: Human-readable error message
+        code: Optional error code
+
+    Returns:
+        Dictionary with error structure matching OpenAI format
+    """
+    error_obj = {
+        "message": message,
+        "type": error_type,
+    }
+    if code:
+        error_obj["code"] = code
+
+    return {"error": error_obj}
+
+
 def infer_provider_from_model(model_name: str) -> str:
     """Infer provider from model name when not explicitly prefixed."""
     if not model_name:
@@ -227,15 +262,28 @@ async def chat_completions(request: Request):
         # Look up model in config
         if model in MODEL_MAP:
             model_config = MODEL_MAP[model]
+
+            # Replace model with LiteLLM format
             request_data['model'] = model_config['model']
 
-            # Handle api_key from config
+            # Handle api_key from config (resolve environment variable)
             api_key = model_config.get('api_key', '')
             if api_key.startswith('os.environ/'):
                 env_var = api_key.split('/', 1)[1]
                 api_key = os.environ.get(env_var, '')
             if api_key:
                 request_data['api_key'] = api_key
+
+            # Pass through all other litellm_params (timeout, num_retries, temperature, etc.)
+            for key, value in model_config.items():
+                if key not in ('model', 'api_key') and key not in request_data:
+                    request_data[key] = value
+
+        # Apply global defaults if not specified
+        if 'timeout' not in request_data:
+            request_data['timeout'] = DEFAULT_TIMEOUT
+        if 'num_retries' not in request_data:
+            request_data['num_retries'] = DEFAULT_RETRIES
 
         # Call LiteLLM
         response = completion(**request_data)
@@ -257,33 +305,78 @@ async def chat_completions(request: Request):
 
             async def generate():
                 nonlocal full_response
-                for chunk in response:
-                    chunk_dict = chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk)
-                    chunks.append(chunk_dict)
+                socket_error_logged = False
+                stream_error = None
 
-                    # Accumulate content
-                    if 'choices' in chunk_dict and len(chunk_dict['choices']) > 0:
-                        delta = chunk_dict['choices'][0].get('delta', {})
-                        if 'content' in delta and delta['content'] is not None:
-                            full_response['choices'][0]['message']['content'] += delta['content']
-                        if 'finish_reason' in chunk_dict['choices'][0]:
-                            full_response['choices'][0]['finish_reason'] = chunk_dict['choices'][0]['finish_reason']
-
-                    # Capture ID and usage
-                    if 'id' in chunk_dict and chunk_dict['id']:
-                        full_response['id'] = chunk_dict['id']
-                    if 'usage' in chunk_dict:
-                        full_response['usage'] = chunk_dict['usage']
-
-                    yield f"data: {json.dumps(chunk_dict)}\n\n"
-                yield "data: [DONE]\n\n"
-
-                # Log after streaming completes
                 try:
-                    duration_ms = int((time.time() - start_time) * 1000)
-                    log_request(model, provider, full_response, duration_ms, request_data)
+                    for chunk in response:
+                        try:
+                            chunk_dict = chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk)
+                            chunks.append(chunk_dict)
+
+                            # Accumulate content
+                            if 'choices' in chunk_dict and len(chunk_dict['choices']) > 0:
+                                delta = chunk_dict['choices'][0].get('delta', {})
+                                if 'content' in delta and delta['content'] is not None:
+                                    full_response['choices'][0]['message']['content'] += delta['content']
+                                if 'finish_reason' in chunk_dict['choices'][0]:
+                                    full_response['choices'][0]['finish_reason'] = chunk_dict['choices'][0]['finish_reason']
+
+                            # Capture ID and usage
+                            if 'id' in chunk_dict and chunk_dict['id']:
+                                full_response['id'] = chunk_dict['id']
+                            if 'usage' in chunk_dict:
+                                full_response['usage'] = chunk_dict['usage']
+
+                            yield f"data: {json.dumps(chunk_dict)}\n\n"
+
+                        except (BrokenPipeError, ConnectionError, ConnectionResetError) as e:
+                            # Client disconnected - log once and stop streaming
+                            if not socket_error_logged:
+                                logging.info(f"Client disconnected during streaming: {type(e).__name__}")
+                                socket_error_logged = True
+                            break
+
+                except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError) as e:
+                    # Provider error during streaming - send error event
+                    stream_error = f"{type(e).__name__}: {str(e)}"
+                    error_event = build_error_response(
+                        "stream_error",
+                        str(e),
+                        type(e).__name__.lower()
+                    )
+                    try:
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
+                        # Client already gone, can't send error
+                        if not socket_error_logged:
+                            logging.info("Client disconnected before error could be sent")
+                            socket_error_logged = True
+
                 except Exception as e:
-                    print(f"Error logging streaming request: {e}")
+                    # Unexpected error during streaming
+                    stream_error = f"UnexpectedStreamError: {str(e)}"
+                    error_event = build_error_response("stream_error", str(e), "internal_error")
+                    try:
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
+                        if not socket_error_logged:
+                            logging.info("Client disconnected before error could be sent")
+                            socket_error_logged = True
+
+                finally:
+                    # Always send [DONE] and log to database
+                    try:
+                        yield "data: [DONE]\n\n"
+                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
+                        pass  # Client gone, can't send [DONE]
+
+                    # Log to database
+                    try:
+                        duration_ms = int((time.time() - start_time) * 1000)
+                        log_request(model, provider, full_response, duration_ms, request_data, error=stream_error)
+                    except Exception as e:
+                        logging.error(f"Error logging streaming request to database: {e}")
 
             return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -312,17 +405,110 @@ async def chat_completions(request: Request):
 
         return JSONResponse(content=response_dict)
 
-    except Exception as e:
+    except RateLimitError as e:
         duration_ms = int((time.time() - start_time) * 1000)
         log_request(
             request_data.get('model', 'unknown'),
-            'unknown',
+            infer_provider_from_model(request_data.get('model', '')),
             None,
             duration_ms,
             request_data,
-            error=str(e)
+            error=f"RateLimitError: {str(e)}"
         )
-        raise HTTPException(status_code=500, detail=str(e))
+        error_response = build_error_response("rate_limit_error", str(e), "rate_limit_exceeded")
+        return JSONResponse(content=error_response, status_code=429)
+
+    except AuthenticationError as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_request(
+            request_data.get('model', 'unknown'),
+            infer_provider_from_model(request_data.get('model', '')),
+            None,
+            duration_ms,
+            request_data,
+            error=f"AuthenticationError: {str(e)}"
+        )
+        error_response = build_error_response("authentication_error", str(e), "invalid_api_key")
+        return JSONResponse(content=error_response, status_code=401)
+
+    except PermissionDeniedError as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_request(
+            request_data.get('model', 'unknown'),
+            infer_provider_from_model(request_data.get('model', '')),
+            None,
+            duration_ms,
+            request_data,
+            error=f"PermissionDeniedError: {str(e)}"
+        )
+        error_response = build_error_response("permission_denied", str(e), "permission_denied")
+        return JSONResponse(content=error_response, status_code=403)
+
+    except NotFoundError as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_request(
+            request_data.get('model', 'unknown'),
+            infer_provider_from_model(request_data.get('model', '')),
+            None,
+            duration_ms,
+            request_data,
+            error=f"NotFoundError: {str(e)}"
+        )
+        error_response = build_error_response("invalid_request_error", str(e), "model_not_found")
+        return JSONResponse(content=error_response, status_code=404)
+
+    except Timeout as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_request(
+            request_data.get('model', 'unknown'),
+            infer_provider_from_model(request_data.get('model', '')),
+            None,
+            duration_ms,
+            request_data,
+            error=f"Timeout: {str(e)}"
+        )
+        error_response = build_error_response("timeout_error", str(e), "request_timeout")
+        return JSONResponse(content=error_response, status_code=504)
+
+    except (InternalServerError, ServiceUnavailableError) as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_request(
+            request_data.get('model', 'unknown'),
+            infer_provider_from_model(request_data.get('model', '')),
+            None,
+            duration_ms,
+            request_data,
+            error=f"ProviderError: {str(e)}"
+        )
+        error_response = build_error_response("service_unavailable", str(e), "service_unavailable")
+        return JSONResponse(content=error_response, status_code=503)
+
+    except APIConnectionError as e:
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_request(
+            request_data.get('model', 'unknown'),
+            infer_provider_from_model(request_data.get('model', '')),
+            None,
+            duration_ms,
+            request_data,
+            error=f"APIConnectionError: {str(e)}"
+        )
+        error_response = build_error_response("connection_error", str(e), "connection_error")
+        return JSONResponse(content=error_response, status_code=502)
+
+    except Exception as e:
+        # Catch-all for unexpected errors
+        duration_ms = int((time.time() - start_time) * 1000)
+        log_request(
+            request_data.get('model', 'unknown'),
+            infer_provider_from_model(request_data.get('model', '')),
+            None,
+            duration_ms,
+            request_data,
+            error=f"UnexpectedError: {str(e)}"
+        )
+        error_response = build_error_response("api_error", str(e), "internal_error")
+        return JSONResponse(content=error_response, status_code=500)
 
 
 @app.get("/health")
@@ -335,9 +521,9 @@ async def health():
 async def models():
     """List available models from config."""
     model_list = []
-    for model_name, config in MODEL_MAP.items():
+    for model_name, litellm_params in MODEL_MAP.items():
         # Try to get pricing info from LiteLLM
-        litellm_model = config['model']
+        litellm_model = litellm_params['model']
         input_cost = None
         output_cost = None
 
@@ -367,8 +553,8 @@ async def models():
 
         model_list.append({
             'name': model_name,
-            'litellm_model': config['model'],
-            'provider': config['model'].split('/')[0] if '/' in config['model'] else 'unknown',
+            'litellm_model': litellm_params['model'],
+            'provider': litellm_params['model'].split('/')[0] if '/' in litellm_params['model'] else 'unknown',
             'input_cost_per_million': round(input_cost, 2) if input_cost else None,
             'output_cost_per_million': round(output_cost, 2) if output_cost else None
         })
@@ -774,12 +960,26 @@ def main():
         action="store_true",
         help="Enable auto-reload for development"
     )
+    parser.add_argument(
+        "--timeout",
+        type=int,
+        default=120,
+        help="Default request timeout in seconds (default: 120)"
+    )
+    parser.add_argument(
+        "--retries",
+        type=int,
+        default=3,
+        help="Default number of retry attempts (default: 3)"
+    )
 
     args = parser.parse_args()
 
     # Update global config paths if provided
-    global DB_PATH
+    global DB_PATH, DEFAULT_TIMEOUT, DEFAULT_RETRIES
     DB_PATH = args.db
+    DEFAULT_TIMEOUT = args.timeout
+    DEFAULT_RETRIES = args.retries
 
     # Configure logging format with timestamps
     log_config = uvicorn.config.LOGGING_CONFIG
