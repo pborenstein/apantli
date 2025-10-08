@@ -86,6 +86,6 @@ All timestamps are displayed in your local timezone. The database stores UTC int
 
 **Dates off by hours**: Expected behavior - dashboard shows your local timezone, database stores UTC.
 
-**Chart not rendering**: Need at least 2 days of data and a date range selected.
+**Chart not rendering**: Trends chart requires at least 3 days of data for meaningful visualization.
 
 See [TROUBLESHOOTING.md](TROUBLESHOOTING.md) for detailed debugging.
