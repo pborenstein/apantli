@@ -41,14 +41,18 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 
 **Why Apantli?** Lighter alternative to LiteLLM's proxy (which requires Postgres and Docker). Runs entirely locally with no cloud dependencies.
 
+> **⚠️ Security Notice**
+>
+> Apantli is designed for local use only and provides **no authentication or authorization**. Do not expose to the network without adding proper security controls. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-considerations) for details.
+
 ## Documentation
 
 | Document | Description | Audience |
 |:---------|:------------|:---------|
+| [docs/API.md](docs/API.md) | HTTP endpoint reference | Developers & Integration users |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and technical implementation | Developers |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Model setup and environment configuration | Users & Developers |
 | [docs/DATABASE.md](docs/DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
-| [docs/API.md](docs/API.md) | HTTP endpoint reference | Developers & Integration users |
 | [docs/ERROR_HANDLING.md](docs/ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
 | [docs/TESTING.md](docs/TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
