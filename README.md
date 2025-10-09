@@ -259,11 +259,39 @@ All requests logged to `requests.db` (SQLite):
 
 See [docs/DATABASE.md](docs/DATABASE.md) for schema, queries, and maintenance.
 
+## Utilities
+
+Helper scripts in `utils/` directory:
+
+**Generate llm CLI config** - Use Apantli with the `llm` CLI tool:
+```bash
+# Write llm config from Apantli config.yaml
+python3 utils/generate_llm_config.py --write
+
+# Then use llm with all your models
+export OPENAI_BASE_URL=http://localhost:4000/v1
+llm -m claude-haiku-3.5 "Tell me a joke"
+llm -m gpt-4o-mini "What is 2+2?"
+```
+
+**Recalculate costs** - Fix missing costs in database:
+```bash
+# Dry run to see what would be updated
+python3 utils/recalculate_costs.py --dry-run
+
+# Update database with correct costs
+python3 utils/recalculate_costs.py
+```
+
+See [utils/README.md](utils/README.md) for detailed usage.
+
 ## Compatibility
 
 Works with any OpenAI-compatible client. Point at `http://localhost:4000/v1` and use model names from `config.yaml`.
 
-Compatible tools: OpenAI SDK, LangChain, LlamaIndex, Continue.dev, Cursor, Obsidian Copilot.
+Compatible tools: OpenAI SDK, LangChain, LlamaIndex, Continue.dev, Cursor, Obsidian Copilot, llm CLI.
+
+For `llm` CLI integration, see [Utilities](#utilities) section above.
 
 ## Security
 

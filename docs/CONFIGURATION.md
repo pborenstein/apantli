@@ -470,6 +470,31 @@ Configure Obsidian Copilot to use Apantli as a custom provider:
 
 All requests will route through Apantli with full cost tracking and logging. Streaming responses are supported.
 
+### llm CLI (Simon Willison)
+
+The `llm` command-line tool can use Apantli as a proxy for all providers:
+
+1. **Generate llm configuration**:
+   ```bash
+   python3 utils/generate_llm_config.py --write
+   ```
+
+2. **Set the base URL**:
+   ```bash
+   export OPENAI_BASE_URL=http://localhost:4000/v1
+   # Or in fish:
+   set -x OPENAI_BASE_URL http://localhost:4000/v1
+   ```
+
+3. **Use any model from config.yaml**:
+   ```bash
+   llm -m gpt-4o-mini "What is 2+2?"
+   llm -m claude-haiku-3.5 "Tell me a joke"
+   llm -m claude-sonnet-4-5 "Write a poem"
+   ```
+
+The `generate_llm_config.py` script reads your `config.yaml` and creates the necessary configuration for `llm` to recognize your model names. All requests are logged in Apantli's database with full cost tracking.
+
 ### Other OpenAI-Compatible Clients
 
 Any tool that supports OpenAI's API format can use Apantli:
