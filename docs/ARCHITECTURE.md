@@ -537,7 +537,11 @@ apantli/
 ├── pyproject.toml             # Package metadata
 ├── requirements.txt           # Dependencies
 ├── test_proxy.py              # Basic functionality test
-└── test_error_handling.py     # Comprehensive error handling test suite
+├── test_error_handling.py     # Comprehensive error handling test suite
+└── utils/                     # Utility scripts
+    ├── README.md              # Utilities documentation
+    ├── generate_llm_config.py # Generate llm CLI config from config.yaml
+    └── recalculate_costs.py   # Recalculate costs for requests with missing pricing
 ```
 
 ## Development
@@ -582,6 +586,35 @@ pip install -r requirements.txt
 ```
 
 **Note**: The `netifaces` dependency is used to display all available network addresses on startup. If installation fails on your system, the server will fall back to basic hostname lookup.
+
+### Utility Scripts
+
+The `utils/` directory contains helper scripts for managing Apantli:
+
+**generate_llm_config.py** - Configure `llm` CLI to use Apantli:
+- Reads `config.yaml` and generates `extra-openai-models.yaml` for the `llm` CLI tool
+- Auto-detects OS (macOS/Linux/Windows) for correct config path
+- Outputs to stdout (default) or writes directly with `--write` flag
+- Enables using Claude, GPT, and other models through `llm` via Apantli proxy
+
+```bash
+python3 utils/generate_llm_config.py --write
+export OPENAI_BASE_URL=http://localhost:4000/v1
+llm -m claude-haiku-3.5 "Tell me a joke"
+```
+
+**recalculate_costs.py** - Fix missing costs in database:
+- Finds requests with `cost = 0` or `NULL`
+- Maps model aliases to full LiteLLM format (e.g., `claude-haiku-3.5` → `anthropic/claude-3-5-haiku-20241022`)
+- Uses LiteLLM pricing database to recalculate
+- Supports `--dry-run` to preview changes
+
+```bash
+python3 utils/recalculate_costs.py --dry-run  # Preview
+python3 utils/recalculate_costs.py            # Update
+```
+
+See [utils/README.md](../utils/README.md) for detailed documentation.
 
 ## Future Considerations
 

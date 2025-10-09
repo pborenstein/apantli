@@ -91,6 +91,15 @@ Apantli is a local proxy server that:
 └──────────────┘
 ```
 
+## Utilities
+
+The `utils/` directory contains helper scripts:
+
+- **generate_llm_config.py** - Configure `llm` CLI to use Apantli as a proxy
+- **recalculate_costs.py** - Fix missing costs in database for old requests
+
+See [../utils/README.md](../utils/README.md) for usage instructions.
+
 ## Getting Help
 
 If you encounter issues not covered in the documentation:
