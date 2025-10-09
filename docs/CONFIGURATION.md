@@ -472,28 +472,112 @@ All requests will route through Apantli with full cost tracking and logging. Str
 
 ### llm CLI (Simon Willison)
 
-The `llm` command-line tool can use Apantli as a proxy for all providers:
+[Simon Willison's `llm`](https://llm.datasette.io) is a command-line tool for interacting with LLMs. Use it with Apantli to access Claude, GPT, and other providers through a unified interface with automatic cost tracking.
 
-1. **Generate llm configuration**:
-   ```bash
-   python3 utils/generate_llm_config.py --write
-   ```
+#### Quick Start
 
-2. **Set the base URL**:
-   ```bash
-   export OPENAI_BASE_URL=http://localhost:4000/v1
-   # Or in fish:
-   set -x OPENAI_BASE_URL http://localhost:4000/v1
-   ```
+```bash
+# 1. Install llm
+pip install llm  # or: brew install llm
 
-3. **Use any model from config.yaml**:
-   ```bash
-   llm -m gpt-4o-mini "What is 2+2?"
-   llm -m claude-haiku-3.5 "Tell me a joke"
-   llm -m claude-sonnet-4-5 "Write a poem"
-   ```
+# 2. Generate configuration for your Apantli models
+python3 utils/generate_llm_config.py --write
 
-The `generate_llm_config.py` script reads your `config.yaml` and creates the necessary configuration for `llm` to recognize your model names. All requests are logged in Apantli's database with full cost tracking.
+# 3. Point llm at Apantli (add to ~/.bashrc, ~/.zshrc, or ~/.config/fish/config.fish)
+export OPENAI_BASE_URL=http://localhost:4000/v1
+
+# 4. Start using any model from your config.yaml
+llm -m claude-haiku-3.5 "Tell me a joke"
+llm -m gpt-4o-mini "What is 2+2?"
+```
+
+#### Setup Details
+
+**Generate model configuration**:
+
+The `generate_llm_config.py` script creates `extra-openai-models.yaml` to register your Apantli models with `llm`:
+
+```bash
+python3 utils/generate_llm_config.py --write
+```
+
+Config location (auto-detected by script):
+- **macOS**: `~/Library/Application Support/io.datasette.llm/extra-openai-models.yaml`
+- **Linux**: `~/.config/io.datasette.llm/extra-openai-models.yaml`
+- **Windows**: `%USERPROFILE%\AppData\Local\io.datasette.llm\extra-openai-models.yaml`
+
+Re-run this script whenever you add models to `config.yaml`.
+
+**Set base URL**:
+
+```bash
+# Bash/Zsh - add to ~/.bashrc or ~/.zshrc
+export OPENAI_BASE_URL=http://localhost:4000/v1
+
+# Fish - add to ~/.config/fish/config.fish
+set -x OPENAI_BASE_URL http://localhost:4000/v1
+
+# Windows PowerShell
+$env:OPENAI_BASE_URL="http://localhost:4000/v1"
+```
+
+#### Usage Examples
+
+**Basic requests**:
+```bash
+llm -m gpt-4o-mini "Explain Python decorators"
+llm -m claude-sonnet-4-5 "Review this architecture" < design.md
+```
+
+**Process files**:
+```bash
+cat README.md | llm -m claude-haiku-3.5 "Summarize this"
+llm -m gpt-4o-mini "Explain this code" < script.py
+```
+
+**Conversation history** (persisted by both llm and Apantli):
+```bash
+llm -m gpt-4o-mini "What is Python?" --save py-chat
+llm -m gpt-4o-mini "What about type hints?" --continue py-chat
+llm logs  # List all conversations
+```
+
+All requests are logged to Apantli's database with token counts, costs, and full request/response data.
+
+#### Benefits
+
+Use the same `llm` command for OpenAI, Anthropic, and all providers in your `config.yaml`. Every request gets automatic cost tracking, centralized API key management, and dashboard monitoring at http://localhost:4000/
+
+#### Troubleshooting
+
+**"Unknown model" error** → Regenerate config: `python3 utils/generate_llm_config.py --write`
+
+**Connection refused** → Start Apantli: `apantli`
+
+**Wrong base URL** → Verify: `echo $OPENAI_BASE_URL` (should show `http://localhost:4000/v1`)
+
+**Using OpenAI directly instead of Apantli** → Unset conflicting key: `unset OPENAI_API_KEY`
+
+**Check available models** → Run: `llm models`
+
+#### Example Workflow
+
+```bash
+# Terminal 1: Start Apantli
+caffeinate -i apantli
+
+# Terminal 2: Use llm for quick queries
+llm -m claude-haiku-3.5 "What's the weather API endpoint?"
+
+# Complex reasoning tasks
+llm -m claude-sonnet-4-5 "Design a caching strategy" < api.py
+
+# Check costs
+open http://localhost:4000/
+sqlite3 requests.db "SELECT model, SUM(cost) FROM requests GROUP BY model"
+```
+
+All llm requests route through Apantli with full cost tracking and logging.
 
 ### Other OpenAI-Compatible Clients
 
