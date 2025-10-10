@@ -59,3 +59,33 @@ python3 utils/recalculate_costs.py
 - After LiteLLM updates its pricing database
 
 **Note**: Some models may still show $0.00 if LiteLLM doesn't have pricing data for them.
+
+### redact_api_keys.py
+
+Redact API keys from existing database records (for databases created before API key redaction was implemented).
+
+**Usage**:
+
+```bash
+# Dry run - see what would be updated
+python3 utils/redact_api_keys.py --dry-run
+
+# Actually update the database (will prompt for confirmation)
+python3 utils/redact_api_keys.py
+```
+
+**What it does**:
+- Scans all records in `requests.db` for request_data containing API keys
+- Replaces actual API keys with `sk-redacted`
+- Updates the database in place
+- Skips records already redacted or without API keys
+
+**When to use**:
+- After upgrading to version with API key redaction (commit bb81327)
+- If you have existing database records with exposed API keys
+- To ensure historical data doesn't contain sensitive credentials
+
+**Safety**:
+- Always backup your database first: `cp requests.db requests.db.backup`
+- Use `--dry-run` to preview changes before applying
+- Script requires explicit confirmation before making changes
