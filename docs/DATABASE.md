@@ -111,9 +111,12 @@ Based on typical usage patterns:
 - Full request JSON including all messages and parameters
 - Full response JSON including all choices and metadata
 
+**Redacted before storage**:
+
+- API keys (replaced with `sk-redacted` in request_data JSON)
+
 **Never stored**:
 
-- API keys (resolved at request time from environment)
 - Server logs (separate from database)
 
 ## Database Maintenance
@@ -468,7 +471,7 @@ LIMIT 30;
 
 **What's NOT in the database**:
 
-- API keys (stored in `.env`, resolved at request time)
+- Actual API keys (redacted to `sk-redacted` before storage)
 - Server authentication tokens
 - System credentials
 

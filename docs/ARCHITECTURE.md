@@ -484,7 +484,7 @@ FastAPI uses async handlers, allowing concurrent request processing. However:
 
 For localhost-only access, use `apantli --host 127.0.0.1`. For network exposure, implement authentication (see Future Considerations below).
 
-**API keys**: Stored in `.env` file (gitignored), resolved at request time, never logged to database or returned in responses.
+**API keys**: Stored in `.env` file (gitignored), resolved at request time, redacted before database logging (stored as `sk-redacted`), never returned in responses.
 
 **Database**: `requests.db` contains full conversation history. Protect with appropriate file permissions. See [DATABASE.md](DATABASE.md#security-considerations) for details.
 
