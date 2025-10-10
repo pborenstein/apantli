@@ -50,9 +50,9 @@ The llm CLI tool validates model names client-side before sending requests. By d
 │  │ extra-openai-models.yaml (llm Model Registry)                │   │
 │  │                                                              │   │
 │  │ Location (OS-specific):                                      │   │
-│  │  • macOS: ~/Library/Application Support/io.datasette.llm/   │   │
+│  │  • macOS: ~/Library/Application Support/io.datasette.llm/    │   │
 │  │  • Linux: ~/.config/io.datasette.llm/                        │   │
-│  │  • Windows: %USERPROFILE%\AppData\Local\io.datasette.llm\   │   │
+│  │  • Windows: %USERPROFILE%\AppData\Local\io.datasette.llm\    │   │
 │  │                                                              │   │
 │  │ Content:                                                     │   │
 │  │  - model_id: gpt-4o-mini                                     │   │
@@ -81,12 +81,12 @@ The llm CLI tool validates model names client-side before sending requests. By d
 │                      Apantli Server                                 │
 │                                                                     │
 │  ┌──────────────────────────────────────────────────────────────┐   │
-│  │ Receives: { "model": "claude-haiku-3.5", ... }              │   │
+│  │ Receives: { "model": "claude-haiku-3.5", ... }               │   │
 │  │                                                              │   │
 │  │ Looks up in config.yaml:                                     │   │
-│  │   claude-haiku-3.5 → anthropic/claude-3-5-haiku-20241022    │   │
+│  │   claude-haiku-3.5 → anthropic/claude-3-5-haiku-20241022     │   │
 │  │                                                              │   │
-│  │ Resolves API key: os.environ/ANTHROPIC_API_KEY              │   │
+│  │ Resolves API key: os.environ/ANTHROPIC_API_KEY               │   │
 │  │                                                              │   │
 │  │ Calls provider via LiteLLM SDK                               │   │
 │  │                                                              │   │
