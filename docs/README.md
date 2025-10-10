@@ -12,6 +12,7 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 | [DASHBOARD.md](DASHBOARD.md) | Web dashboard guide - features, customization, and how it works | Users & Developers |
 | [DATABASE.md](DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [ERROR_HANDLING.md](ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
+| [LLM_CLI_INTEGRATION.md](LLM_CLI_INTEGRATION.md) | How llm CLI integration works - config files, transformation, and data flow | Developers |
 | [TESTING.md](TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 
@@ -22,6 +23,8 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 **Developers**: Read [ARCHITECTURE.md](ARCHITECTURE.md) to understand the system design, then review [API.md](API.md) for endpoint details.
 
 **Configuration**: See [CONFIGURATION.md](CONFIGURATION.md) for detailed model setup and advanced configuration options.
+
+**llm CLI Integration**: See [LLM_CLI_INTEGRATION.md](LLM_CLI_INTEGRATION.md) for how config.yaml, generate_llm_config.py, and extra-openai-models.yaml work together.
 
 **Database**: See [DATABASE.md](DATABASE.md) for schema details, maintenance procedures, and custom queries.
 
