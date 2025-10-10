@@ -45,7 +45,7 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - `test_error_handling.py` - Comprehensive error handling suite (authentication, model not found, streaming, disconnect, error format validation)
 See TESTING.md for manual test procedures and validation strategies.
 
-**Security**: API keys only in `.env`, never logged. Dashboard unauthenticated (local use only). Database contains full conversation history - protect file permissions. Default `0.0.0.0` binding - use `--host 127.0.0.1` for localhost-only.
+**Security**: API keys only in `.env`, redacted in logs (stored as `sk-redacted`). Dashboard unauthenticated (local use only). Database contains full conversation history - protect file permissions. Default `0.0.0.0` binding - use `--host 127.0.0.1` for localhost-only.
 
 ## API Endpoints
 
