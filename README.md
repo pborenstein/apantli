@@ -54,18 +54,81 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 
 
 
+## Usage
 
-## Documentation
+### Starting the Server
 
-| Document | Description | Audience |
-|:---------|:------------|:---------|
-| [docs/API.md](docs/API.md) | HTTP endpoint reference | Developers & Integration users |
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and technical implementation | Developers |
-| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Model setup and environment configuration | Users & Developers |
-| [docs/DATABASE.md](docs/DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
-| [docs/ERROR_HANDLING.md](docs/ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
-| [docs/TESTING.md](docs/TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
-| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
+```bash
+# Default (port 4000, 120s timeout, 3 retries)
+apantli
+
+# Common options
+apantli --port 8080           # Custom port
+apantli --timeout 60          # Request timeout in seconds (default: 120)
+apantli --retries 5           # Number of retries for transient errors (default: 3)
+apantli --reload              # Development mode with auto-reload
+apantli --config custom.yaml  # Custom config file
+
+# Combined options
+apantli --port 8080 --timeout 60 --retries 5
+```
+
+### Making Requests
+
+**Using OpenAI SDK**:
+
+```python
+from openai import OpenAI
+
+client = OpenAI(
+    base_url="http://localhost:4000/v1",
+    api_key="not-used"  # Proxy handles API keys
+)
+
+response = client.chat.completions.create(
+    model="gpt-4.1-mini",
+    messages=[{"role": "user", "content": "Hello!"}]
+)
+
+print(response.choices[0].message.content)
+```
+
+See [docs/API.md](docs/API.md) for curl, requests library, and detailed API examples.
+
+### Web Dashboard
+
+Open http://localhost:4000/ for real-time monitoring with four tabs:
+
+**Stats**: Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, and recent errors.
+
+**Calendar**: Monthly view of daily spending patterns with heatmap coloring showing cost intensity per day.
+
+**Models**: Configured models with pricing information in sortable columns.
+
+**Requests**: Paginated request history (50 per page) with advanced server-side filtering. Apply global date filters (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range), provider dropdown (openai, anthropic, etc.), model dropdown (exact match), cost range (min/max thresholds), and text search (searches model name and request/response content). All filters combine with AND logic. Summary shows accurate totals for ALL filtered results, and filter state persists across page reloads.
+
+### Client Integration
+
+Works with any OpenAI-compatible client: OpenAI SDK, LangChain, LlamaIndex, Continue.dev, Cursor, Obsidian Copilot.
+
+See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#client-integration) for Obsidian Copilot setup and other client integrations.
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|:---------|:-------|:------------|
+| `/v1/chat/completions` | POST | OpenAI-compatible chat completions (streaming supported) |
+| `/chat/completions` | POST | Alternate path for chat completions |
+| `/health` | GET | Health check |
+| `/models` | GET | List available models with pricing |
+| `/stats` | GET | Usage statistics with date filtering and performance metrics |
+| `/stats/daily` | GET | Daily aggregated statistics with provider breakdown |
+| `/stats/date-range` | GET | Get actual date range of data in database |
+| `/requests` | GET | Paginated request history with server-side filtering (provider, model, cost, search) |
+| `/errors` | DELETE | Clear all error records |
+| `/` | GET | Web dashboard |
+
+See [docs/API.md](docs/API.md) for complete endpoint documentation.
 
 ## Core Features
 
@@ -186,82 +249,6 @@ model_list:
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed configuration options, provider-specific setup, and client integration guides.
 
-## Usage
-
-### Starting the Server
-
-```bash
-# Default (port 4000, 120s timeout, 3 retries)
-apantli
-
-# Common options
-apantli --port 8080           # Custom port
-apantli --timeout 60          # Request timeout in seconds (default: 120)
-apantli --retries 5           # Number of retries for transient errors (default: 3)
-apantli --reload              # Development mode with auto-reload
-apantli --config custom.yaml  # Custom config file
-
-# Combined options
-apantli --port 8080 --timeout 60 --retries 5
-```
-
-### Making Requests
-
-**Using OpenAI SDK**:
-
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="http://localhost:4000/v1",
-    api_key="not-used"  # Proxy handles API keys
-)
-
-response = client.chat.completions.create(
-    model="gpt-4.1-mini",
-    messages=[{"role": "user", "content": "Hello!"}]
-)
-
-print(response.choices[0].message.content)
-```
-
-See [docs/API.md](docs/API.md) for curl, requests library, and detailed API examples.
-
-### Web Dashboard
-
-Open http://localhost:4000/ for real-time monitoring with four tabs:
-
-**Stats**: Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, and recent errors.
-
-**Calendar**: Monthly view of daily spending patterns with heatmap coloring showing cost intensity per day.
-
-**Models**: Configured models with pricing information in sortable columns.
-
-**Requests**: Paginated request history (50 per page) with advanced server-side filtering. Apply global date filters (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range), provider dropdown (openai, anthropic, etc.), model dropdown (exact match), cost range (min/max thresholds), and text search (searches model name and request/response content). All filters combine with AND logic. Summary shows accurate totals for ALL filtered results, and filter state persists across page reloads.
-
-### Client Integration
-
-Works with any OpenAI-compatible client: OpenAI SDK, LangChain, LlamaIndex, Continue.dev, Cursor, Obsidian Copilot.
-
-See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#client-integration) for Obsidian Copilot setup and other client integrations.
-
-### API Endpoints
-
-| Endpoint | Method | Description |
-|:---------|:-------|:------------|
-| `/v1/chat/completions` | POST | OpenAI-compatible chat completions (streaming supported) |
-| `/chat/completions` | POST | Alternate path for chat completions |
-| `/health` | GET | Health check |
-| `/models` | GET | List available models with pricing |
-| `/stats` | GET | Usage statistics with date filtering and performance metrics |
-| `/stats/daily` | GET | Daily aggregated statistics with provider breakdown |
-| `/stats/date-range` | GET | Get actual date range of data in database |
-| `/requests` | GET | Paginated request history with server-side filtering (provider, model, cost, search) |
-| `/errors` | DELETE | Clear all error records |
-| `/` | GET | Web dashboard |
-
-See [docs/API.md](docs/API.md) for complete endpoint documentation.
-
 ## Database
 
 All requests are logged to `requests.db` (SQLite) with request metadata (timestamp, model, provider, tokens, cost, duration), full request and response JSON, and error messages for failed requests.
@@ -307,6 +294,20 @@ For `llm` CLI integration, see [Utilities](#utilities) section above.
 **Default configuration is for local use only.** Do not expose to network without authentication.
 
 See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-considerations) for security details.
+
+## Further Reading
+
+For detailed documentation on specific topics:
+
+| Document | Description | Audience |
+|:---------|:------------|:---------|
+| [docs/API.md](docs/API.md) | HTTP endpoint reference | Developers & Integration users |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and technical implementation | Developers |
+| [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Model setup and environment configuration | Users & Developers |
+| [docs/DATABASE.md](docs/DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
+| [docs/ERROR_HANDLING.md](docs/ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
+| [docs/TESTING.md](docs/TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
+| [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 
 ## License
 
