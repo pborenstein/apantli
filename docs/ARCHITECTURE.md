@@ -355,20 +355,48 @@ For complete schema details, indexes, maintenance procedures, and troubleshootin
 - Request filtering with search, provider/model selectors, and cost range
 - Summary statistics for filtered results
 
+**State Management** (Alpine.js):
+
+- `dateFilter`: Global date range filter (persisted in localStorage)
+- `requestFilters`: Provider, model, cost range, search text (persisted)
+- `currentPage`, `itemsPerPage`, `totalItems`: Pagination state
+- `currentTab`: Active tab selection
+- Watchers automatically trigger data reloads when filters change
+
 **Key Functions**:
 
 | Function | Purpose |
 |:---------|:--------|
-| `showTab(e, tab)` | Switch between Stats/Models/Requests views |
+| `showTab(e, tab)` | Switch between Stats/Calendar/Models/Requests views |
 | `refresh()` | Fetch and render statistics with time filtering |
 | `loadModels()` | Fetch and display configured models with pricing |
-| `loadRequests()` | Fetch last 50 requests and render expandable table |
+| `loadRequests()` | Fetch paginated requests with server-side filtering |
 | `toggleDetail(id)` | Show/hide full JSON for a request row |
+| `setQuickFilter(filter, range)` | Apply preset date ranges (Today, This Week, etc.) |
+| `buildQuery(filter)` | Construct query string with filter parameters |
 | `escapeHtml(text)` | Prevent XSS by escaping user-supplied content |
+
+**Server-Side Filtering**:
+
+The `/requests` endpoint implements server-side filtering for accurate pagination:
+
+```
+Client filters → Alpine.js watcher → Build query params →
+Server SQL WHERE clauses → COUNT(*) for total →
+LIMIT/OFFSET for pagination → Return results + metadata
+```
+
+**Benefits**:
+
+- Summary shows accurate totals for ALL filtered results (not just current page)
+- Database indexes used for efficient queries
+- Reduced data transfer (only current page sent to client)
+- Filter state persists across page reloads via localStorage
 
 **Security**:
 
 - Uses `escapeHtml()` for all dynamic content
+- Parameterized SQL queries prevent injection
 - Constructs DOM elements via `createElement()` instead of `innerHTML` for event handlers
 - No external JavaScript dependencies (no CDN risk)
 

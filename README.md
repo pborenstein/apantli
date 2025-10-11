@@ -76,7 +76,9 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 | Multi-provider | OpenAI, Anthropic, and other LiteLLM-compatible providers |
 | Cost tracking | Automatic calculation and storage of per-request costs |
 | Web dashboard | Real-time statistics with time-range filtering and error management |
-| SQLite storage | Lightweight database with full request/response logging |
+| Advanced filtering | Server-side request filtering by provider, model, cost range, and text search |
+| Pagination | Navigate through all requests with configurable page size (up to 200 per page) |
+| SQLite storage | Lightweight database with full request/response logging and indexed queries |
 | OpenAI compatible | Drop-in replacement for OpenAI API clients with streaming support |
 | Error handling | Configurable timeouts, automatic retries, and OpenAI-compatible error responses |
 | CORS enabled | Works with web-based clients like Obsidian Copilot |
@@ -235,10 +237,18 @@ See [docs/API.md](docs/API.md) for curl, requests library, and detailed API exam
 
 Open http://localhost:4000/ to view:
 
-- **Stats**: Usage statistics with date filtering, cost breakdowns, recent errors
-- **Calendar**: Monthly view of daily spending patterns with heatmap
-- **Models**: Configured models with pricing information
-- **Requests**: Last 50 requests with filtering, search, and full JSON details
+- **Stats**: Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, recent errors
+- **Calendar**: Monthly view of daily spending patterns with heatmap coloring
+- **Models**: Configured models with pricing information (sortable columns)
+- **Requests**: Paginated request history (50 per page) with advanced filtering:
+  - Global date filter (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range)
+  - Provider dropdown filter (openai, anthropic, etc.)
+  - Model dropdown filter (exact match)
+  - Cost range filter (min/max thresholds)
+  - Text search (searches model name and request/response content)
+  - All filters combine with AND logic
+  - Summary shows accurate totals for ALL filtered results
+  - Filter state persists across page reloads
 
 ### Client Integration
 
@@ -257,7 +267,7 @@ See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#client-integration) for Obsidi
 | `/stats` | GET | Usage statistics with date filtering and performance metrics |
 | `/stats/daily` | GET | Daily aggregated statistics with provider breakdown |
 | `/stats/date-range` | GET | Get actual date range of data in database |
-| `/requests` | GET | Request history with filtering (last 50) |
+| `/requests` | GET | Paginated request history with server-side filtering (provider, model, cost, search) |
 | `/errors` | DELETE | Clear all error records |
 | `/` | GET | Web dashboard |
 
