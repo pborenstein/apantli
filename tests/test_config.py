@@ -1,154 +1,346 @@
-"""Unit tests for configuration loading."""
+"""Unit tests for configuration loading and validation."""
 
 import pytest
 import os
-from apantli.config import load_config, MODEL_MAP
+from pydantic import ValidationError
+from apantli.config import (
+  load_config, MODEL_MAP, Config, ModelConfig, ConfigError,
+  DEFAULT_TIMEOUT, DEFAULT_RETRIES
+)
 
 
-def test_load_valid_config(temp_config_file, sample_config_content, monkeypatch):
+def test_model_config_valid(monkeypatch):
+  """Test creating a valid ModelConfig."""
+  monkeypatch.setenv('TEST_API_KEY', 'sk-test-123')
+
+  config = ModelConfig(
+    model_name='gpt-4',
+    model='openai/gpt-4',
+    api_key='os.environ/TEST_API_KEY',
+    timeout=180,
+    num_retries=5
+  )
+
+  assert config.model_name == 'gpt-4'
+  assert config.litellm_model == 'openai/gpt-4'
+  assert config.api_key_var == 'os.environ/TEST_API_KEY'
+  assert config.timeout == 180
+  assert config.num_retries == 5
+
+
+def test_model_config_get_api_key(monkeypatch):
+  """Test API key resolution from environment."""
+  monkeypatch.setenv('TEST_API_KEY', 'sk-actual-key-value')
+
+  config = ModelConfig(
+    model_name='gpt-4',
+    model='openai/gpt-4',
+    api_key='os.environ/TEST_API_KEY'
+  )
+
+  assert config.get_api_key() == 'sk-actual-key-value'
+
+
+def test_model_config_invalid_api_key_format():
+  """Test that invalid API key format is rejected."""
+  with pytest.raises(ValidationError) as exc_info:
+    ModelConfig(
+      model_name='gpt-4',
+      model='openai/gpt-4',
+      api_key='hardcoded-api-key'  # Missing os.environ/ prefix
+    )
+
+  errors = exc_info.value.errors()
+  assert any('os.environ/VAR_NAME' in str(e) for e in errors)
+
+
+def test_model_config_negative_timeout():
+  """Test that negative timeout is rejected."""
+  with pytest.raises(ValidationError) as exc_info:
+    ModelConfig(
+      model_name='gpt-4',
+      model='openai/gpt-4',
+      api_key='os.environ/TEST_KEY',
+      timeout=-10
+    )
+
+  errors = exc_info.value.errors()
+  assert any('positive' in str(e).lower() for e in errors)
+
+
+def test_model_config_negative_retries():
+  """Test that negative retries is rejected."""
+  with pytest.raises(ValidationError) as exc_info:
+    ModelConfig(
+      model_name='gpt-4',
+      model='openai/gpt-4',
+      api_key='os.environ/TEST_KEY',
+      num_retries=-1
+    )
+
+  errors = exc_info.value.errors()
+  assert any('non-negative' in str(e).lower() for e in errors)
+
+
+def test_model_config_missing_env_var_warns(monkeypatch):
+  """Test that missing environment variable generates warning."""
+  # Ensure the var doesn't exist
+  monkeypatch.delenv('MISSING_VAR', raising=False)
+
+  with pytest.warns(UserWarning, match="MISSING_VAR not set"):
+    ModelConfig(
+      model_name='gpt-4',
+      model='openai/gpt-4',
+      api_key='os.environ/MISSING_VAR'
+    )
+
+
+def test_model_config_to_litellm_params(monkeypatch):
+  """Test conversion to LiteLLM parameters."""
+  monkeypatch.setenv('TEST_KEY', 'sk-test')
+
+  config = ModelConfig(
+    model_name='gpt-4',
+    model='openai/gpt-4',
+    api_key='os.environ/TEST_KEY',
+    timeout=180,
+    temperature=0.7
+  )
+
+  params = config.to_litellm_params()
+
+  assert params['model'] == 'openai/gpt-4'
+  assert params['api_key'] == 'os.environ/TEST_KEY'
+  assert params['timeout'] == 180
+  assert params['temperature'] == 0.7
+  assert 'model_name' not in params  # Should be excluded
+
+
+def test_model_config_to_litellm_params_with_defaults(monkeypatch):
+  """Test that defaults are applied when values are None."""
+  monkeypatch.setenv('TEST_KEY', 'sk-test')
+
+  config = ModelConfig(
+    model_name='gpt-4',
+    model='openai/gpt-4',
+    api_key='os.environ/TEST_KEY'
+    # No timeout or num_retries specified
+  )
+
+  params = config.to_litellm_params(defaults={
+    'timeout': 120,
+    'num_retries': 3
+  })
+
+  assert params['timeout'] == 120
+  assert params['num_retries'] == 3
+
+
+def test_config_load_valid(temp_config_file, sample_config_content, monkeypatch):
   """Test loading a valid configuration file."""
+  # Set up environment variables
+  monkeypatch.setenv('OPENAI_API_KEY', 'sk-test-openai')
+  monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-test-anthropic')
+
   # Write config to temp file
   with open(temp_config_file, 'w') as f:
     f.write(sample_config_content)
 
-  # Clear MODEL_MAP and change to temp directory
-  import apantli.config
-  apantli.config.MODEL_MAP = {}
-  monkeypatch.chdir(os.path.dirname(temp_config_file))
-  monkeypatch.setattr('apantli.config.MODEL_MAP', {})
-
-  # Mock open to use our temp file
-  original_open = open
-  def mock_open(filename, *args, **kwargs):
-    if filename == 'config.yaml':
-      return original_open(temp_config_file, *args, **kwargs)
-    return original_open(filename, *args, **kwargs)
-
-  monkeypatch.setattr('builtins.open', mock_open)
-
   # Load config
-  load_config()
+  config = Config(temp_config_file)
 
   # Verify models were loaded
-  from apantli.config import MODEL_MAP
-  assert 'gpt-4' in MODEL_MAP
-  assert 'claude-3' in MODEL_MAP
+  assert 'gpt-4' in config.models
+  assert 'claude-3' in config.models
 
   # Verify model details
-  assert MODEL_MAP['gpt-4']['model'] == 'openai/gpt-4'
-  assert MODEL_MAP['gpt-4']['api_key'] == 'os.environ/OPENAI_API_KEY'
+  gpt4 = config.models['gpt-4']
+  assert gpt4.litellm_model == 'openai/gpt-4'
+  assert gpt4.api_key_var == 'os.environ/OPENAI_API_KEY'
 
-  assert MODEL_MAP['claude-3']['model'] == 'anthropic/claude-3-opus-20240229'
-  assert MODEL_MAP['claude-3']['api_key'] == 'os.environ/ANTHROPIC_API_KEY'
-  assert MODEL_MAP['claude-3']['timeout'] == 180
-  assert MODEL_MAP['claude-3']['num_retries'] == 5
+  claude = config.models['claude-3']
+  assert claude.litellm_model == 'anthropic/claude-3-opus-20240229'
+  assert claude.timeout == 180
+  assert claude.num_retries == 5
 
 
-def test_load_config_missing_file(monkeypatch, capsys):
+def test_config_get_model(temp_config_file, sample_config_content, monkeypatch):
+  """Test getting a specific model configuration."""
+  monkeypatch.setenv('OPENAI_API_KEY', 'sk-test')
+  monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-test')
+
+  with open(temp_config_file, 'w') as f:
+    f.write(sample_config_content)
+
+  config = Config(temp_config_file)
+
+  # Get existing model
+  gpt4 = config.get_model('gpt-4')
+  assert gpt4 is not None
+  assert gpt4.model_name == 'gpt-4'
+
+  # Get non-existent model
+  assert config.get_model('nonexistent') is None
+
+
+def test_config_list_models(temp_config_file, sample_config_content, monkeypatch):
+  """Test listing all model names."""
+  monkeypatch.setenv('OPENAI_API_KEY', 'sk-test')
+  monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-test')
+
+  with open(temp_config_file, 'w') as f:
+    f.write(sample_config_content)
+
+  config = Config(temp_config_file)
+
+  models = config.list_models()
+  assert 'gpt-4' in models
+  assert 'claude-3' in models
+  assert len(models) == 2
+
+
+def test_config_missing_file(temp_config_file, capsys):
   """Test loading config when file doesn't exist."""
-  import apantli.config
-  apantli.config.MODEL_MAP = {}
+  # Use a file path that doesn't exist
+  config = Config(temp_config_file + '.nonexistent')
 
-  # Mock open to raise FileNotFoundError
-  def mock_open(*args, **kwargs):
-    raise FileNotFoundError("config.yaml not found")
-
-  monkeypatch.setattr('builtins.open', mock_open)
-
-  # Load config - should not raise, just warn
-  load_config()
-
-  # Should print warning
+  # Should not raise, just warn
   captured = capsys.readouterr()
-  assert "Warning: Could not load config.yaml" in captured.out
-
-  # MODEL_MAP should be empty
-  from apantli.config import MODEL_MAP
-  assert len(MODEL_MAP) == 0
+  assert "Config file not found" in captured.out
+  assert len(config.models) == 0
 
 
-def test_load_config_invalid_yaml(temp_config_file, monkeypatch, capsys):
+def test_config_invalid_yaml(temp_config_file, capsys):
   """Test loading config with invalid YAML."""
   # Write invalid YAML
   with open(temp_config_file, 'w') as f:
     f.write("invalid: yaml: content: [[[")
 
-  import apantli.config
-  apantli.config.MODEL_MAP = {}
+  config = Config(temp_config_file)
 
-  # Mock open to use our temp file
-  original_open = open
-  def mock_open(filename, *args, **kwargs):
-    if filename == 'config.yaml':
-      return original_open(temp_config_file, *args, **kwargs)
-    return original_open(filename, *args, **kwargs)
-
-  monkeypatch.setattr('builtins.open', mock_open)
-
-  # Load config - should not raise, just warn
-  load_config()
-
-  # Should print warning
+  # Should not raise, just warn
   captured = capsys.readouterr()
-  assert "Warning: Could not load config.yaml" in captured.out
+  assert "Invalid YAML" in captured.out
+  assert len(config.models) == 0
 
 
-def test_load_config_missing_model_name(temp_config_file, monkeypatch):
-  """Test config with missing model_name field."""
+def test_config_missing_model_field(temp_config_file, monkeypatch, capsys):
+  """Test config with missing required model field."""
+  monkeypatch.setenv('TEST_KEY', 'sk-test')
+
   config_content = """model_list:
-  - litellm_params:
-      model: openai/gpt-4
-      api_key: os.environ/OPENAI_API_KEY
+  - model_name: test-model
+    litellm_params:
+      api_key: os.environ/TEST_KEY
+      # Missing 'model' field
 """
   with open(temp_config_file, 'w') as f:
     f.write(config_content)
 
-  import apantli.config
-  apantli.config.MODEL_MAP = {}
+  config = Config(temp_config_file)
 
-  original_open = open
-  def mock_open(filename, *args, **kwargs):
-    if filename == 'config.yaml':
-      return original_open(temp_config_file, *args, **kwargs)
-    return original_open(filename, *args, **kwargs)
-
-  monkeypatch.setattr('builtins.open', mock_open)
-
-  # Load config - should handle gracefully
-  load_config()
-
-  # MODEL_MAP should be empty or skip this model
-  from apantli.config import MODEL_MAP
-  # The current implementation will error on this, which is caught
+  # Should warn about validation error
+  captured = capsys.readouterr()
+  assert "validation errors" in captured.out.lower()
+  # Model should not be loaded
+  assert 'test-model' not in config.models
 
 
-def test_load_config_empty_model_list(temp_config_file, monkeypatch):
-  """Test config with empty model_list."""
-  config_content = """model_list: []
+def test_config_invalid_timeout(temp_config_file, monkeypatch, capsys):
+  """Test config with invalid timeout value."""
+  monkeypatch.setenv('TEST_KEY', 'sk-test')
+
+  config_content = """model_list:
+  - model_name: test-model
+    litellm_params:
+      model: test/model
+      api_key: os.environ/TEST_KEY
+      timeout: -5
 """
   with open(temp_config_file, 'w') as f:
     f.write(config_content)
 
+  config = Config(temp_config_file)
+
+  # Should warn about validation error
+  captured = capsys.readouterr()
+  assert "validation errors" in captured.out.lower()
+  assert 'test-model' not in config.models
+
+
+def test_config_updates_global_model_map(temp_config_file, sample_config_content, monkeypatch):
+  """Test that Config updates the global MODEL_MAP."""
   import apantli.config
+
+  monkeypatch.setenv('OPENAI_API_KEY', 'sk-test')
+  monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-test')
+
+  # Clear MODEL_MAP
   apantli.config.MODEL_MAP = {}
 
-  original_open = open
-  def mock_open(filename, *args, **kwargs):
-    if filename == 'config.yaml':
-      return original_open(temp_config_file, *args, **kwargs)
-    return original_open(filename, *args, **kwargs)
+  with open(temp_config_file, 'w') as f:
+    f.write(sample_config_content)
 
-  monkeypatch.setattr('builtins.open', mock_open)
+  config = Config(temp_config_file)
 
-  load_config()
-
+  # MODEL_MAP should be updated
   from apantli.config import MODEL_MAP
-  assert len(MODEL_MAP) == 0
+  assert 'gpt-4' in MODEL_MAP
+  assert 'claude-3' in MODEL_MAP
+  assert MODEL_MAP['gpt-4']['model'] == 'openai/gpt-4'
+
+
+def test_load_config_function(temp_config_file, sample_config_content, monkeypatch):
+  """Test the backward-compatible load_config() function."""
+  import apantli.config
+
+  monkeypatch.setenv('OPENAI_API_KEY', 'sk-test')
+  monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-test')
+
+  # Clear MODEL_MAP
+  apantli.config.MODEL_MAP = {}
+
+  with open(temp_config_file, 'w') as f:
+    f.write(sample_config_content)
+
+  # Change to temp directory so config.yaml is found
+  original_cwd = os.getcwd()
+  try:
+    os.chdir(os.path.dirname(temp_config_file))
+    # Rename to config.yaml
+    os.rename(
+      os.path.basename(temp_config_file),
+      'config.yaml'
+    )
+
+    load_config()
+
+    # MODEL_MAP should be updated
+    from apantli.config import MODEL_MAP
+    assert 'gpt-4' in MODEL_MAP
+    assert 'claude-3' in MODEL_MAP
+  finally:
+    os.chdir(original_cwd)
 
 
 def test_config_defaults():
   """Test default configuration values."""
-  from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES
-
   assert DEFAULT_TIMEOUT == 120
   assert DEFAULT_RETRIES == 3
+
+
+def test_model_config_extra_fields_allowed(monkeypatch):
+  """Test that extra LiteLLM parameters are preserved."""
+  monkeypatch.setenv('TEST_KEY', 'sk-test')
+
+  config = ModelConfig(
+    model_name='gpt-4',
+    model='openai/gpt-4',
+    api_key='os.environ/TEST_KEY',
+    custom_param='custom_value',  # Extra field
+    another_param=42
+  )
+
+  params = config.to_litellm_params()
+  assert params.get('custom_param') == 'custom_value'
+  assert params.get('another_param') == 42
