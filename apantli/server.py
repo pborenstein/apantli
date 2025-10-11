@@ -32,151 +32,24 @@ from litellm.exceptions import (
     NotFoundError,
 )
 import uvicorn
-import yaml
 from dotenv import load_dotenv
+
+# Import from local modules
+from apantli.config import MODEL_MAP, DEFAULT_TIMEOUT, DEFAULT_RETRIES, load_config
+from apantli.database import DB_PATH, init_db, log_request
+from apantli.errors import build_error_response
+from apantli.llm import infer_provider_from_model
+from apantli.utils import convert_local_date_to_utc_range
+
+# Import modules themselves for setting globals in main()
+import apantli.config
+import apantli.database
 
 # Load environment variables
 load_dotenv()
 
-
-# Database setup
-DB_PATH = "requests.db"
-
-# Default configuration
-DEFAULT_TIMEOUT = 120  # seconds
-DEFAULT_RETRIES = 3    # number of retry attempts
-
-# Model mapping from config.yaml
-MODEL_MAP = {}
-
 # Templates
 templates = Jinja2Templates(directory="templates")
-
-
-def load_config():
-    """Load model configuration from config.yaml."""
-    global MODEL_MAP
-    try:
-        with open('config.yaml', 'r') as f:
-            config = yaml.safe_load(f)
-
-        for model in config.get('model_list', []):
-            model_name = model['model_name']
-            litellm_params = model['litellm_params'].copy()
-
-            # Store all litellm_params for pass-through to LiteLLM
-            # We'll handle 'model' and 'api_key' specially at request time
-            MODEL_MAP[model_name] = litellm_params
-    except Exception as e:
-        print(f"Warning: Could not load config.yaml: {e}")
-        print("Models will need to be specified with provider prefix (e.g., 'openai/gpt-4')")
-
-
-def convert_local_date_to_utc_range(date_str: str, timezone_offset_minutes: int):
-    """Convert a local date string to UTC timestamp range.
-
-    Args:
-        date_str: ISO date like "2025-10-06"
-        timezone_offset_minutes: Minutes from UTC (negative for west, positive for east)
-
-    Returns:
-        (start_utc, end_utc) as ISO timestamp strings (inclusive start, exclusive end)
-    """
-    # Parse local date at midnight
-    local_date = datetime.fromisoformat(date_str)
-
-    # Convert to UTC by subtracting the timezone offset
-    utc_start = local_date - timedelta(minutes=timezone_offset_minutes)
-    utc_end = utc_start + timedelta(days=1)
-
-    return utc_start.isoformat(), utc_end.isoformat()
-
-
-def init_db():
-    """Initialize SQLite database with requests table."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS requests (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            timestamp TEXT NOT NULL,
-            model TEXT NOT NULL,
-            provider TEXT,
-            prompt_tokens INTEGER,
-            completion_tokens INTEGER,
-            total_tokens INTEGER,
-            cost REAL,
-            duration_ms INTEGER,
-            request_data TEXT,
-            response_data TEXT,
-            error TEXT
-        )
-    """)
-
-    # Create indexes for faster date-based queries
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_timestamp
-        ON requests(timestamp)
-    """)
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_date_provider
-        ON requests(DATE(timestamp), provider)
-        WHERE error IS NULL
-    """)
-    cursor.execute("""
-        CREATE INDEX IF NOT EXISTS idx_cost
-        ON requests(cost)
-        WHERE error IS NULL
-    """)
-
-    conn.commit()
-    conn.close()
-
-
-def log_request(model: str, provider: str, response: dict, duration_ms: int,
-                request_data: dict, error: Optional[str] = None):
-    """Log a request to SQLite."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    usage = response.get('usage', {}) if response else {}
-    prompt_tokens = usage.get('prompt_tokens', 0)
-    completion_tokens = usage.get('completion_tokens', 0)
-    total_tokens = usage.get('total_tokens', 0)
-
-    # Calculate cost using LiteLLM
-    cost = 0.0
-    if response:
-        try:
-            cost = litellm.completion_cost(completion_response=response)
-        except Exception:
-            pass
-
-    # Redact sensitive data before storing
-    safe_request_data = request_data.copy()
-    if 'api_key' in safe_request_data:
-        safe_request_data['api_key'] = 'sk-redacted'
-
-    cursor.execute("""
-        INSERT INTO requests
-        (timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
-         cost, duration_ms, request_data, response_data, error)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (
-        datetime.utcnow().isoformat(),
-        model,
-        provider,
-        prompt_tokens,
-        completion_tokens,
-        total_tokens,
-        cost,
-        duration_ms,
-        json.dumps(safe_request_data),
-        json.dumps(response) if response else None,
-        error
-    ))
-    conn.commit()
-    conn.close()
 
 
 @asynccontextmanager
@@ -200,53 +73,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-
-def build_error_response(error_type: str, message: str, code: str = None) -> dict:
-    """Build OpenAI-compatible error response.
-
-    Args:
-        error_type: Error type (e.g., 'invalid_request_error', 'rate_limit_error')
-        message: Human-readable error message
-        code: Optional error code
-
-    Returns:
-        Dictionary with error structure matching OpenAI format
-    """
-    error_obj = {
-        "message": message,
-        "type": error_type,
-    }
-    if code:
-        error_obj["code"] = code
-
-    return {"error": error_obj}
-
-
-def infer_provider_from_model(model_name: str) -> str:
-    """Infer provider from model name when not explicitly prefixed."""
-    if not model_name:
-        return 'unknown'
-
-    model_lower = model_name.lower()
-
-    # Check for provider prefix first
-    if '/' in model_name:
-        return model_name.split('/')[0]
-
-    # Infer from model name patterns
-    if model_lower.startswith(('gpt-', 'o1-', 'text-davinci', 'text-curie')):
-        return 'openai'
-    elif model_lower.startswith('claude') or 'claude' in model_lower:
-        return 'anthropic'
-    elif model_lower.startswith(('gemini', 'palm')):
-        return 'google'
-    elif model_lower.startswith('mistral'):
-        return 'mistral'
-    elif model_lower.startswith('llama'):
-        return 'meta'
-
-    return 'unknown'
 
 
 @app.post("/v1/chat/completions")
@@ -980,11 +806,10 @@ def main():
 
     args = parser.parse_args()
 
-    # Update global config paths if provided
-    global DB_PATH, DEFAULT_TIMEOUT, DEFAULT_RETRIES
-    DB_PATH = args.db
-    DEFAULT_TIMEOUT = args.timeout
-    DEFAULT_RETRIES = args.retries
+    # Update global config values in their respective modules
+    apantli.database.DB_PATH = args.db
+    apantli.config.DEFAULT_TIMEOUT = args.timeout
+    apantli.config.DEFAULT_RETRIES = args.retries
 
     # Configure logging format with timestamps
     log_config = uvicorn.config.LOGGING_CONFIG
