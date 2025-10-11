@@ -1,9 +1,10 @@
 """Database operations for SQLite request logging."""
 
-import sqlite3
+import aiosqlite
 import json
 from datetime import datetime
 from typing import Optional
+from contextlib import asynccontextmanager
 
 import litellm
 
@@ -12,88 +13,112 @@ import litellm
 DB_PATH = "requests.db"
 
 
-def init_db():
-  """Initialize SQLite database with requests table."""
-  conn = sqlite3.connect(DB_PATH)
-  cursor = conn.cursor()
-  cursor.execute("""
-    CREATE TABLE IF NOT EXISTS requests (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      timestamp TEXT NOT NULL,
-      model TEXT NOT NULL,
-      provider TEXT,
-      prompt_tokens INTEGER,
-      completion_tokens INTEGER,
-      total_tokens INTEGER,
-      cost REAL,
-      duration_ms INTEGER,
-      request_data TEXT,
-      response_data TEXT,
-      error TEXT
-    )
-  """)
+class Database:
+  """Async database interface for request logging."""
 
-  # Create indexes for faster date-based queries
-  cursor.execute("""
-    CREATE INDEX IF NOT EXISTS idx_timestamp
-    ON requests(timestamp)
-  """)
-  cursor.execute("""
-    CREATE INDEX IF NOT EXISTS idx_date_provider
-    ON requests(DATE(timestamp), provider)
-    WHERE error IS NULL
-  """)
-  cursor.execute("""
-    CREATE INDEX IF NOT EXISTS idx_cost
-    ON requests(cost)
-    WHERE error IS NULL
-  """)
+  def __init__(self, path: str):
+    self.path = path
 
-  conn.commit()
-  conn.close()
-
-
-def log_request(model: str, provider: str, response: dict, duration_ms: int,
-                request_data: dict, error: Optional[str] = None):
-  """Log a request to SQLite."""
-  conn = sqlite3.connect(DB_PATH)
-  cursor = conn.cursor()
-
-  usage = response.get('usage', {}) if response else {}
-  prompt_tokens = usage.get('prompt_tokens', 0)
-  completion_tokens = usage.get('completion_tokens', 0)
-  total_tokens = usage.get('total_tokens', 0)
-
-  # Calculate cost using LiteLLM
-  cost = 0.0
-  if response:
+  @asynccontextmanager
+  async def _get_connection(self):
+    """Context manager for database connections."""
+    conn = await aiosqlite.connect(self.path)
     try:
-      cost = litellm.completion_cost(completion_response=response)
-    except Exception:
-      pass
+      yield conn
+      await conn.commit()
+    finally:
+      await conn.close()
 
-  # Redact sensitive data before storing
-  safe_request_data = request_data.copy()
-  if 'api_key' in safe_request_data:
-    safe_request_data['api_key'] = 'sk-redacted'
+  async def init(self):
+    """Initialize SQLite database with requests table."""
+    async with self._get_connection() as conn:
+      await conn.execute("""
+        CREATE TABLE IF NOT EXISTS requests (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          timestamp TEXT NOT NULL,
+          model TEXT NOT NULL,
+          provider TEXT,
+          prompt_tokens INTEGER,
+          completion_tokens INTEGER,
+          total_tokens INTEGER,
+          cost REAL,
+          duration_ms INTEGER,
+          request_data TEXT,
+          response_data TEXT,
+          error TEXT
+        )
+      """)
 
-  cursor.execute("""
-    INSERT INTO requests
-    (timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
-     cost, duration_ms, request_data, response_data, error)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-  """, (
-    datetime.utcnow().isoformat(),
-    model,
-    provider,
-    prompt_tokens,
-    completion_tokens,
-    total_tokens,
-    cost,
-    duration_ms,
-    json.dumps(safe_request_data),
-    json.dumps(response) if response else None,
-    error
-  ))
-  conn.commit()
-  conn.close()
+      # Create indexes for faster date-based queries
+      await conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_timestamp
+        ON requests(timestamp)
+      """)
+      await conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_date_provider
+        ON requests(DATE(timestamp), provider)
+        WHERE error IS NULL
+      """)
+      await conn.execute("""
+        CREATE INDEX IF NOT EXISTS idx_cost
+        ON requests(cost)
+        WHERE error IS NULL
+      """)
+
+  async def log_request(self, model: str, provider: str, response: dict,
+                       duration_ms: int, request_data: dict,
+                       error: Optional[str] = None):
+    """Log a request to SQLite."""
+    async with self._get_connection() as conn:
+      usage = response.get('usage', {}) if response else {}
+      prompt_tokens = usage.get('prompt_tokens', 0)
+      completion_tokens = usage.get('completion_tokens', 0)
+      total_tokens = usage.get('total_tokens', 0)
+
+      # Calculate cost using LiteLLM
+      cost = 0.0
+      if response:
+        try:
+          cost = litellm.completion_cost(completion_response=response)
+        except Exception:
+          pass
+
+      # Redact sensitive data before storing
+      safe_request_data = request_data.copy()
+      if 'api_key' in safe_request_data:
+        safe_request_data['api_key'] = 'sk-redacted'
+
+      await conn.execute("""
+        INSERT INTO requests
+        (timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
+         cost, duration_ms, request_data, response_data, error)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      """, (
+        datetime.utcnow().isoformat(),
+        model,
+        provider,
+        prompt_tokens,
+        completion_tokens,
+        total_tokens,
+        cost,
+        duration_ms,
+        json.dumps(safe_request_data),
+        json.dumps(response) if response else None,
+        error
+      ))
+
+
+# Backward compatibility: module-level functions that use global DB_PATH
+# These maintain the original API for existing code
+
+async def init_db():
+  """Initialize SQLite database with requests table (async)."""
+  db = Database(DB_PATH)
+  await db.init()
+
+
+async def log_request(model: str, provider: str, response: dict, duration_ms: int,
+                     request_data: dict, error: Optional[str] = None):
+  """Log a request to SQLite (async)."""
+  db = Database(DB_PATH)
+  await db.log_request(model, provider, response, duration_ms, request_data, error)
