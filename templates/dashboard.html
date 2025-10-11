@@ -1766,6 +1766,7 @@
         let requestsObjects = []; // Store original request objects for detail rows
         let filteredRequestsData = []; // Filtered subset
         let filteredRequestsObjects = []; // Filtered objects
+        let serverAggregates = { total: 0, total_tokens: 0, total_cost: 0, avg_cost: 0 }; // Server-side aggregates
 
         async function loadRequests() {
             if (!alpineData) return;
@@ -1775,6 +1776,14 @@
                 const url = `/requests${query}${query ? '&' : '?'}offset=${offset}&limit=${alpineData.itemsPerPage}`;
                 const res = await fetch(url);
                 const data = await res.json();
+
+                // Store server-side aggregates for ALL matching requests
+                serverAggregates = {
+                    total: data.total,
+                    total_tokens: data.total_tokens,
+                    total_cost: data.total_cost,
+                    avg_cost: data.avg_cost
+                };
 
                 // Store total for pagination
                 alpineData.totalItems = data.total;
@@ -1884,20 +1893,16 @@
         function updateRequestSummary() {
             const summary = document.getElementById('request-summary');
 
-            if (filteredRequestsObjects.length === 0) {
+            // Use server-side aggregates for ALL matching requests, not just paginated results
+            if (serverAggregates.total === 0) {
                 summary.style.display = 'none';
                 return;
             }
 
-            const count = filteredRequestsObjects.length;
-            const totalCost = filteredRequestsObjects.reduce((sum, r) => sum + r.cost, 0);
-            const totalTokens = filteredRequestsObjects.reduce((sum, r) => sum + r.total_tokens, 0);
-            const avgCost = count > 0 ? totalCost / count : 0;
-
-            document.getElementById('summary-count').textContent = count;
-            document.getElementById('summary-cost').textContent = '$' + totalCost.toFixed(4);
-            document.getElementById('summary-tokens').textContent = totalTokens.toLocaleString();
-            document.getElementById('summary-avg-cost').textContent = '$' + avgCost.toFixed(4);
+            document.getElementById('summary-count').textContent = serverAggregates.total.toLocaleString();
+            document.getElementById('summary-cost').textContent = '$' + serverAggregates.total_cost.toFixed(4);
+            document.getElementById('summary-tokens').textContent = serverAggregates.total_tokens.toLocaleString();
+            document.getElementById('summary-avg-cost').textContent = '$' + serverAggregates.avg_cost.toFixed(4);
 
             summary.style.display = 'flex';
         }
