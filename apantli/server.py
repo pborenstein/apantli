@@ -83,6 +83,8 @@ async def chat_completions(request: Request):
 
     start_time = time.time()
     request_data = await request.json()
+    # Will be updated with API key later, used for database logging
+    request_data_for_logging = request_data.copy()
 
     try:
         # Extract model and remap if needed
@@ -115,6 +117,9 @@ async def chat_completions(request: Request):
             request_data['timeout'] = DEFAULT_TIMEOUT
         if 'num_retries' not in request_data:
             request_data['num_retries'] = DEFAULT_RETRIES
+
+        # Update logging copy with final request_data (includes API key and all params)
+        request_data_for_logging = request_data.copy()
 
         # Call LiteLLM
         response = completion(**request_data)
@@ -205,7 +210,7 @@ async def chat_completions(request: Request):
                     # Log to database
                     try:
                         duration_ms = int((time.time() - start_time) * 1000)
-                        await log_request(model, provider, full_response, duration_ms, request_data, error=stream_error)
+                        await log_request(model, provider, full_response, duration_ms, request_data_for_logging, error=stream_error)
                     except Exception as e:
                         logging.error(f"Error logging streaming request to database: {e}")
 
@@ -232,7 +237,7 @@ async def chat_completions(request: Request):
         duration_ms = int((time.time() - start_time) * 1000)
 
         # Log to database
-        await log_request(model, provider, response_dict, duration_ms, request_data)
+        await log_request(model, provider, response_dict, duration_ms, request_data_for_logging)
 
         return JSONResponse(content=response_dict)
 
@@ -243,7 +248,7 @@ async def chat_completions(request: Request):
             infer_provider_from_model(request_data.get('model', '')),
             None,
             duration_ms,
-            request_data,
+            request_data_for_logging,
             error=f"RateLimitError: {str(e)}"
         )
         error_response = build_error_response("rate_limit_error", str(e), "rate_limit_exceeded")
@@ -256,7 +261,7 @@ async def chat_completions(request: Request):
             infer_provider_from_model(request_data.get('model', '')),
             None,
             duration_ms,
-            request_data,
+            request_data_for_logging,
             error=f"AuthenticationError: {str(e)}"
         )
         error_response = build_error_response("authentication_error", str(e), "invalid_api_key")
@@ -269,7 +274,7 @@ async def chat_completions(request: Request):
             infer_provider_from_model(request_data.get('model', '')),
             None,
             duration_ms,
-            request_data,
+            request_data_for_logging,
             error=f"PermissionDeniedError: {str(e)}"
         )
         error_response = build_error_response("permission_denied", str(e), "permission_denied")
@@ -282,7 +287,7 @@ async def chat_completions(request: Request):
             infer_provider_from_model(request_data.get('model', '')),
             None,
             duration_ms,
-            request_data,
+            request_data_for_logging,
             error=f"NotFoundError: {str(e)}"
         )
         error_response = build_error_response("invalid_request_error", str(e), "model_not_found")
@@ -295,7 +300,7 @@ async def chat_completions(request: Request):
             infer_provider_from_model(request_data.get('model', '')),
             None,
             duration_ms,
-            request_data,
+            request_data_for_logging,
             error=f"Timeout: {str(e)}"
         )
         error_response = build_error_response("timeout_error", str(e), "request_timeout")
@@ -308,7 +313,7 @@ async def chat_completions(request: Request):
             infer_provider_from_model(request_data.get('model', '')),
             None,
             duration_ms,
-            request_data,
+            request_data_for_logging,
             error=f"ProviderError: {str(e)}"
         )
         error_response = build_error_response("service_unavailable", str(e), "service_unavailable")
@@ -321,7 +326,7 @@ async def chat_completions(request: Request):
             infer_provider_from_model(request_data.get('model', '')),
             None,
             duration_ms,
-            request_data,
+            request_data_for_logging,
             error=f"APIConnectionError: {str(e)}"
         )
         error_response = build_error_response("connection_error", str(e), "connection_error")
@@ -336,7 +341,7 @@ async def chat_completions(request: Request):
             infer_provider_from_model(request_data.get('model', '')),
             None,
             duration_ms,
-            request_data,
+            request_data_for_logging,
             error=f"UnexpectedError: {str(e)}"
         )
         error_response = build_error_response("api_error", str(e), "internal_error")
