@@ -92,13 +92,9 @@ See [docs/API.md](docs/API.md) for OpenAI SDK, requests library, and detailed AP
 
 Open http://localhost:4000/ for real-time monitoring with four tabs:
 
-**Stats**: Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, and recent errors.
-
-**Calendar**: Monthly view of daily spending patterns with heatmap coloring showing cost intensity per day.
-
-**Models**: Configured models with pricing information in sortable columns.
-
-**Requests**: Paginated request history (50 per page) with advanced server-side filtering. Apply global date filters (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range), provider dropdown (openai, anthropic, etc.), model dropdown (exact match), cost range (min/max thresholds), and text search (searches model name and request/response content). All filters combine with AND logic. Summary shows accurate totals for ALL filtered results, and filter state persists across page reloads.
+| Stats | Calendar | Models | Requests |
+|:------|:---------|:-------|:---------|
+| Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, and recent errors | Monthly view of daily spending patterns with heatmap coloring showing cost intensity per day | Configured models with pricing information in sortable columns | Paginated request history (50 per page) with advanced server-side filtering. Apply global date filters (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range), provider dropdown (openai, anthropic, etc.), model dropdown (exact match), cost range (min/max thresholds), and text search (searches model name and request/response content). All filters combine with AND logic. Summary shows accurate totals for ALL filtered results, and filter state persists across page reloads |
 
 ### Client Integration
 
