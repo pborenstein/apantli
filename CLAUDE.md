@@ -92,15 +92,24 @@ UI: `/` (GET) - Dashboard, `/static/*` - Alpine.js libs
 
 **Import Pattern** (server.py):
 ```python
-from apantli.config import MODEL_MAP, DEFAULT_TIMEOUT, DEFAULT_RETRIES, load_config
+from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, load_config
 from apantli.database import DB_PATH, init_db, log_request
 from apantli.errors import build_error_response
 from apantli.llm import infer_provider_from_model
 from apantli.utils import convert_local_date_to_utc_range
+
+# Import module for accessing globals (MODEL_MAP updated by load_config)
+import apantli.config
+import apantli.database
 ```
 
 **Config Usage**:
 ```python
+# Access MODEL_MAP via module reference (updated by load_config())
+if model in apantli.config.MODEL_MAP:
+    model_config = apantli.config.MODEL_MAP[model]
+
+# Or use Config class directly
 config = Config("config.yaml")
 model_config = config.get_model("gpt-4")
 litellm_params = model_config.to_litellm_params()

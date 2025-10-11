@@ -35,13 +35,13 @@ import uvicorn
 from dotenv import load_dotenv
 
 # Import from local modules
-from apantli.config import MODEL_MAP, DEFAULT_TIMEOUT, DEFAULT_RETRIES, load_config
+from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, load_config
 from apantli.database import DB_PATH, init_db, log_request
 from apantli.errors import build_error_response
 from apantli.llm import infer_provider_from_model
 from apantli.utils import convert_local_date_to_utc_range
 
-# Import modules themselves for setting globals in main()
+# Import modules themselves for accessing globals
 import apantli.config
 import apantli.database
 
@@ -93,8 +93,8 @@ async def chat_completions(request: Request):
             raise HTTPException(status_code=400, detail="Model is required")
 
         # Look up model in config
-        if model in MODEL_MAP:
-            model_config = MODEL_MAP[model]
+        if model in apantli.config.MODEL_MAP:
+            model_config = apantli.config.MODEL_MAP[model]
 
             # Replace model with LiteLLM format
             request_data['model'] = model_config['model']
@@ -358,7 +358,7 @@ async def health():
 async def models():
     """List available models from config."""
     model_list = []
-    for model_name, litellm_params in MODEL_MAP.items():
+    for model_name, litellm_params in apantli.config.MODEL_MAP.items():
         # Try to get pricing info from LiteLLM
         litellm_model = litellm_params['model']
         input_cost = None
