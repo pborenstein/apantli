@@ -329,6 +329,7 @@ async def chat_completions(request: Request):
 
     except Exception as e:
         # Catch-all for unexpected errors
+        logging.exception(f"Unexpected error in chat completions: {e}")
         duration_ms = int((time.time() - start_time) * 1000)
         await log_request(
             request_data.get('model', 'unknown'),
@@ -805,6 +806,10 @@ def main():
     )
 
     args = parser.parse_args()
+
+    # Suppress LiteLLM's verbose logging and feedback messages
+    litellm.suppress_debug_info = True
+    litellm.set_verbose = False
 
     # Update global config values in their respective modules
     apantli.database.DB_PATH = args.db
