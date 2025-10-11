@@ -121,6 +121,11 @@ async def chat_completions(request: Request):
         # Update logging copy with final request_data (includes API key and all params)
         request_data_for_logging = request_data.copy()
 
+        # Log request start
+        is_streaming = request_data.get('stream', False)
+        stream_indicator = " [streaming]" if is_streaming else ""
+        print(f"→ LLM Request: {model}{stream_indicator}")
+
         # Call LiteLLM
         response = completion(**request_data)
 
@@ -211,6 +216,30 @@ async def chat_completions(request: Request):
                     try:
                         duration_ms = int((time.time() - start_time) * 1000)
                         await log_request(model, provider, full_response, duration_ms, request_data_for_logging, error=stream_error)
+
+                        # Log completion
+                        if stream_error:
+                            print(f"✗ LLM Response: {model} ({provider}) | {duration_ms}ms | Error: {stream_error}")
+                        else:
+                            usage = full_response.get('usage', {})
+                            prompt_tokens = usage.get('prompt_tokens', 0)
+                            completion_tokens = usage.get('completion_tokens', 0)
+                            total_tokens = usage.get('total_tokens', 0)
+
+                            # Calculate cost
+                            try:
+                                import litellm
+                                # Create a mock response object for cost calculation
+                                class MockResponse:
+                                    def __init__(self, data):
+                                        self.model = data.get('model', '')
+                                        self.usage = type('Usage', (), usage)()
+                                mock_response = MockResponse(full_response)
+                                cost = litellm.completion_cost(completion_response=mock_response)
+                            except:
+                                cost = 0.0
+
+                            print(f"✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f} [streaming]")
                     except Exception as e:
                         logging.error(f"Error logging streaming request to database: {e}")
 
@@ -239,96 +268,132 @@ async def chat_completions(request: Request):
         # Log to database
         await log_request(model, provider, response_dict, duration_ms, request_data_for_logging)
 
+        # Log completion
+        usage = response_dict.get('usage', {})
+        prompt_tokens = usage.get('prompt_tokens', 0)
+        completion_tokens = usage.get('completion_tokens', 0)
+        total_tokens = usage.get('total_tokens', 0)
+
+        # Calculate cost using litellm
+        try:
+            import litellm
+            cost = litellm.completion_cost(completion_response=response)
+        except:
+            cost = 0.0
+
+        print(f"✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f}")
+
         return JSONResponse(content=response_dict)
 
     except RateLimitError as e:
         duration_ms = int((time.time() - start_time) * 1000)
+        model_name = request_data.get('model', 'unknown')
+        provider = infer_provider_from_model(model_name)
         await log_request(
-            request_data.get('model', 'unknown'),
-            infer_provider_from_model(request_data.get('model', '')),
+            model_name,
+            provider,
             None,
             duration_ms,
             request_data_for_logging,
             error=f"RateLimitError: {str(e)}"
         )
+        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: RateLimitError")
         error_response = build_error_response("rate_limit_error", str(e), "rate_limit_exceeded")
         return JSONResponse(content=error_response, status_code=429)
 
     except AuthenticationError as e:
         duration_ms = int((time.time() - start_time) * 1000)
+        model_name = request_data.get('model', 'unknown')
+        provider = infer_provider_from_model(model_name)
         await log_request(
-            request_data.get('model', 'unknown'),
-            infer_provider_from_model(request_data.get('model', '')),
+            model_name,
+            provider,
             None,
             duration_ms,
             request_data_for_logging,
             error=f"AuthenticationError: {str(e)}"
         )
+        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: AuthenticationError")
         error_response = build_error_response("authentication_error", str(e), "invalid_api_key")
         return JSONResponse(content=error_response, status_code=401)
 
     except PermissionDeniedError as e:
         duration_ms = int((time.time() - start_time) * 1000)
+        model_name = request_data.get('model', 'unknown')
+        provider = infer_provider_from_model(model_name)
         await log_request(
-            request_data.get('model', 'unknown'),
-            infer_provider_from_model(request_data.get('model', '')),
+            model_name,
+            provider,
             None,
             duration_ms,
             request_data_for_logging,
             error=f"PermissionDeniedError: {str(e)}"
         )
+        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: PermissionDeniedError")
         error_response = build_error_response("permission_denied", str(e), "permission_denied")
         return JSONResponse(content=error_response, status_code=403)
 
     except NotFoundError as e:
         duration_ms = int((time.time() - start_time) * 1000)
+        model_name = request_data.get('model', 'unknown')
+        provider = infer_provider_from_model(model_name)
         await log_request(
-            request_data.get('model', 'unknown'),
-            infer_provider_from_model(request_data.get('model', '')),
+            model_name,
+            provider,
             None,
             duration_ms,
             request_data_for_logging,
             error=f"NotFoundError: {str(e)}"
         )
+        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: NotFoundError")
         error_response = build_error_response("invalid_request_error", str(e), "model_not_found")
         return JSONResponse(content=error_response, status_code=404)
 
     except Timeout as e:
         duration_ms = int((time.time() - start_time) * 1000)
+        model_name = request_data.get('model', 'unknown')
+        provider = infer_provider_from_model(model_name)
         await log_request(
-            request_data.get('model', 'unknown'),
-            infer_provider_from_model(request_data.get('model', '')),
+            model_name,
+            provider,
             None,
             duration_ms,
             request_data_for_logging,
             error=f"Timeout: {str(e)}"
         )
+        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: Timeout")
         error_response = build_error_response("timeout_error", str(e), "request_timeout")
         return JSONResponse(content=error_response, status_code=504)
 
     except (InternalServerError, ServiceUnavailableError) as e:
         duration_ms = int((time.time() - start_time) * 1000)
+        model_name = request_data.get('model', 'unknown')
+        provider = infer_provider_from_model(model_name)
         await log_request(
-            request_data.get('model', 'unknown'),
-            infer_provider_from_model(request_data.get('model', '')),
+            model_name,
+            provider,
             None,
             duration_ms,
             request_data_for_logging,
             error=f"ProviderError: {str(e)}"
         )
+        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: ProviderError")
         error_response = build_error_response("service_unavailable", str(e), "service_unavailable")
         return JSONResponse(content=error_response, status_code=503)
 
     except APIConnectionError as e:
         duration_ms = int((time.time() - start_time) * 1000)
+        model_name = request_data.get('model', 'unknown')
+        provider = infer_provider_from_model(model_name)
         await log_request(
-            request_data.get('model', 'unknown'),
-            infer_provider_from_model(request_data.get('model', '')),
+            model_name,
+            provider,
             None,
             duration_ms,
             request_data_for_logging,
             error=f"APIConnectionError: {str(e)}"
         )
+        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: APIConnectionError")
         error_response = build_error_response("connection_error", str(e), "connection_error")
         return JSONResponse(content=error_response, status_code=502)
 
@@ -336,14 +401,17 @@ async def chat_completions(request: Request):
         # Catch-all for unexpected errors
         logging.exception(f"Unexpected error in chat completions: {e}")
         duration_ms = int((time.time() - start_time) * 1000)
+        model_name = request_data.get('model', 'unknown')
+        provider = infer_provider_from_model(model_name)
         await log_request(
-            request_data.get('model', 'unknown'),
-            infer_provider_from_model(request_data.get('model', '')),
+            model_name,
+            provider,
             None,
             duration_ms,
             request_data_for_logging,
             error=f"UnexpectedError: {str(e)}"
         )
+        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: UnexpectedError")
         error_response = build_error_response("api_error", str(e), "internal_error")
         return JSONResponse(content=error_response, status_code=500)
 
@@ -904,12 +972,17 @@ def main():
             # Check the formatted message since uvicorn log records vary
             message = record.getMessage() if hasattr(record, 'getMessage') else str(record.msg)
 
-            # Filter out dashboard GET requests that auto-refresh
+            # Filter out all dashboard-related GET requests
             noisy_patterns = [
+                'GET / ',  # Dashboard homepage
                 'GET /stats?',
                 'GET /stats/daily?',
                 'GET /stats/date-range',
                 'GET /static/',
+                'GET /requests',  # Requests endpoint
+                'GET /models',  # Models endpoint
+                'GET /errors',  # Errors endpoint
+                'GET /health',  # Health check
             ]
             return not any(pattern in message for pattern in noisy_patterns)
 
