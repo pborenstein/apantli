@@ -499,6 +499,8 @@ llm -m claude-haiku-3.5 "Tell me a joke"
 llm -m gpt-4o-mini "What is 2+2?"
 ```
 
+For architectural details on how this integration works (component relationships, request flow, and data flow diagrams), see [LLM_CLI_INTEGRATION.md](LLM_CLI_INTEGRATION.md).
+
 #### Setup Details
 
 **Generate model configuration**:
@@ -586,6 +588,54 @@ sqlite3 requests.db "SELECT model, SUM(cost) FROM requests GROUP BY model"
 ```
 
 All llm requests route through Apantli with full cost tracking and logging.
+
+#### Adding a New Model
+
+**Step 1: Add to config.yaml**
+
+```yaml
+model_list:
+  # ... existing models ...
+
+  - model_name: gpt-4o
+    litellm_params:
+      model: openai/gpt-4o
+      api_key: os.environ/OPENAI_API_KEY
+```
+
+**Step 2: Regenerate llm config**
+
+```bash
+python3 utils/generate_llm_config.py --write
+```
+
+Output:
+```
+Generated ~/Library/Application Support/io.datasette.llm/extra-openai-models.yaml
+Registered 4 models:
+   - gpt-4o-mini
+   - claude-haiku-3.5
+   - claude-sonnet-4-5
+   - gpt-4o    (newly added)
+
+Now you can use:
+  export OPENAI_BASE_URL=http://localhost:4000/v1
+  llm -m gpt-4o "Hello"
+```
+
+**Step 3: Restart Apantli**
+
+```bash
+apantli --reload
+```
+
+**Step 4: Use the new model**
+
+```bash
+llm -m gpt-4o "What are the key features of GPT-4o?"
+```
+
+The request flows through Apantli with full cost tracking!
 
 ### Other OpenAI-Compatible Clients
 

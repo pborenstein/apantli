@@ -252,71 +252,11 @@ llm models | grep -A 5 "Extra OpenAI models"
 # Should list your Apantli models: gpt-4o-mini, claude-haiku-3.5, etc.
 ```
 
-## Benefits
+## Practical Usage
 
-- **Centralized configuration**: All models defined once in `config.yaml`
-- **Automatic cost tracking**: Every request logged to Apantli's database
-- **Multi-provider access**: OpenAI, Anthropic, and others with same CLI
-- **Secure API keys**: Stored in `.env`, never exposed to llm
-- **Dashboard monitoring**: View all usage at http://localhost:4000/
-- **Dual history**: Both [llm](https://llm.datasette.io/en/stable/logging.html) and Apantli maintain conversation logs
+For practical setup instructions, usage examples, troubleshooting, and step-by-step guides on adding new models, see [CONFIGURATION.md](CONFIGURATION.md#llm-cli-simon-willison).
 
-## Troubleshooting
-
-| Issue | Cause | Solution |
-|:------|:------|:---------|
-| "Unknown model" error | Model not in `extra-openai-models.yaml` | `python3 utils/generate_llm_config.py --write` |
-| llm uses OpenAI directly | `OPENAI_API_KEY` overrides `OPENAI_BASE_URL` | `unset OPENAI_API_KEY` |
-| Model works in llm but 404 from Apantli | Model in `extra-openai-models.yaml` but not `config.yaml` | Add to `config.yaml` and run `apantli --reload` |
-| Changes to config.yaml not reflected | Stale `extra-openai-models.yaml` | `python3 utils/generate_llm_config.py --write` |
-
-## Example: Adding a New Model
-
-### Step 1: Add to config.yaml
-
-```yaml
-model_list:
-  # ... existing models ...
-
-  - model_name: gpt-4o
-    litellm_params:
-      model: openai/gpt-4o
-      api_key: os.environ/OPENAI_API_KEY
-```
-
-### Step 2: Regenerate llm config
-
-```bash
-python3 utils/generate_llm_config.py --write
-```
-
-Output:
-```
-Generated ~/Library/Application Support/io.datasette.llm/extra-openai-models.yaml
-Registered 4 models:
-   - gpt-4o-mini
-   - claude-haiku-3.5
-   - claude-sonnet-4-5
-   - gpt-4o    (newly added)
-
-Now you can use:
-  export OPENAI_BASE_URL=http://localhost:4000/v1
-  llm -m gpt-4o "Hello"
-```
-
-### Step 3: Restart Apantli
-
-```bash
-apantli --reload
-```
-
-### Step 4: Use the new model
-
-```bash
-llm -m gpt-4o "What are the key features of GPT-4o?"
-```
-
-The request flows through Apantli with full cost tracking!
+This document focuses on architectural details—how the components work together internally. For day-to-day usage, CONFIGURATION.md is your primary reference.
 
 ## Related Documentation
 
