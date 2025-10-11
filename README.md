@@ -75,25 +75,18 @@ apantli --port 8080 --timeout 60 --retries 5
 
 ### Making Requests
 
-**Using OpenAI SDK**:
+**Using curl**:
 
-```python
-from openai import OpenAI
-
-client = OpenAI(
-    base_url="http://localhost:4000/v1",
-    api_key="not-used"  # Proxy handles API keys
-)
-
-response = client.chat.completions.create(
-    model="gpt-4.1-mini",
-    messages=[{"role": "user", "content": "Hello!"}]
-)
-
-print(response.choices[0].message.content)
+```bash
+curl http://localhost:4000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-4.1-mini",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
 ```
 
-See [docs/API.md](docs/API.md) for curl, requests library, and detailed API examples.
+See [docs/API.md](docs/API.md) for OpenAI SDK, requests library, and detailed API examples.
 
 ### Web Dashboard
 
