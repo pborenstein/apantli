@@ -3,7 +3,6 @@
 Lightweight local LLM proxy with SQLite cost tracking. Routes requests to multiple providers through a unified OpenAI-compatible API.
 
 
-
 ## Quick Start
 
 1. **Install dependencies**:
@@ -316,3 +315,6 @@ MIT License - see [LICENSE](LICENSE) file for details.
 ## Name Origin
 
 "Apantli" (Nahuatl: āpantli) means "canal" or "channel" - a fitting name for a system that channels requests between clients and LLM providers.
+
+<a href="https://aztecglyphs.wired-humanities.org/content/apantli-mdz50r"><img src="./docs/apantli-glyph.jpg" width="120px"></a>
+
