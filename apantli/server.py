@@ -35,7 +35,7 @@ import uvicorn
 from dotenv import load_dotenv
 
 # Import from local modules
-from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, load_config
+from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, LOG_INDENT, load_config
 from apantli.database import DB_PATH, init_db, log_request
 from apantli.errors import build_error_response
 from apantli.llm import infer_provider_from_model
@@ -124,7 +124,7 @@ async def chat_completions(request: Request):
         # Log request start
         is_streaming = request_data.get('stream', False)
         stream_indicator = " [streaming]" if is_streaming else ""
-        print(f"→ LLM Request: {model}{stream_indicator}")
+        print(f"{LOG_INDENT}→ LLM Request: {model}{stream_indicator}")
 
         # Call LiteLLM
         response = completion(**request_data)
@@ -219,7 +219,7 @@ async def chat_completions(request: Request):
 
                         # Log completion
                         if stream_error:
-                            print(f"✗ LLM Response: {model} ({provider}) | {duration_ms}ms | Error: {stream_error}")
+                            print(f"{LOG_INDENT}✗ LLM Response: {model} ({provider}) | {duration_ms}ms | Error: {stream_error}")
                         else:
                             usage = full_response.get('usage', {})
                             prompt_tokens = usage.get('prompt_tokens', 0)
@@ -239,7 +239,7 @@ async def chat_completions(request: Request):
                             except:
                                 cost = 0.0
 
-                            print(f"✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f} [streaming]")
+                            print(f"{LOG_INDENT}✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f} [streaming]")
                     except Exception as e:
                         logging.error(f"Error logging streaming request to database: {e}")
 
@@ -281,7 +281,7 @@ async def chat_completions(request: Request):
         except:
             cost = 0.0
 
-        print(f"✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f}")
+        print(f"{LOG_INDENT}✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f}")
 
         return JSONResponse(content=response_dict)
 
@@ -297,7 +297,7 @@ async def chat_completions(request: Request):
             request_data_for_logging,
             error=f"RateLimitError: {str(e)}"
         )
-        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: RateLimitError")
+        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: RateLimitError")
         error_response = build_error_response("rate_limit_error", str(e), "rate_limit_exceeded")
         return JSONResponse(content=error_response, status_code=429)
 
@@ -313,7 +313,7 @@ async def chat_completions(request: Request):
             request_data_for_logging,
             error=f"AuthenticationError: {str(e)}"
         )
-        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: AuthenticationError")
+        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: AuthenticationError")
         error_response = build_error_response("authentication_error", str(e), "invalid_api_key")
         return JSONResponse(content=error_response, status_code=401)
 
@@ -329,7 +329,7 @@ async def chat_completions(request: Request):
             request_data_for_logging,
             error=f"PermissionDeniedError: {str(e)}"
         )
-        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: PermissionDeniedError")
+        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: PermissionDeniedError")
         error_response = build_error_response("permission_denied", str(e), "permission_denied")
         return JSONResponse(content=error_response, status_code=403)
 
@@ -345,7 +345,7 @@ async def chat_completions(request: Request):
             request_data_for_logging,
             error=f"NotFoundError: {str(e)}"
         )
-        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: NotFoundError")
+        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: NotFoundError")
         error_response = build_error_response("invalid_request_error", str(e), "model_not_found")
         return JSONResponse(content=error_response, status_code=404)
 
@@ -361,7 +361,7 @@ async def chat_completions(request: Request):
             request_data_for_logging,
             error=f"Timeout: {str(e)}"
         )
-        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: Timeout")
+        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: Timeout")
         error_response = build_error_response("timeout_error", str(e), "request_timeout")
         return JSONResponse(content=error_response, status_code=504)
 
@@ -377,7 +377,7 @@ async def chat_completions(request: Request):
             request_data_for_logging,
             error=f"ProviderError: {str(e)}"
         )
-        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: ProviderError")
+        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: ProviderError")
         error_response = build_error_response("service_unavailable", str(e), "service_unavailable")
         return JSONResponse(content=error_response, status_code=503)
 
@@ -393,7 +393,7 @@ async def chat_completions(request: Request):
             request_data_for_logging,
             error=f"APIConnectionError: {str(e)}"
         )
-        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: APIConnectionError")
+        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: APIConnectionError")
         error_response = build_error_response("connection_error", str(e), "connection_error")
         return JSONResponse(content=error_response, status_code=502)
 
@@ -411,7 +411,7 @@ async def chat_completions(request: Request):
             request_data_for_logging,
             error=f"UnexpectedError: {str(e)}"
         )
-        print(f"✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: UnexpectedError")
+        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: UnexpectedError")
         error_response = build_error_response("api_error", str(e), "internal_error")
         return JSONResponse(content=error_response, status_code=500)
 

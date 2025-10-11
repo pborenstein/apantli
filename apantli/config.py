@@ -11,6 +11,12 @@ import yaml
 DEFAULT_TIMEOUT = 120  # seconds
 DEFAULT_RETRIES = 3    # number of retry attempts
 
+# Log alignment constant to match uvicorn INFO log format
+# Format: "2025-10-11 14:16:31 INFO:     message"
+#         └─────────┴────────┴─────────┘
+#         11 chars + 9 chars + 10 chars = 30 chars
+LOG_INDENT = " " * 30
+
 # Model mapping from config.yaml (for backward compatibility)
 MODEL_MAP = {}
 
@@ -156,7 +162,7 @@ class Config:
         for name, config in models.items()
       }
 
-      print(f"✓ Loaded {len(self.models)} model(s) from {self.config_path}")
+      print(f"{LOG_INDENT}✓ Loaded {len(self.models)} model(s) from {self.config_path}")
 
     except FileNotFoundError:
       print(f"⚠️  Config file not found: {self.config_path}")
