@@ -1034,20 +1034,43 @@
                 gap: 10px;
             }
         }
+
+        .pagination {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin: 20px 0;
+            padding: 10px;
+            background: var(--color-background-secondary);
+            border-radius: 4px;
+        }
+
+        .pagination button {
+            padding: 8px 16px;
+            cursor: pointer;
+            background: var(--color-primary);
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body x-data="{
     currentTab: $persist('stats'),
     theme: $persist('light'),
-    statsFilter: $persist({
-        startDate: '',
-        endDate: ''
-    }),
-    requestsFilter: $persist({
+    dateFilter: $persist({
         startDate: '',
         endDate: ''
     }),
     dbDateRange: { startDate: null, endDate: null },
+    currentPage: 1,
+    itemsPerPage: 50,
+    totalItems: 0,
 
     toggleTheme() {
         this.theme = this.theme === 'light' ? 'dark' : 'light';
@@ -1151,8 +1174,12 @@
             loadCalendar();
         }
     });
-    $watch('statsFilter', value => refreshStats(), { deep: true });
-    $watch('requestsFilter', value => loadRequests(), { deep: true });
+    $watch('dateFilter', value => {
+        refreshStats();
+        currentPage = 1; // Reset to first page when date filter changes
+        loadRequests();
+    }, { deep: true });
+    $watch('currentPage', value => loadRequests());
 ">
     <h1>
         <span>LLM Proxy Statistics</span>
@@ -1175,18 +1202,18 @@
     <div id="stats-tab" x-show="currentTab === 'stats'">
         <div class="date-filter">
             <div class="filter-buttons">
-                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'all') }" @click="setQuickFilter(statsFilter, 'all')">All Time</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'today') }" @click="setQuickFilter(statsFilter, 'today')">Today</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'yesterday') }" @click="setQuickFilter(statsFilter, 'yesterday')">Yesterday</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'this-week') }" @click="setQuickFilter(statsFilter, 'this-week')">This Week</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'this-month') }" @click="setQuickFilter(statsFilter, 'this-month')">This Month</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(statsFilter, 'last-30-days') }" @click="setQuickFilter(statsFilter, 'last-30-days')">Last 30 Days</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'all') }" @click="setQuickFilter(dateFilter, 'all')">All Time</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'today') }" @click="setQuickFilter(dateFilter, 'today')">Today</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'yesterday') }" @click="setQuickFilter(dateFilter, 'yesterday')">Yesterday</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-week') }" @click="setQuickFilter(dateFilter, 'this-week')">This Week</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-month') }" @click="setQuickFilter(dateFilter, 'this-month')">This Month</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'last-30-days') }" @click="setQuickFilter(dateFilter, 'last-30-days')">Last 30 Days</button>
             </div>
 
             <div class="filter-custom">
-                <input type="date" x-model="statsFilter.startDate">
+                <input type="date" x-model="dateFilter.startDate">
                 <span>to</span>
-                <input type="date" x-model="statsFilter.endDate">
+                <input type="date" x-model="dateFilter.endDate">
             </div>
         </div>
 
@@ -1235,18 +1262,18 @@
     <div id="requests-tab" x-show="currentTab === 'requests'">
         <div class="date-filter">
             <div class="filter-buttons">
-                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'all') }" @click="setQuickFilter(requestsFilter, 'all')">All Time</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'today') }" @click="setQuickFilter(requestsFilter, 'today')">Today</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'yesterday') }" @click="setQuickFilter(requestsFilter, 'yesterday')">Yesterday</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'this-week') }" @click="setQuickFilter(requestsFilter, 'this-week')">This Week</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'this-month') }" @click="setQuickFilter(requestsFilter, 'this-month')">This Month</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(requestsFilter, 'last-30-days') }" @click="setQuickFilter(requestsFilter, 'last-30-days')">Last 30 Days</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'all') }" @click="setQuickFilter(dateFilter, 'all')">All Time</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'today') }" @click="setQuickFilter(dateFilter, 'today')">Today</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'yesterday') }" @click="setQuickFilter(dateFilter, 'yesterday')">Yesterday</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-week') }" @click="setQuickFilter(dateFilter, 'this-week')">This Week</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-month') }" @click="setQuickFilter(dateFilter, 'this-month')">This Month</button>
+                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'last-30-days') }" @click="setQuickFilter(dateFilter, 'last-30-days')">Last 30 Days</button>
             </div>
 
             <div class="filter-custom">
-                <input type="date" x-model="requestsFilter.startDate">
+                <input type="date" x-model="dateFilter.startDate">
                 <span>to</span>
-                <input type="date" x-model="requestsFilter.endDate">
+                <input type="date" x-model="dateFilter.endDate">
             </div>
         </div>
 
@@ -1303,6 +1330,13 @@
 
         <h2>Recent Requests</h2>
         <table id="requests-list"></table>
+
+        <div class="pagination" x-show="totalItems > itemsPerPage">
+            <button @click="currentPage = Math.max(1, currentPage - 1)" :disabled="currentPage === 1">Previous</button>
+            <span>Page <span x-text="currentPage"></span> of <span x-text="Math.ceil(totalItems / itemsPerPage)"></span></span>
+            <button @click="currentPage = Math.min(Math.ceil(totalItems / itemsPerPage), currentPage + 1)" :disabled="currentPage >= Math.ceil(totalItems / itemsPerPage)">Next</button>
+            <span style="margin-left: 20px">Showing <span x-text="Math.min(itemsPerPage, totalItems - (currentPage - 1) * itemsPerPage)"></span> of <span x-text="totalItems"></span> requests</span>
+        </div>
     </div>
 
     <script>
@@ -1736,10 +1770,14 @@
         async function loadRequests() {
             if (!alpineData) return;
             try {
-                const query = alpineData.buildQuery(alpineData.requestsFilter);
-                const url = `/requests${query}`;
+                const query = alpineData.buildQuery(alpineData.dateFilter);
+                const offset = (alpineData.currentPage - 1) * alpineData.itemsPerPage;
+                const url = `/requests${query}${query ? '&' : '?'}offset=${offset}&limit=${alpineData.itemsPerPage}`;
                 const res = await fetch(url);
                 const data = await res.json();
+
+                // Store total for pagination
+                alpineData.totalItems = data.total;
 
                 // Store original objects and convert to array format for sorting
                 requestsObjects = data.requests;
@@ -2043,7 +2081,7 @@
             if (!alpineData) return;
 
             const container = document.getElementById('provider-trends-chart');
-            const query = alpineData.buildQuery(alpineData.statsFilter);
+            const query = alpineData.buildQuery(alpineData.dateFilter);
 
             try {
                 // Use same date range as stats filter
@@ -2241,7 +2279,7 @@
 
         async function refreshStats() {
             if (!alpineData) return;
-            const query = alpineData.buildQuery(alpineData.statsFilter);
+            const query = alpineData.buildQuery(alpineData.dateFilter);
 
             // Fetch stats and daily data in parallel for faster loading
             const [statsRes, _] = await Promise.all([
