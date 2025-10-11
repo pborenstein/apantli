@@ -56,7 +56,7 @@ templates = Jinja2Templates(directory="templates")
 async def lifespan(app: FastAPI):
     """Initialize database and load config on startup."""
     load_config()
-    init_db()
+    await init_db()
     yield
 
 
@@ -205,7 +205,7 @@ async def chat_completions(request: Request):
                     # Log to database
                     try:
                         duration_ms = int((time.time() - start_time) * 1000)
-                        log_request(model, provider, full_response, duration_ms, request_data, error=stream_error)
+                        await log_request(model, provider, full_response, duration_ms, request_data, error=stream_error)
                     except Exception as e:
                         logging.error(f"Error logging streaming request to database: {e}")
 
@@ -232,13 +232,13 @@ async def chat_completions(request: Request):
         duration_ms = int((time.time() - start_time) * 1000)
 
         # Log to database
-        log_request(model, provider, response_dict, duration_ms, request_data)
+        await log_request(model, provider, response_dict, duration_ms, request_data)
 
         return JSONResponse(content=response_dict)
 
     except RateLimitError as e:
         duration_ms = int((time.time() - start_time) * 1000)
-        log_request(
+        await log_request(
             request_data.get('model', 'unknown'),
             infer_provider_from_model(request_data.get('model', '')),
             None,
@@ -251,7 +251,7 @@ async def chat_completions(request: Request):
 
     except AuthenticationError as e:
         duration_ms = int((time.time() - start_time) * 1000)
-        log_request(
+        await log_request(
             request_data.get('model', 'unknown'),
             infer_provider_from_model(request_data.get('model', '')),
             None,
@@ -264,7 +264,7 @@ async def chat_completions(request: Request):
 
     except PermissionDeniedError as e:
         duration_ms = int((time.time() - start_time) * 1000)
-        log_request(
+        await log_request(
             request_data.get('model', 'unknown'),
             infer_provider_from_model(request_data.get('model', '')),
             None,
@@ -277,7 +277,7 @@ async def chat_completions(request: Request):
 
     except NotFoundError as e:
         duration_ms = int((time.time() - start_time) * 1000)
-        log_request(
+        await log_request(
             request_data.get('model', 'unknown'),
             infer_provider_from_model(request_data.get('model', '')),
             None,
@@ -290,7 +290,7 @@ async def chat_completions(request: Request):
 
     except Timeout as e:
         duration_ms = int((time.time() - start_time) * 1000)
-        log_request(
+        await log_request(
             request_data.get('model', 'unknown'),
             infer_provider_from_model(request_data.get('model', '')),
             None,
@@ -303,7 +303,7 @@ async def chat_completions(request: Request):
 
     except (InternalServerError, ServiceUnavailableError) as e:
         duration_ms = int((time.time() - start_time) * 1000)
-        log_request(
+        await log_request(
             request_data.get('model', 'unknown'),
             infer_provider_from_model(request_data.get('model', '')),
             None,
@@ -316,7 +316,7 @@ async def chat_completions(request: Request):
 
     except APIConnectionError as e:
         duration_ms = int((time.time() - start_time) * 1000)
-        log_request(
+        await log_request(
             request_data.get('model', 'unknown'),
             infer_provider_from_model(request_data.get('model', '')),
             None,
@@ -330,7 +330,7 @@ async def chat_completions(request: Request):
     except Exception as e:
         # Catch-all for unexpected errors
         duration_ms = int((time.time() - start_time) * 1000)
-        log_request(
+        await log_request(
             request_data.get('model', 'unknown'),
             infer_provider_from_model(request_data.get('model', '')),
             None,

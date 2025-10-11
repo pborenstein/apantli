@@ -26,6 +26,7 @@ dependencies = [
     "python-dotenv",
     "netifaces",
     "tenacity",
+    "aiosqlite",
 ]
 
 [project.urls]
