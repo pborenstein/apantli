@@ -4,28 +4,57 @@ AI-specific context for Claude Code when working with this repository.
 
 ## Project Overview
 
-Apantli is a lightweight local LLM proxy that routes requests to multiple providers through an OpenAI-compatible API while tracking costs in SQLite. Single-file FastAPI server (apantli/server.py) with minimal dependencies.
+Apantli is a lightweight local LLM proxy that routes requests to multiple providers through an OpenAI-compatible API while tracking costs in SQLite. Modular FastAPI architecture with six focused modules for configuration, database, LLM integration, error handling, and utilities.
 
 ## Core Architecture
 
-**Request Flow**: Client → FastAPI → Model lookup (`MODEL_MAP`) → API key resolution (`.env`) → LiteLLM SDK → Provider → Response + cost calc → SQLite log → Client
+**Request Flow**: Client → FastAPI (server.py) → Config lookup → API key resolution → LiteLLM SDK → Provider → Response + cost calc → Async DB log → Client
+
+**Module Structure** (1,315 lines total, down from 1,074 lines in single file):
+- `apantli/server.py` (903 lines) - FastAPI app, HTTP routes, request orchestration
+- `apantli/config.py` (207 lines) - Configuration with Pydantic validation
+- `apantli/database.py` (124 lines) - Async database operations with aiosqlite
+- `apantli/llm.py` (27 lines) - Provider inference
+- `apantli/errors.py` (22 lines) - Error formatting
+- `apantli/utils.py` (23 lines) - Timezone utilities
 
 **Key Files**:
-- `apantli/server.py` - Single-file FastAPI app (all logic here)
 - `config.yaml` - Model definitions, API key refs
 - `.env` - API keys (gitignored)
 - `requests.db` - SQLite (full request/response logs + costs)
 - `templates/dashboard.html` - Web UI (Alpine.js + vanilla JS)
+- `tests/` - Unit and integration tests (60 test cases)
 
 ## Implementation Details
 
-**Model Config**: Aliases in `config.yaml` loaded into `MODEL_MAP` dict. API keys referenced as `os.environ/VAR_NAME`, resolved at request time. All `litellm_params` (except `model` and `api_key` which are specially handled) passed through to LiteLLM SDK for per-model configuration.
+**Configuration (config.py)**:
+- Pydantic models: `ModelConfig` (per-model settings), `Config` (overall configuration)
+- Validation: API key format (`os.environ/VAR_NAME`), environment variable existence warnings
+- Type-safe: Strong typing with Pydantic, early error detection
+- Reload support: Can reload config without restart
+- Backward compatible: `MODEL_MAP` global still available for legacy code
 
-**LiteLLM Integration**: Single SDK for multi-provider routing, automatic cost calculation via `litellm.completion_cost()`, OpenAI format normalization, streaming support.
+**Database (database.py)**:
+- Async operations: aiosqlite for non-blocking I/O
+- Database class: Encapsulates all DB logic with async methods
+- Connection management: Context managers (`_get_connection()`)
+- Methods: `init()`, `log_request()`, `get_stats()`, `get_daily_stats()`, `get_requests()`
+- Cost calculation: Built-in `_calculate_cost()` using litellm.completion_cost()
+- Performance: Non-blocking async, ~1-5ms per operation
 
-**Provider Inference**: When provider not prefixed in model name, inferred via pattern matching: `gpt-*`/`o1-*` → openai, `claude*` → anthropic, `gemini*` → google, `mistral*` → mistral, `llama*` → meta.
+**LLM Integration (llm.py)**:
+- Provider inference: Pattern matching for `gpt-*`/`o1-*` → openai, `claude*` → anthropic, etc.
+- Single SDK: LiteLLM for multi-provider routing, automatic cost calculation, OpenAI format normalization
+- Streaming support: Full SSE implementation
 
-**Database**: See DATABASE.md for full schema. Indexes on `timestamp`, `DATE(timestamp)+provider`, `cost` for dashboard query performance.
+**Error Handling (errors.py)**:
+- OpenAI-compatible format: `{"error": {"message", "type", "code"}}`
+- Status code mapping: 401 (auth), 404 (not found), 429 (rate limit), 502 (connection), 503 (provider error), 504 (timeout), 500 (other)
+- Used by: server.py for all error responses
+
+**Utils (utils.py)**:
+- Timezone conversion: `convert_local_date_to_utc_range()` for dashboard date filtering
+- Browser timezone handling: Converts local dates to UTC for SQL queries
 
 **Dashboard**: Jinja2 template at `/`, Alpine.js for reactivity, 4 tabs (Stats, Calendar, Models, Requests), 5-second auto-refresh on Stats tab.
 
@@ -40,19 +69,47 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - Database errors: Not caught (fail-fast for data consistency)
 - Config errors: Warning printed, continue with empty `MODEL_MAP`
 
-**Testing**: Two test scripts in project root:
-- `test_proxy.py` - Basic functionality tests
-- `test_error_handling.py` - Comprehensive error handling suite (authentication, model not found, streaming, disconnect, error format validation)
-See TESTING.md for manual test procedures and validation strategies.
+**Testing**: Comprehensive test suite with 60 test cases:
+- Unit tests: `tests/test_config.py`, `test_database.py`, `test_llm.py`, `test_errors.py`, `test_utils.py`
+- Integration tests: `tests/integration/test_proxy.py`, `test_error_handling.py`
+- Fast unit tests (<1 second) with no API key requirements
+- Run with: `pytest tests/ -v` or `python run_unit_tests.py`
+See TESTING.md for complete procedures and validation strategies.
 
 **Security**: API keys only in `.env`, redacted in logs (stored as `sk-redacted`). Dashboard unauthenticated (local use only). Database contains full conversation history - protect file permissions. Default `0.0.0.0` binding - use `--host 127.0.0.1` for localhost-only.
 
 ## API Endpoints
 
-All in `apantli/server.py`. See API.md for full reference.
+All routes defined in `apantli/server.py`. See API.md for full reference.
 
 Primary: `/v1/chat/completions`, `/chat/completions` (POST) - OpenAI-compatible proxy (streaming supported)
 Health: `/health` (GET) - Returns `{"status": "ok"}`
 Stats: `/stats` (GET, includes performance metrics), `/stats/daily`, `/stats/date-range`
 Data: `/models`, `/requests` (GET), `/errors` (DELETE)
 UI: `/` (GET) - Dashboard, `/static/*` - Alpine.js libs
+
+## Key Code Patterns
+
+**Import Pattern** (server.py):
+```python
+from apantli.config import MODEL_MAP, DEFAULT_TIMEOUT, DEFAULT_RETRIES, load_config
+from apantli.database import DB_PATH, init_db, log_request
+from apantli.errors import build_error_response
+from apantli.llm import infer_provider_from_model
+from apantli.utils import convert_local_date_to_utc_range
+```
+
+**Config Usage**:
+```python
+config = Config("config.yaml")
+model_config = config.get_model("gpt-4")
+litellm_params = model_config.to_litellm_params()
+```
+
+**Database Usage**:
+```python
+db = Database("requests.db")
+await db.init()
+await db.log_request(model, provider, response, duration_ms, request_data)
+stats = await db.get_stats(hours=24)
+```

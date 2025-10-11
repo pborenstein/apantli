@@ -2,15 +2,67 @@
 
 ## Overview
 
-Apantli includes automated and manual tests to validate functionality, especially error handling and edge cases.
+Apantli includes comprehensive unit tests and integration tests to validate functionality, especially error handling and edge cases.
 
-## Test Scripts
+**Test Suite**:
+- 60 total test cases across all modules
+- Unit tests: Fast (<1 second), no API keys required, test individual modules
+- Integration tests: Require running server and API keys, test end-to-end functionality
 
-### Error Handling Tests: `test_error_handling.py`
+## Unit Tests
+
+**Location**: `tests/` directory
+
+**Prerequisites**:
+- Python 3.13+
+- Development dependencies: `pip install -r requirements-dev.txt`
+- No running server required
+- No API keys required
+
+**Running Unit Tests**:
+
+```bash
+# Run all unit tests
+pytest tests/ -v
+
+# Run specific module tests
+pytest tests/test_config.py -v
+pytest tests/test_database.py -v
+pytest tests/test_llm.py -v
+pytest tests/test_errors.py -v
+pytest tests/test_utils.py -v
+
+# Run with coverage report
+pytest tests/ --cov=apantli --cov-report=html
+```
+
+**What Unit Tests Cover**:
+
+| Module | Tests | Description |
+|:-------|:------|:------------|
+| test_config.py | Configuration loading | YAML parsing, Pydantic validation, API key format, env var warnings |
+| test_database.py | Database operations | Schema creation, async logging, cost calculation, API key redaction |
+| test_llm.py | Provider inference | Pattern matching for gpt-*, claude*, gemini*, etc. |
+| test_errors.py | Error formatting | OpenAI-compatible error responses, status code mapping |
+| test_utils.py | Utility functions | Timezone conversion for date filtering |
+
+**Features**:
+- Fast execution (<1 second total)
+- Uses pytest fixtures (conftest.py) for shared test data
+- Uses temporary databases for isolation
+- No external dependencies or API calls
+
+See [tests/README.md](../tests/README.md) for detailed unit test documentation.
+
+## Integration Tests
+
+Integration tests require a running server and valid API keys.
+
+### Error Handling Tests
 
 Comprehensive test suite for error handling, timeouts, retries, and streaming behavior.
 
-**Location**: Project root (`test_error_handling.py`)
+**Location**: `tests/integration/test_error_handling.py`
 
 **Prerequisites**:
 - Server running at `http://localhost:4000`
@@ -23,8 +75,9 @@ Comprehensive test suite for error handling, timeouts, retries, and streaming be
 # Terminal 1: Start server
 apantli
 
-# Terminal 2: Run tests
-python test_error_handling.py
+# Terminal 2: Run integration tests
+python tests/integration/test_error_handling.py
+python tests/integration/test_proxy.py
 ```
 
 **What It Tests**:

@@ -38,12 +38,14 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 
 ## Project Overview
 
-Apantli is a local proxy server that:
+Apantli is a local proxy server with modular architecture that:
 
 - Routes requests to multiple LLM providers (OpenAI, Anthropic, etc.)
-- Tracks token usage and costs in SQLite database
+- Tracks token usage and costs in SQLite database with async operations
 - Provides web dashboard for monitoring usage
 - Implements OpenAI-compatible API format
+- Uses Pydantic validation for type-safe configuration
+- Includes comprehensive unit test suite (60 test cases)
 
 ## Key Features
 
@@ -53,11 +55,16 @@ Apantli is a local proxy server that:
 | Multi-provider | Supports OpenAI, Anthropic, and other LiteLLM-compatible providers |
 | Cost tracking | Automatic calculation and storage of per-request costs |
 | Web dashboard | Real-time statistics with time-range filtering |
-| SQLite storage | Lightweight database with full request/response logging |
+| SQLite storage | Lightweight database with async operations and full request/response logging |
 | OpenAI compatible | Drop-in replacement for OpenAI API clients |
 | Error handling | Configurable timeouts, automatic retries, and proper error responses |
+| Modular architecture | Six focused modules with single responsibility |
+| Type-safe config | Pydantic validation with early error detection |
+| Comprehensive tests | 60 unit and integration test cases |
 
 ## Architecture at a Glance
+
+**Modular Design**: Six focused modules with clear responsibilities
 
 ```
 ┌─────────────┐
@@ -67,26 +74,31 @@ Apantli is a local proxy server that:
 └──────┬──────┘
        │ HTTP POST /v1/chat/completions
        ↓
-┌─────────────────────────────────┐
-│      Apantli Proxy Server       │
-│  ┌────────────────────────────┐ │
-│  │  Request Handler           │ │
-│  │  - Parse model name        │ │
-│  │  - Load config/API keys    │ │
-│  └────────────┬───────────────┘ │
-│               ↓                 │
-│  ┌────────────────────────────┐ │
-│  │  LiteLLM SDK               │ │
-│  │  - Route to provider       │ │
-│  │  - Calculate costs         │ │
-│  └────────────┬───────────────┘ │
-│               ↓                 │
-│  ┌────────────────────────────┐ │
-│  │  SQLite Logger             │ │
-│  │  - Store request/response  │ │
-│  │  - Track tokens/costs      │ │
-│  └────────────────────────────┘ │
-└─────────────────────────────────┘
+┌──────────────────────────────────────┐
+│      Apantli Proxy Server            │
+│  ┌────────────────────────────────┐  │
+│  │  Server (server.py)            │  │
+│  │  - Routes & orchestration      │  │
+│  └────────────┬───────────────────┘  │
+│               ↓                      │
+│  ┌────────────────────────────────┐  │
+│  │  Config (config.py)            │  │
+│  │  - Pydantic validation         │  │
+│  │  - Model lookup & API keys     │  │
+│  └────────────┬───────────────────┘  │
+│               ↓                      │
+│  ┌────────────────────────────────┐  │
+│  │  LLM (llm.py) + LiteLLM SDK    │  │
+│  │  - Provider inference          │  │
+│  │  - Route & calculate costs     │  │
+│  └────────────┬───────────────────┘  │
+│               ↓                      │
+│  ┌────────────────────────────────┐  │
+│  │  Database (database.py)        │  │
+│  │  - Async SQLite (aiosqlite)    │  │
+│  │  - Non-blocking logging        │  │
+│  └────────────────────────────────┘  │
+└──────────────────────────────────────┘
        │ Response
        ↓
 ┌──────────────┐

@@ -280,6 +280,14 @@ apantli --timeout 60 --retries 5
 
 ## Configuration Validation
 
+Apantli uses Pydantic models to validate configuration at startup, providing early error detection with clear messages.
+
+**Validation Checks**:
+- API key format must be `os.environ/VARIABLE_NAME`
+- Environment variables are checked (warnings if not set)
+- Required fields: `model_name`, `model`, `api_key`
+- Optional field types validated (timeout must be positive integer, etc.)
+
 ### Testing Your Configuration
 
 After editing `config.yaml`, verify it loads correctly:
