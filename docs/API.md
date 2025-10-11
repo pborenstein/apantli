@@ -567,7 +567,7 @@ for model in stats['by_model']:
 
 ## GET /requests
 
-Returns the last 50 successful requests with full request and response data.
+Returns paginated request history with advanced filtering. Supports filtering by date, provider, model, cost range, and text search.
 
 ### Request
 
@@ -577,6 +577,8 @@ GET /requests HTTP/1.1
 
 ### Query Parameters
 
+**Time Range Filters**:
+
 | Parameter | Type | Required | Description |
 |:----------|:-----|:---------|:------------|
 | `hours` | integer | No | Filter to last N hours (any positive integer; omit for all time) |
@@ -584,7 +586,30 @@ GET /requests HTTP/1.1
 | `end_date` | string | No | ISO date (YYYY-MM-DD) for range end |
 | `timezone_offset` | integer | No | Timezone offset in minutes from UTC (e.g., -480 for PST) |
 
-**Note**: Use either `hours` OR (`start_date` + `end_date`), not both. When using date ranges, `timezone_offset` ensures correct date boundary calculations.
+**Pagination Parameters**:
+
+| Parameter | Type | Required | Description |
+|:----------|:-----|:---------|:------------|
+| `offset` | integer | No | Number of records to skip (default: 0) |
+| `limit` | integer | No | Maximum records to return (default: 50, max: 200) |
+
+**Attribute Filters**:
+
+| Parameter | Type | Required | Description |
+|:----------|:-----|:---------|:------------|
+| `provider` | string | No | Filter by provider name (e.g., 'openai', 'anthropic') |
+| `model` | string | No | Filter by model name (exact match) |
+| `min_cost` | float | No | Minimum cost threshold (USD) |
+| `max_cost` | float | No | Maximum cost threshold (USD) |
+| `search` | string | No | Search in model name or request/response JSON content |
+
+**Notes**:
+
+- Use either `hours` OR (`start_date` + `end_date`), not both
+- When using date ranges, `timezone_offset` ensures correct date boundary calculations
+- All filters can be combined (AND logic)
+- Search parameter uses SQL LIKE with wildcard matching
+- Pagination metadata returned in response for building UI controls
 
 ### Response Format
 
@@ -603,11 +628,16 @@ GET /requests HTTP/1.1
       "request_data": "{\"model\":\"gpt-4.1-mini\",\"messages\":[...]}",
       "response_data": "{\"id\":\"chatcmpl-123\",\"choices\":[...]}"
     }
-  ]
+  ],
+  "total": 285,
+  "offset": 0,
+  "limit": 50
 }
 ```
 
 ### Response Fields
+
+**Request Object Fields**:
 
 | Field | Type | Description |
 |:------|:-----|:------------|
@@ -622,6 +652,14 @@ GET /requests HTTP/1.1
 | `request_data` | string | Full request JSON (serialized) |
 | `response_data` | string | Full response JSON (serialized) |
 
+**Pagination Metadata**:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `total` | integer | Total number of requests matching filters |
+| `offset` | integer | Number of records skipped |
+| `limit` | integer | Maximum records in this response |
+
 Request and response data are JSON strings that need to be parsed:
 
 ```python
@@ -631,24 +669,77 @@ request_json = json.loads(request["request_data"])
 response_json = json.loads(request["response_data"])
 ```
 
-### Limitations
+### Behavior
 
-- Only successful requests (errors excluded)
-- Limited to last 50 requests
-- Ordered by timestamp descending (newest first)
+- Only successful requests returned (errors excluded)
+- Results ordered by timestamp descending (newest first)
+- Server-side filtering applied before pagination for accurate totals
+- All filters use efficient indexed SQL queries
 
-### Usage
+### Usage Examples
+
+**Basic request (first 50)**:
 
 ```bash
 curl http://localhost:4000/requests | jq
 ```
 
+**Pagination (next 50)**:
+
+```bash
+curl "http://localhost:4000/requests?offset=50&limit=50" | jq
+```
+
+**Filter by provider**:
+
+```bash
+curl "http://localhost:4000/requests?provider=anthropic" | jq
+```
+
+**Filter by model**:
+
+```bash
+curl "http://localhost:4000/requests?model=claude-haiku-3.5" | jq
+```
+
+**Cost range filter**:
+
+```bash
+curl "http://localhost:4000/requests?min_cost=0.01&max_cost=0.10" | jq
+```
+
+**Text search in requests/responses**:
+
+```bash
+curl "http://localhost:4000/requests?search=python" | jq
+```
+
+**Combined filters**:
+
+```bash
+# Anthropic requests costing over $0.05 in the last 24 hours
+curl "http://localhost:4000/requests?provider=anthropic&min_cost=0.05&hours=24" | jq
+```
+
+**Python example with pagination**:
+
 ```python
 import requests
 import json
 
-response = requests.get("http://localhost:4000/requests")
-requests_data = response.json()["requests"]
+# Get first page
+response = requests.get("http://localhost:4000/requests", params={
+    "provider": "openai",
+    "limit": 50,
+    "offset": 0
+})
+data = response.json()
+
+total = data["total"]
+requests_data = data["requests"]
+
+print(f"Found {total} OpenAI requests total")
+print(f"Showing {len(requests_data)} requests on this page\n")
 
 for req in requests_data[:5]:  # First 5
     print(f"{req['timestamp']}: {req['model']} - ${req['cost']:.4f}")
@@ -656,7 +747,53 @@ for req in requests_data[:5]:  # First 5
     # Parse request data
     request_json = json.loads(req["request_data"])
     user_message = request_json["messages"][-1]["content"]
-    print(f"  User: {user_message[:50]}...")
+    print(f"  User: {user_message[:50]}...\n")
+
+# Calculate total pages
+pages = (total + 49) // 50
+print(f"Total pages: {pages}")
+```
+
+**Iterate through all pages**:
+
+```python
+import requests
+
+def get_all_requests(provider=None, model=None):
+    """Fetch all requests matching filters using pagination."""
+    all_requests = []
+    offset = 0
+    limit = 200  # Max page size
+
+    while True:
+        response = requests.get(
+            "http://localhost:4000/requests",
+            params={
+                "provider": provider,
+                "model": model,
+                "offset": offset,
+                "limit": limit
+            }
+        )
+        data = response.json()
+        requests_data = data["requests"]
+
+        if not requests_data:
+            break
+
+        all_requests.extend(requests_data)
+
+        # Check if we got all results
+        if len(all_requests) >= data["total"]:
+            break
+
+        offset += limit
+
+    return all_requests
+
+# Get all Anthropic requests
+anthropic_requests = get_all_requests(provider="anthropic")
+print(f"Total Anthropic requests: {len(anthropic_requests)}")
 ```
 
 ## GET /stats/daily

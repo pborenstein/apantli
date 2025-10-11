@@ -6,15 +6,16 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 
 | Document | Description | Audience |
 |:---------|:------------|:---------|
-| [API.md](API.md) | HTTP endpoint reference | Developers & Integration users |
-| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, components, and data flow | Developers |
+| [API.md](API.md) | HTTP endpoint reference with pagination and filtering examples | Developers & Integration users |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | System design, components, data flow, and server-side filtering | Developers |
 | [CONFIGURATION.md](CONFIGURATION.md) | Model configuration and environment setup | Users & Developers |
-| [DASHBOARD.md](DASHBOARD.md) | Web dashboard guide - features, customization, and how it works | Users & Developers |
+| [DASHBOARD.md](DASHBOARD.md) | Web dashboard guide with filtering and pagination workflows | Users & Developers |
 | [DATABASE.md](DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [ERROR_HANDLING.md](ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
 | [LLM_CLI_INTEGRATION.md](LLM_CLI_INTEGRATION.md) | How llm CLI integration works - config files, transformation, and data flow | Developers |
 | [TESTING.md](TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
+| [../CHANGELOG.md](../CHANGELOG.md) | Version history and recent feature additions | All users |
 
 ## Quick Navigation
 
@@ -24,11 +25,15 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 
 **Configuration**: See [CONFIGURATION.md](CONFIGURATION.md) for detailed model setup and advanced configuration options.
 
+**What's New**: Check [CHANGELOG.md](../CHANGELOG.md) for recent feature additions including pagination and server-side filtering.
+
+**API Usage**: See [API.md](API.md) for comprehensive endpoint documentation with pagination and filtering examples.
+
+**Dashboard**: See [DASHBOARD.md](DASHBOARD.md) for web dashboard features including advanced filtering workflows and persistent state.
+
 **llm CLI Integration**: See [LLM_CLI_INTEGRATION.md](LLM_CLI_INTEGRATION.md) for how config.yaml, generate_llm_config.py, and extra-openai-models.yaml work together.
 
 **Database**: See [DATABASE.md](DATABASE.md) for schema details, maintenance procedures, and custom queries.
-
-**Dashboard**: See [DASHBOARD.md](DASHBOARD.md) for web dashboard features, Jinja2/Alpine.js explanation, and customization guide.
 
 **Error Handling**: See [ERROR_HANDLING.md](ERROR_HANDLING.md) for timeout/retry configuration, error response format, and design decisions.
 
@@ -54,13 +59,16 @@ Apantli is a local proxy server with modular architecture that:
 | Local-first | No cloud dependencies, runs entirely on your machine |
 | Multi-provider | Supports OpenAI, Anthropic, and other LiteLLM-compatible providers |
 | Cost tracking | Automatic calculation and storage of per-request costs |
-| Web dashboard | Real-time statistics with time-range filtering |
-| SQLite storage | Lightweight database with async operations and full request/response logging |
+| Advanced filtering | Server-side filtering by provider, model, cost range, and text search |
+| Pagination | Navigate through all requests with configurable page size (up to 200 per page) |
+| Web dashboard | Real-time statistics with unified date filtering across tabs |
+| SQLite storage | Lightweight database with async operations, indexed queries, and full request/response logging |
 | OpenAI compatible | Drop-in replacement for OpenAI API clients |
 | Error handling | Configurable timeouts, automatic retries, and proper error responses |
 | Modular architecture | Six focused modules with single responsibility |
 | Type-safe config | Pydantic validation with early error detection |
 | Comprehensive tests | 60 unit and integration test cases |
+| Persistent state | Filter selections and theme preferences saved across sessions |
 
 ## Architecture at a Glance
 

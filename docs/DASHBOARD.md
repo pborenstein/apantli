@@ -50,19 +50,80 @@ List of configured models with pricing information.
 
 ### Requests Tab
 
-Detailed request history with advanced filtering.
+Detailed request history with server-side filtering and pagination.
 
 **Features**:
-- Date filtering (same quick filters as Stats tab)
-- Search by content in requests/responses
-- Filter by model, provider, or cost range
-- Click rows to expand full request/response JSON
-- Toggle between JSON and conversation view
-- Copy individual messages to clipboard
+
+- **Global Date Filter**: Uses same date filter as Stats tab (persists across page reloads)
+- **Pagination**: Navigate through all requests (50 per page, adjustable up to 200)
+  - Previous/Next buttons with disabled states
+  - Page indicator showing "Page X of Y"
+  - Item counter showing "Showing N of M requests"
+- **Advanced Filters**:
+  - Provider dropdown (openai, anthropic, etc.)
+  - Model dropdown (populated from available models)
+  - Cost range slider (min/max thresholds)
+  - Text search (searches model name and request/response content)
+- **Server-Side Processing**: All filtering applied on backend for accurate totals
+- **Expandable Details**: Click rows to show full request/response JSON
+- **View Modes**: Toggle between JSON and conversation view
+- **Copy to Clipboard**: Copy individual messages
+- **Filter State**: All filter selections persist across page reloads
 
 ## Theme Toggle
 
 Click the theme button in the header to switch between light and dark mode. Theme preference is saved automatically.
+
+## Date Filtering and Persistence
+
+The dashboard features a unified date filter that applies across Stats and Requests tabs.
+
+**Filter Options**:
+
+- All Time (shows all historical data)
+- Today (current day in your timezone)
+- Yesterday
+- This Week (Monday-Sunday)
+- This Month (first day to last day)
+- Last 30 Days (rolling 30-day window)
+- Custom range (pick any start and end dates)
+
+**Behavior**:
+
+- Selected filter persists across page reloads (stored in browser localStorage)
+- Date filter automatically applies to both Stats and Requests tabs
+- Switching between tabs maintains the current date selection
+- Pagination resets to page 1 when date filter changes
+- Backend receives timezone offset for accurate date boundary calculations
+
+## Request Filtering Workflow
+
+The Requests tab combines multiple filter types for precise data exploration:
+
+**Filter Interaction**:
+
+```
+User selects filters → Alpine.js watcher detects changes →
+Reset to page 1 → Build query string →
+Fetch from /requests endpoint → Server applies filters →
+Return paginated results with total count →
+Update UI with filtered data and pagination controls
+```
+
+**Example**:
+
+1. Select "This Month" date filter
+2. Choose "anthropic" from Provider dropdown
+3. Set minimum cost to $0.01
+4. Type "python" in search box
+5. Result: Shows all Anthropic requests from this month costing at least $0.01 mentioning "python"
+
+**Benefits**:
+
+- Accurate totals (summary shows count for ALL filtered results, not just current page)
+- Better performance (filtering done on indexed database)
+- Lower memory usage (only fetches current page of results)
+- Persistent state (filter selections saved in localStorage)
 
 ## Timezone Handling
 
