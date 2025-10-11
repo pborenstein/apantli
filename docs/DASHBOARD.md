@@ -17,58 +17,23 @@ The dashboard auto-refreshes statistics every 5 seconds when viewing the Stats t
 
 ### Stats Tab
 
-Real-time usage statistics with time-range filtering.
-
-**Features**:
-- Quick filters: All Time, Today, Yesterday, This Week, This Month, Last 30 Days
-- Custom date range picker
-- Total requests, cost, tokens, average duration
-- Breakdown by provider and model
-- Provider cost trends chart
-- Model efficiency comparisons
-- Auto-refreshes every 5 seconds
+Real-time usage statistics with time-range filtering. Includes quick filters (All Time, Today, Yesterday, This Week, This Month, Last 30 Days) and custom date range picker. Displays total requests, cost, tokens, average duration, breakdown by provider and model, provider cost trends chart, and model efficiency comparisons. Auto-refreshes every 5 seconds.
 
 ### Calendar Tab
 
-Visual month-by-month cost heatmap.
-
-**Features**:
-- Month navigation (previous/next buttons)
-- Cost heatmap (darker colors = higher costs)
-- Click any day to see provider breakdown
-- Shows day number, cost, and request count per day
+Visual month-by-month cost heatmap with month navigation (previous/next buttons). Cost heatmap uses darker colors for higher costs. Click any day to see provider breakdown with day number, cost, and request count.
 
 ### Models Tab
 
-List of configured models with pricing information.
-
-**Features**:
-- All models from `config.yaml`
-- Input/output cost per million tokens
-- Provider and LiteLLM routing name
-- Sortable columns (click headers)
+List of configured models with pricing information. Shows all models from `config.yaml` with input/output cost per million tokens, provider and LiteLLM routing name, and sortable columns (click headers).
 
 ### Requests Tab
 
-Detailed request history with server-side filtering and pagination.
+Detailed request history with server-side filtering and pagination. Uses the same global date filter as Stats tab (persists across page reloads). Navigate through all requests (50 per page, adjustable up to 200) with Previous/Next buttons with disabled states, page indicator showing "Page X of Y", and item counter showing "Showing N of M requests".
 
-**Features**:
+Advanced filters include provider dropdown (openai, anthropic, etc.), model dropdown (populated from available models), cost range slider (min/max thresholds), and text search (searches model name and request/response content). All filtering applied on backend for accurate totals.
 
-- **Global Date Filter**: Uses same date filter as Stats tab (persists across page reloads)
-- **Pagination**: Navigate through all requests (50 per page, adjustable up to 200)
-  - Previous/Next buttons with disabled states
-  - Page indicator showing "Page X of Y"
-  - Item counter showing "Showing N of M requests"
-- **Advanced Filters**:
-  - Provider dropdown (openai, anthropic, etc.)
-  - Model dropdown (populated from available models)
-  - Cost range slider (min/max thresholds)
-  - Text search (searches model name and request/response content)
-- **Server-Side Processing**: All filtering applied on backend for accurate totals
-- **Expandable Details**: Click rows to show full request/response JSON
-- **View Modes**: Toggle between JSON and conversation view
-- **Copy to Clipboard**: Copy individual messages
-- **Filter State**: All filter selections persist across page reloads
+Features expandable details (click rows to show full request/response JSON), view modes (toggle between JSON and conversation view), copy to clipboard (copy individual messages), and persistent filter state (all filter selections persist across page reloads).
 
 ## Theme Toggle
 
@@ -76,25 +41,9 @@ Click the theme button in the header to switch between light and dark mode. Them
 
 ## Date Filtering and Persistence
 
-The dashboard features a unified date filter that applies across Stats and Requests tabs.
+The dashboard features a unified date filter that applies across Stats and Requests tabs with options for All Time (shows all historical data), Today (current day in your timezone), Yesterday, This Week (Monday-Sunday), This Month (first day to last day), Last 30 Days (rolling 30-day window), and Custom range (pick any start and end dates).
 
-**Filter Options**:
-
-- All Time (shows all historical data)
-- Today (current day in your timezone)
-- Yesterday
-- This Week (Monday-Sunday)
-- This Month (first day to last day)
-- Last 30 Days (rolling 30-day window)
-- Custom range (pick any start and end dates)
-
-**Behavior**:
-
-- Selected filter persists across page reloads (stored in browser localStorage)
-- Date filter automatically applies to both Stats and Requests tabs
-- Switching between tabs maintains the current date selection
-- Pagination resets to page 1 when date filter changes
-- Backend receives timezone offset for accurate date boundary calculations
+The selected filter persists across page reloads (stored in browser localStorage) and automatically applies to both Stats and Requests tabs. Switching between tabs maintains the current date selection. Pagination resets to page 1 when date filter changes. Backend receives timezone offset for accurate date boundary calculations.
 
 ## Request Filtering Workflow
 
@@ -118,12 +67,7 @@ Update UI with filtered data and pagination controls
 4. Type "python" in search box
 5. Result: Shows all Anthropic requests from this month costing at least $0.01 mentioning "python"
 
-**Benefits**:
-
-- Accurate totals (summary shows count for ALL filtered results, not just current page)
-- Better performance (filtering done on indexed database)
-- Lower memory usage (only fetches current page of results)
-- Persistent state (filter selections saved in localStorage)
+Benefits include accurate totals (summary shows count for ALL filtered results, not just current page), better performance (filtering done on indexed database), lower memory usage (only fetches current page of results), and persistent state (filter selections saved in localStorage).
 
 ## Timezone Handling
 

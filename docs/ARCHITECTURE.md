@@ -168,169 +168,74 @@ Apantli follows a modular architecture with six focused modules, each handling a
 
 ### Server Module (server.py)
 
-**Responsibilities**:
+The server module is the core orchestrator for Apantli, handling HTTP requests, routing, and coordinating all other modules.
 
-- HTTP request handling and routing
-- Request orchestration across modules
-- Application lifecycle (startup/shutdown)
-- Middleware configuration (CORS)
-- Template rendering for dashboard
+**Responsibilities**: HTTP request handling, routing, application lifecycle management (startup/shutdown), CORS middleware configuration, and template rendering for the dashboard.
 
-**Key Features**:
+**Key Features**: Async request handling via FastAPI with lifespan context manager that calls Config.reload() and Database.init() at startup. Provides OpenAI-compatible endpoints and serves static dashboard assets. Imports and coordinates all other modules.
 
-- Async request handling via FastAPI
-- Lifespan context manager calling Config.reload() and Database.init()
-- OpenAI-compatible endpoints
-- Static file serving for dashboard assets
-- Imports and coordinates all other modules
-
-**Integration Points**:
-
-- Uses Config class for model lookups
-- Calls Database methods for logging
-- Uses LLM module for provider inference
-- Uses Errors module for error formatting
-- Uses Utils module for timezone operations
+**Integration Points**: The server module uses the Config class for model lookups, calls Database methods for logging, employs the LLM module for provider inference, uses the Errors module for error formatting, and leverages Utils module for timezone operations.
 
 ### Configuration Module (config.py)
 
-**Responsibilities**:
+The configuration module provides type-safe model configuration management using Pydantic validation.
 
-- Load and parse config.yaml with YAML library
-- Validate configuration with Pydantic models
-- Provide type-safe model configuration access
-- Resolve environment variables for API keys
+**Responsibilities**: Load and parse config.yaml with YAML library, validate configuration with Pydantic models, provide type-safe model configuration access, and resolve environment variables for API keys.
 
 **Key Classes**:
 
-**ModelConfig (Pydantic model)**:
-- model_name: Client-facing alias
-- litellm_model: LiteLLM provider/model format
-- api_key_var: Environment variable reference (validated format)
-- Optional overrides: timeout, num_retries, temperature, max_tokens
-- Validation: API key format, environment variable existence warnings
+| Class | Purpose | Key Features |
+|:------|:--------|:-------------|
+| ModelConfig (Pydantic) | Per-model settings | model_name (client alias), litellm_model (provider/model format), api_key_var (env reference), optional overrides (timeout, num_retries, temperature, max_tokens), validates API key format and environment variable existence |
+| Config | Overall configuration | models dict (O(1) lookups), reload() method, get_model(name) retrieval, list_models() enumeration |
 
-**Config class**:
-- models: Dict[str, ModelConfig] - O(1) model lookups
-- reload(): Load/reload configuration from file
-- get_model(name): Retrieve ModelConfig by alias
-- list_models(): Return all configured model names
-
-**Features**:
-
-- Early validation with clear error messages (Pydantic)
-- Configuration reload support without restart
-- Environment variable validation at startup
-- Backward compatibility with MODEL_MAP global
+**Features**: Early validation with clear Pydantic error messages, configuration reload without restart, environment variable validation at startup, and backward compatibility with MODEL_MAP global for legacy code.
 
 ### Database Module (database.py)
 
-**Responsibilities**:
+The database module handles all persistent storage using async SQLite operations for non-blocking I/O.
 
-- Async SQLite operations using aiosqlite
-- Schema initialization and migration
-- Request/response logging with full JSON
-- Query execution for statistics and history
-- Cost calculation using LiteLLM
+**Responsibilities**: Async SQLite operations using aiosqlite, schema initialization and migration, request/response logging with full JSON, query execution for statistics and history, and cost calculation using LiteLLM.
 
-**Key Class**:
-
-**Database class**:
-- path: SQLite database file path
-- _get_connection(): Async context manager for connections
-- init(): Create schema and indexes
-- log_request(): Insert request with async I/O
+**Database Class**: The Database class encapsulates database operations with a path property (SQLite file path), _get_connection() async context manager for connections, init() to create schema and indexes, and log_request() to insert requests with async I/O.
 
 **Note**: Statistics queries (`/stats`, `/stats/daily`, `/requests`) are implemented directly in server.py using raw SQL for performance and flexibility.
 
-**Features**:
-
-- Non-blocking async operations (aiosqlite)
-- Context managers for connection handling
-- Automatic cost calculation via litellm.completion_cost()
-- Full request/response JSON storage including API keys for debugging
-- Complete audit trail of all requests
-
-**Performance**:
-
-- Async operations prevent event loop blocking
-- Connection pooling via context managers
-- Indexed queries for dashboard performance
-- Typical operation time: 1-5ms (non-blocking)
+**Key Features**: Non-blocking async operations via aiosqlite prevent event loop blocking. Context managers handle connection pooling. Automatic cost calculation via litellm.completion_cost(). Full request/response JSON storage including API keys for debugging provides complete audit trail. Indexed queries deliver fast dashboard performance with typical operation time of 1-5ms (non-blocking).
 
 ### LLM Module (llm.py)
 
-**Responsibilities**:
+The LLM module provides provider inference from model names using pattern matching.
 
-- Infer provider from model name patterns
-- Provider-specific logic and routing hints
+**Responsibilities**: Infer provider from model name patterns and provide provider-specific routing hints.
 
-**Key Functions**:
-
-**infer_provider_from_model(model_name: str) -> str**:
-- Pattern matching: gpt-*/o1-* → openai, claude* → anthropic, etc.
-- Handles prefixed models (openai/gpt-4) by extracting prefix
-- Returns "unknown" for unrecognized patterns
-
-**Provider Patterns**:
-- OpenAI: gpt-*, o1-*, chatgpt-*
-- Anthropic: claude*
-- Google: gemini*
-- Mistral: mistral*
-- Meta: llama*
+**Key Function - infer_provider_from_model(model_name: str) -> str**: Uses pattern matching to determine providers (gpt-*/o1-* → openai, claude* → anthropic, gemini* → google, mistral* → mistral, llama* → meta). Handles prefixed models (openai/gpt-4) by extracting prefix. Returns "unknown" for unrecognized patterns.
 
 ### Errors Module (errors.py)
 
-**Responsibilities**:
+The errors module formats exceptions into OpenAI-compatible error responses.
 
-- Build OpenAI-compatible error responses
-- Map exceptions to HTTP status codes
-- Format error messages for client compatibility
+**Responsibilities**: Build OpenAI-compatible error responses, map exceptions to HTTP status codes, and format error messages for client compatibility.
 
-**Key Function**:
-
-**build_error_response(error, status_code) -> dict**:
-- Extracts error message from exception
-- Determines error type and code from exception class
-- Returns standard OpenAI error format: {"error": {"message", "type", "code"}}
+**Key Function - build_error_response(error, status_code) -> dict**: Extracts error message from exception, determines error type and code from exception class, and returns standard OpenAI error format: {"error": {"message", "type", "code"}}.
 
 ### Utils Module (utils.py)
 
-**Responsibilities**:
+The utils module provides timezone conversion utilities for date filtering.
 
-- Timezone conversion for date filtering
-- Local date to UTC timestamp range conversion
+**Responsibilities**: Timezone conversion for date filtering and local date to UTC timestamp range conversion.
 
-**Key Function**:
-
-**convert_local_date_to_utc_range(date_str, timezone_offset) -> tuple**:
-- Converts local date (YYYY-MM-DD) to UTC timestamp range
-- Handles timezone offsets from browser
-- Returns (start_timestamp, end_timestamp) for SQL queries
+**Key Function - convert_local_date_to_utc_range(date_str, timezone_offset) -> tuple**: Converts local date (YYYY-MM-DD) to UTC timestamp range, handles timezone offsets from browser, and returns (start_timestamp, end_timestamp) for SQL queries.
 
 ### LiteLLM SDK Integration
 
-**Purpose**: Abstract away provider-specific API differences
+LiteLLM SDK abstracts away provider-specific API differences, providing a unified interface for multiple LLM providers.
 
-**How it works**:
+**How it works**: Accepts models in format `provider/model-name` (e.g., `openai/gpt-4.1-mini`), routes requests to appropriate provider SDK, normalizes responses to OpenAI format, and calculates costs using built-in pricing database.
 
-1. Accept model in format `provider/model-name` (e.g., `openai/gpt-4.1-mini`)
-2. Route request to appropriate provider SDK
-3. Normalize response to OpenAI format
-4. Calculate costs using built-in pricing database
+**Benefits**: Single interface for multiple providers with automatic cost calculation via litellm.completion_cost(), consistent response format across providers, and full streaming support.
 
-**Benefits**:
-
-- Single interface for multiple providers
-- Automatic cost calculation via litellm.completion_cost()
-- Consistent response format
-- Streaming responses supported
-
-**Usage in Apantli**:
-
-- Called from server.py request handlers
-- Cost calculation handled by Database module
-- Provider inference done by LLM module for logging
+**Usage in Apantli**: Called from server.py request handlers. Cost calculation handled by Database module. Provider inference done by LLM module for logging.
 
 ### Database Schema
 
@@ -403,60 +308,37 @@ LIMIT/OFFSET for pagination → Return results + metadata
 
 ### Why SQLite?
 
-**Rationale**: Lightweight, serverless, file-based database ideal for local proxies
+SQLite provides the ideal balance for a local LLM proxy: lightweight, serverless, and file-based storage without external dependencies.
 
-**Alternatives considered**:
+**Rationale**: SQLite requires zero configuration and stores everything in a single file, making it perfect for local proxies. It excels at read-heavy workloads typical of monitoring dashboards.
 
-- Postgres: Too heavy, requires separate server process
-- JSON files: No query capabilities, slow for aggregations
-- In-memory: Data loss on restart
+**Alternatives considered**: Postgres would require a separate server process and is too heavyweight for single-user scenarios. JSON files lack query capabilities and are slow for aggregations. In-memory databases would lose all data on restart.
 
-**Trade-offs**:
-
-- Pro: Zero configuration, single file, excellent for reads
-- Con: Not suitable for high concurrency (but proxy is single-user)
+**Trade-offs**: SQLite's single-writer limitation is not a bottleneck for single-user local proxies, though it would not suit high-concurrency multi-user deployments.
 
 ### Why LiteLLM SDK?
 
-**Rationale**: Mature library for multi-provider LLM routing with built-in cost tracking
+LiteLLM provides mature multi-provider LLM routing with built-in cost tracking, eliminating the need to integrate each provider's SDK separately.
 
-**Alternatives considered**:
+**Rationale**: Using direct provider SDKs would require duplicate code for each provider and manual cost calculation implementation. LiteLLM handles both with a single unified interface.
 
-- Direct provider SDKs: Duplicate code for each provider
-- Manual API calls: Would need to reimplement cost calculation
-
-**Trade-offs**:
-
-- Pro: Multi-provider support, cost calculation, active maintenance
-- Con: Additional dependency, abstracts away provider-specific features
+**Trade-offs**: The additional dependency and abstraction layer are worthwhile for multi-provider support and automatic cost tracking, though some provider-specific features may not be exposed.
 
 ### Why FastAPI?
 
-**Rationale**: Modern async framework with automatic OpenAPI documentation
+FastAPI's async architecture is essential for I/O-bound LLM proxy operations.
 
-**Alternatives considered**:
+**Rationale**: Flask's synchronous model would block the event loop during slow LLM API calls. aiohttp is lower-level and requires more boilerplate.
 
-- Flask: Synchronous (poor for I/O-bound LLM calls)
-- aiohttp: Lower-level, more boilerplate
-
-**Trade-offs**:
-
-- Pro: Async support, type hints, auto-generated docs
-- Con: Slightly heavier than minimal frameworks
+**Trade-offs**: FastAPI provides async support, type hints, and auto-generated OpenAPI docs at the cost of being slightly heavier than minimal frameworks.
 
 ### Why Embedded Dashboard?
 
-**Rationale**: Single-file deployment, no build step, works offline
+The embedded dashboard enables single-file deployment with no build step, making Apantli immediately usable after installation.
 
-**Alternatives considered**:
+**Rationale**: React/Vue SPAs would require build processes and heavier dependencies. Separate static files would complicate deployment.
 
-- React/Vue SPA: Requires build process, heavier dependencies
-- Separate static files: More complex deployment
-
-**Trade-offs**:
-
-- Pro: Simple deployment, no build tools, works immediately
-- Con: Harder to test JavaScript, no component reuse
+**Trade-offs**: Simple deployment and immediate functionality come at the cost of harder JavaScript testing and lack of component reuse patterns.
 
 ## Error Handling
 

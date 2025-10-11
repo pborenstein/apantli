@@ -125,12 +125,7 @@ Apantli uses a modular architecture with six focused modules:
 └──────────────┘
 ```
 
-**Key Features**:
-
-- Modular design with single responsibility per module
-- Async database operations for non-blocking I/O
-- Pydantic validation for type-safe configuration
-- Comprehensive unit test suite (59 test cases)
+The architecture follows modular design principles with single responsibility per module, async database operations for non-blocking I/O, Pydantic validation for type-safe configuration, and comprehensive unit test suite (59 test cases).
 
 ## Installation
 
@@ -235,20 +230,15 @@ See [docs/API.md](docs/API.md) for curl, requests library, and detailed API exam
 
 ### Web Dashboard
 
-Open http://localhost:4000/ to view:
+Open http://localhost:4000/ for real-time monitoring with four tabs:
 
-- **Stats**: Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, recent errors
-- **Calendar**: Monthly view of daily spending patterns with heatmap coloring
-- **Models**: Configured models with pricing information (sortable columns)
-- **Requests**: Paginated request history (50 per page) with advanced filtering:
-  - Global date filter (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range)
-  - Provider dropdown filter (openai, anthropic, etc.)
-  - Model dropdown filter (exact match)
-  - Cost range filter (min/max thresholds)
-  - Text search (searches model name and request/response content)
-  - All filters combine with AND logic
-  - Summary shows accurate totals for ALL filtered results
-  - Filter state persists across page reloads
+**Stats**: Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, and recent errors.
+
+**Calendar**: Monthly view of daily spending patterns with heatmap coloring showing cost intensity per day.
+
+**Models**: Configured models with pricing information in sortable columns.
+
+**Requests**: Paginated request history (50 per page) with advanced server-side filtering. Apply global date filters (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range), provider dropdown (openai, anthropic, etc.), model dropdown (exact match), cost range (min/max thresholds), and text search (searches model name and request/response content). All filters combine with AND logic. Summary shows accurate totals for ALL filtered results, and filter state persists across page reloads.
 
 ### Client Integration
 
@@ -275,11 +265,7 @@ See [docs/API.md](docs/API.md) for complete endpoint documentation.
 
 ## Database
 
-All requests logged to `requests.db` (SQLite):
-
-- Request metadata (timestamp, model, provider, tokens, cost, duration)
-- Full request and response JSON
-- Error messages for failed requests
+All requests are logged to `requests.db` (SQLite) with request metadata (timestamp, model, provider, tokens, cost, duration), full request and response JSON, and error messages for failed requests.
 
 See [docs/DATABASE.md](docs/DATABASE.md) for schema, queries, and maintenance.
 
