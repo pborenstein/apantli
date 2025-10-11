@@ -83,11 +83,6 @@ class Database:
         except Exception:
           pass
 
-      # Redact sensitive data before storing
-      safe_request_data = request_data.copy()
-      if 'api_key' in safe_request_data:
-        safe_request_data['api_key'] = 'sk-redacted'
-
       await conn.execute("""
         INSERT INTO requests
         (timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
@@ -102,7 +97,7 @@ class Database:
         total_tokens,
         cost,
         duration_ms,
-        json.dumps(safe_request_data),
+        json.dumps(request_data),
         json.dumps(response) if response else None,
         error
       ))

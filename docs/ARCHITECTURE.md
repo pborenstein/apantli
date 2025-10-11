@@ -249,8 +249,8 @@ Apantli follows a modular architecture with six focused modules, each handling a
 - Non-blocking async operations (aiosqlite)
 - Context managers for connection handling
 - Automatic cost calculation via litellm.completion_cost()
-- API key redaction before storage (sk-redacted)
-- Full request/response JSON storage for audit trail
+- Full request/response JSON storage including API keys for debugging
+- Complete audit trail of all requests
 
 **Performance**:
 
@@ -609,7 +609,7 @@ Database size: Grows ~2-10 KB per request depending on message length. 10,000 re
 
 For localhost-only access, use `apantli --host 127.0.0.1`. For network exposure, implement authentication (see Future Considerations below).
 
-**API keys**: Stored in `.env` file (gitignored), resolved at request time, redacted before database logging (stored as `sk-redacted`), never returned in responses.
+**API keys**: Stored in `.env` file (gitignored), resolved at request time, logged in database for debugging purposes, never returned in responses.
 
 **Database**: `requests.db` contains full conversation history. Protect with appropriate file permissions. See [DATABASE.md](DATABASE.md#security-considerations) for details.
 

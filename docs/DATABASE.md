@@ -110,10 +110,7 @@ Based on typical usage patterns:
 
 - Full request JSON including all messages and parameters
 - Full response JSON including all choices and metadata
-
-**Redacted before storage**:
-
-- API keys (replaced with `sk-redacted` in request_data JSON)
+- API keys (stored for debugging purposes)
 
 **Never stored**:
 
@@ -468,10 +465,10 @@ LIMIT 30;
 - User inputs (potentially sensitive)
 - Model outputs
 - Metadata (timestamps, costs, models)
+- API keys (stored in request_data for debugging)
 
 **What's NOT in the database**:
 
-- Actual API keys (redacted to `sk-redacted` before storage)
 - Server authentication tokens
 - System credentials
 
