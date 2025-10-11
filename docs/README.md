@@ -67,7 +67,7 @@ Apantli is a local proxy server with modular architecture that:
 | Error handling | Configurable timeouts, automatic retries, and proper error responses |
 | Modular architecture | Six focused modules with single responsibility |
 | Type-safe config | Pydantic validation with early error detection |
-| Comprehensive tests | 60 unit and integration test cases |
+| Comprehensive tests | 59 unit and integration test cases |
 | Persistent state | Filter selections and theme preferences saved across sessions |
 
 ## Architecture at a Glance
