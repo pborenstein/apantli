@@ -1071,6 +1071,13 @@
     currentPage: 1,
     itemsPerPage: 50,
     totalItems: 0,
+    requestFilters: $persist({
+        provider: '',
+        model: '',
+        minCost: '',
+        maxCost: '',
+        search: ''
+    }),
 
     toggleTheme() {
         this.theme = this.theme === 'light' ? 'dark' : 'light';
@@ -1179,6 +1186,10 @@
         currentPage = 1; // Reset to first page when date filter changes
         loadRequests();
     }, { deep: true });
+    $watch('requestFilters', value => {
+        currentPage = 1; // Reset to page 1 when filters change
+        loadRequests();
+    }, { deep: true });
     $watch('currentPage', value => loadRequests());
 ">
     <h1>
@@ -1281,30 +1292,30 @@
             <div class="filter-row">
                 <div class="filter-search">
                     <label for="search-requests">Search:</label>
-                    <input type="text" id="search-requests" placeholder="Search in model or content..." oninput="applyRequestFilters()">
+                    <input type="text" id="search-requests" placeholder="Search in model or content..." x-model="requestFilters.search">
                 </div>
             </div>
 
             <div class="filter-row">
                 <div class="filter-select">
                     <label for="filter-provider">Provider:</label>
-                    <select id="filter-provider" onchange="applyRequestFilters()">
-                        <option value="all">All</option>
+                    <select id="filter-provider" x-model="requestFilters.provider">
+                        <option value="">All</option>
                     </select>
                 </div>
 
                 <div class="filter-select">
                     <label for="filter-model">Model:</label>
-                    <select id="filter-model" onchange="applyRequestFilters()">
-                        <option value="all">All</option>
+                    <select id="filter-model" x-model="requestFilters.model">
+                        <option value="">All</option>
                     </select>
                 </div>
 
                 <div class="filter-cost-range">
                     <label>Cost Range:</label>
-                    <input type="number" id="min-cost" placeholder="Min $" step="0.0001" min="0" oninput="applyRequestFilters()">
+                    <input type="number" id="min-cost" placeholder="Min $" step="0.0001" min="0" x-model.number="requestFilters.minCost">
                     <span>to</span>
-                    <input type="number" id="max-cost" placeholder="Max $" step="0.0001" min="0" oninput="applyRequestFilters()">
+                    <input type="number" id="max-cost" placeholder="Max $" step="0.0001" min="0" x-model.number="requestFilters.maxCost">
                 </div>
             </div>
         </div>
@@ -1764,8 +1775,6 @@
 
         let requestsData = [];
         let requestsObjects = []; // Store original request objects for detail rows
-        let filteredRequestsData = []; // Filtered subset
-        let filteredRequestsObjects = []; // Filtered objects
         let serverAggregates = { total: 0, total_tokens: 0, total_cost: 0, avg_cost: 0 }; // Server-side aggregates
 
         async function loadRequests() {
@@ -1773,7 +1782,26 @@
             try {
                 const query = alpineData.buildQuery(alpineData.dateFilter);
                 const offset = (alpineData.currentPage - 1) * alpineData.itemsPerPage;
-                const url = `/requests${query}${query ? '&' : '?'}offset=${offset}&limit=${alpineData.itemsPerPage}`;
+                let url = `/requests${query}${query ? '&' : '?'}offset=${offset}&limit=${alpineData.itemsPerPage}`;
+
+                // Add filter parameters
+                const filters = alpineData.requestFilters;
+                if (filters.provider) {
+                    url += `&provider=${encodeURIComponent(filters.provider)}`;
+                }
+                if (filters.model) {
+                    url += `&model=${encodeURIComponent(filters.model)}`;
+                }
+                if (filters.minCost !== '' && filters.minCost !== null) {
+                    url += `&min_cost=${filters.minCost}`;
+                }
+                if (filters.maxCost !== '' && filters.maxCost !== null) {
+                    url += `&max_cost=${filters.maxCost}`;
+                }
+                if (filters.search) {
+                    url += `&search=${encodeURIComponent(filters.search)}`;
+                }
+
                 const res = await fetch(url);
                 const data = await res.json();
 
@@ -1799,96 +1827,53 @@
                     r.timestamp // Store timestamp for detail row lookup
                 ]);
 
-                // Populate filter dropdowns
+                // Populate filter dropdowns from current page data
                 populateFilterDropdowns();
 
-                // Apply initial filtering
-                applyRequestFilters();
+                // Initialize or update sort state
+                if (!tableSortState['requests-list']) {
+                    tableSortState['requests-list'] = { column: null, direction: null, originalData: [...requestsData] };
+                } else {
+                    // Update originalData to match current filtered results
+                    tableSortState['requests-list'].originalData = [...requestsData];
+                }
+
+                // Update summary and render table
+                updateRequestSummary();
+                renderRequestsTable(requestsData, tableSortState['requests-list']);
             } catch(e) {
                 document.getElementById('requests-list').innerHTML = '<tr><td colspan="5">Error loading requests</td></tr>';
             }
         }
 
         function populateFilterDropdowns() {
-            // Get unique providers
+            // Get unique providers from current page data
             const providers = [...new Set(requestsObjects.map(r => r.provider).filter(Boolean))].sort();
             const providerSelect = document.getElementById('filter-provider');
-            providerSelect.innerHTML = '<option value="all">All</option>';
+            const currentProvider = alpineData.requestFilters.provider;
+            providerSelect.innerHTML = '<option value="">All</option>';
             providers.forEach(p => {
                 const option = document.createElement('option');
                 option.value = p;
                 option.textContent = p;
+                if (p === currentProvider) option.selected = true;
                 providerSelect.appendChild(option);
             });
 
-            // Get unique models
+            // Get unique models from current page data
             const models = [...new Set(requestsObjects.map(r => r.model).filter(Boolean))].sort();
             const modelSelect = document.getElementById('filter-model');
-            modelSelect.innerHTML = '<option value="all">All</option>';
+            const currentModel = alpineData.requestFilters.model;
+            modelSelect.innerHTML = '<option value="">All</option>';
             models.forEach(m => {
                 const option = document.createElement('option');
                 option.value = m;
                 option.textContent = m;
+                if (m === currentModel) option.selected = true;
                 modelSelect.appendChild(option);
             });
         }
 
-        function applyRequestFilters() {
-            const searchText = document.getElementById('search-requests').value.toLowerCase();
-            const filterProvider = document.getElementById('filter-provider').value;
-            const filterModel = document.getElementById('filter-model').value;
-            const minCost = parseFloat(document.getElementById('min-cost').value) || 0;
-            const maxCost = parseFloat(document.getElementById('max-cost').value) || Infinity;
-
-            // Filter objects first
-            filteredRequestsObjects = requestsObjects.filter(r => {
-                // Search filter
-                if (searchText) {
-                    const modelMatch = r.model.toLowerCase().includes(searchText);
-                    let contentMatch = false;
-                    try {
-                        const content = r.request_data + r.response_data;
-                        contentMatch = content.toLowerCase().includes(searchText);
-                    } catch(e) {}
-                    if (!modelMatch && !contentMatch) return false;
-                }
-
-                // Provider filter
-                if (filterProvider !== 'all' && r.provider !== filterProvider) return false;
-
-                // Model filter
-                if (filterModel !== 'all' && r.model !== filterModel) return false;
-
-                // Cost range filter
-                if (r.cost < minCost || r.cost > maxCost) return false;
-
-                return true;
-            });
-
-            // Convert filtered objects to array format
-            filteredRequestsData = filteredRequestsObjects.map(r => [
-                new Date(r.timestamp + 'Z').getTime(),
-                r.model,
-                r.total_tokens,
-                r.cost,
-                r.duration_ms,
-                r.timestamp
-            ]);
-
-            // Update sort state with filtered data
-            if (!tableSortState['requests-list']) {
-                tableSortState['requests-list'] = { column: null, direction: null, originalData: [...filteredRequestsData] };
-            } else {
-                tableSortState['requests-list'].originalData = [...filteredRequestsData];
-                // Reset sort when filters change
-                tableSortState['requests-list'].column = null;
-                tableSortState['requests-list'].direction = null;
-            }
-
-            // Update summary and render
-            updateRequestSummary();
-            renderRequestsTable(filteredRequestsData, tableSortState['requests-list']);
-        }
 
         function updateRequestSummary() {
             const summary = document.getElementById('request-summary');
@@ -1908,7 +1893,7 @@
         }
 
         function sortRequestsTable(columnIndex) {
-            sortTable('requests-list', columnIndex, filteredRequestsData, renderRequestsTable);
+            sortTable('requests-list', columnIndex, requestsData, renderRequestsTable);
         }
 
         function renderRequestsTable(data, sortState) {

@@ -401,8 +401,10 @@ async def models():
 
 @app.get("/requests")
 async def requests(hours: int = None, start_date: str = None, end_date: str = None,
-                  timezone_offset: int = None, offset: int = 0, limit: int = 50):
-    """Get recent requests with full details, optionally filtered by time range.
+                  timezone_offset: int = None, offset: int = 0, limit: int = 50,
+                  provider: str = None, model: str = None,
+                  min_cost: float = None, max_cost: float = None, search: str = None):
+    """Get recent requests with full details, optionally filtered by time range and attributes.
 
     Parameters:
     - hours: Filter to last N hours
@@ -411,6 +413,11 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
     - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
     - offset: Number of records to skip (for pagination)
     - limit: Maximum number of records to return (default: 50, max: 200)
+    - provider: Filter by provider name (e.g., 'openai', 'anthropic')
+    - model: Filter by model name
+    - min_cost: Minimum cost threshold
+    - max_cost: Maximum cost threshold
+    - search: Search in model name or request/response content
     """
     # Limit the max page size
     limit = min(limit, 200)
@@ -450,6 +457,37 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
             end_dt = dt.fromisoformat(end_date) + timedelta(days=1)
             time_filter = f"AND timestamp < '{end_dt.date()}T00:00:00'"
 
+    # Build attribute filters
+    filters = []
+    params = []
+
+    if provider:
+        filters.append("provider = ?")
+        params.append(provider)
+
+    if model:
+        filters.append("model = ?")
+        params.append(model)
+
+    if min_cost is not None:
+        filters.append("cost >= ?")
+        params.append(min_cost)
+
+    if max_cost is not None:
+        filters.append("cost <= ?")
+        params.append(max_cost)
+
+    if search:
+        # Search in model name or JSON content (request_data, response_data)
+        filters.append("(model LIKE ? OR request_data LIKE ? OR response_data LIKE ?)")
+        search_param = f"%{search}%"
+        params.extend([search_param, search_param, search_param])
+
+    # Combine all filters
+    filter_clause = time_filter
+    if filters:
+        filter_clause += " AND " + " AND ".join(filters)
+
     # Get aggregate stats for ALL matching requests (for summary display)
     cursor.execute(f"""
         SELECT COUNT(*),
@@ -457,8 +495,8 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
                SUM(cost),
                AVG(cost)
         FROM requests
-        WHERE error IS NULL {time_filter}
-    """)
+        WHERE error IS NULL {filter_clause}
+    """, params)
     agg_row = cursor.fetchone()
     total = agg_row[0] or 0
     total_tokens = agg_row[1] or 0
@@ -470,10 +508,10 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
         SELECT timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
                cost, duration_ms, request_data, response_data
         FROM requests
-        WHERE error IS NULL {time_filter}
+        WHERE error IS NULL {filter_clause}
         ORDER BY timestamp DESC
         LIMIT {limit} OFFSET {offset}
-    """)
+    """, params)
     rows = cursor.fetchall()
     conn.close()
 
