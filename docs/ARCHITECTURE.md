@@ -6,51 +6,45 @@ System design and technical implementation details for Apantli.
 
 Apantli is a FastAPI-based HTTP proxy that intercepts OpenAI-compatible API requests, routes them through LiteLLM to various providers, and logs all activity to a local SQLite database. The system operates entirely locally with no cloud dependencies beyond the LLM provider APIs themselves.
 
+The architecture follows a modular design with six focused modules handling configuration, database operations, error handling, LLM integration, and utility functions, orchestrated by a FastAPI server.
+
 ## System Components
 
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│                        Apantli Server                           │
-│                                                                 │
-│  ┌────────────────────┐      ┌──────────────────────────────┐   │
-│  │  FastAPI           │      │  Lifespan Manager            │   │
-│  │  Application       │◄─────┤  - load_config()             │   │
-│  │                    │      │  - init_db()                 │   │
-│  └─────────┬──────────┘      └──────────────────────────────┘   │
-│            │                                                    │
-│            │ HTTP Routes                                        │
-│            ↓                                                    │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  API Endpoints                                          │    │
-│  │  - POST /v1/chat/completions (primary)                  │    │
-│  │  - GET  /stats (usage statistics)                       │    │
-│  │  - GET  /models (available models)                      │    │
-│  │  - GET  /requests (recent activity)                     │    │
-│  │  - GET  / (dashboard HTML)                              │    │
-│  └─────────┬───────────────────────────────────────────────┘    │
-│            │                                                    │
-│            ↓                                                    │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │  Request Processing Pipeline                            │    │
-│  │  1. Parse incoming JSON                                 │    │
-│  │  2. Look up model in MODEL_MAP                          │    │
-│  │  3. Resolve API key from environment                    │    │
-│  │  4. Call LiteLLM completion()                           │    │
-│  │  5. Extract provider from response                      │    │
-│  │  6. Calculate cost and duration                         │    │
-│  │  7. Log to database                                     │    │
-│  │  8. Return response to client                           │    │
-│  └─────────┬───────────────────────────────────────────────┘    │
-│            │                                                    │
-│            ↓                                                    │
-│  ┌─────────────────────┐      ┌─────────────────────────┐       │
-│  │  LiteLLM SDK        │      │  Database Logger        │       │
-│  │  - Provider routing │      │  - log_request()        │       │
-│  │  - Cost calculation │      │  - SQLite operations    │       │
-│  │  - Response parsing │      │  - JSON serialization   │       │
-│  └─────────┬───────────┘      └───────────┬─────────────┘       │
-│            │                              │                     │
-└────────────┼──────────────────────────────┼─────────────────────┘
+┌──────────────────────────────────────────────────────────────────────┐
+│                        Apantli Server                                │
+│                                                                      │
+│  ┌────────────────────┐      ┌─────────────────────────────────┐    │
+│  │  FastAPI App       │      │  Lifespan Manager               │    │
+│  │  (server.py)       │◄─────┤  - Config.reload()              │    │
+│  │  - Routes          │      │  - Database.init()              │    │
+│  │  - Middleware      │      └─────────────────────────────────┘    │
+│  └─────────┬──────────┘                                             │
+│            │                                                        │
+│            │ HTTP Routes                                            │
+│            ↓                                                        │
+│  ┌──────────────────────────────────────────────────────────────┐   │
+│  │  Core Modules (Modular Architecture)                         │   │
+│  │  ┌───────────────┐  ┌──────────────┐  ┌──────────────────┐  │   │
+│  │  │  Config       │  │  Database    │  │  LLM             │  │   │
+│  │  │  (config.py)  │  │ (database.py)│  │  (llm.py)        │  │   │
+│  │  │               │  │              │  │                  │  │   │
+│  │  │ - ModelConfig │  │ - Database   │  │ - infer_provider │  │   │
+│  │  │ - Config      │  │   class      │  │ - Provider       │  │   │
+│  │  │ - Pydantic    │  │ - Async ops  │  │   patterns       │  │   │
+│  │  │   validation  │  │ - aiosqlite  │  │                  │  │   │
+│  │  └───────┬───────┘  └──────┬───────┘  └──────────────────┘  │   │
+│  │          │                 │                                 │   │
+│  │  ┌───────┴────────┐  ┌─────┴──────┐  ┌──────────────────┐  │   │
+│  │  │  Errors        │  │  Utils     │  │  Static Files    │  │   │
+│  │  │  (errors.py)   │  │ (utils.py) │  │  - Alpine.js     │  │   │
+│  │  │                │  │            │  │  - Dashboard     │  │   │
+│  │  │ - Error format │  │ - Timezone │  │    assets        │  │   │
+│  │  │ - Status codes │  │   utils    │  │                  │  │   │
+│  │  └────────────────┘  └────────────┘  └──────────────────┘  │   │
+│  └──────────────────────────────────────────────────────────────┘   │
+│            │                              │                         │
+└────────────┼──────────────────────────────┼─────────────────────────┘
              │                              │
              ↓                              ↓
     ┌────────────────┐           ┌──────────────────┐
@@ -76,19 +70,20 @@ Apantli is a FastAPI-based HTTP proxy that intercepts OpenAI-compatible API requ
 │                          Apantli Server                             │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ 1. Model Lookup                                             │    │
-│  │    MODEL_MAP["gpt-4.1-mini"] →                              │    │
-│  │    { "model": "openai/gpt-4.1-mini",                        │    │
-│  │      "api_key": "os.environ/OPENAI_API_KEY" }               │    │
+│  │ 1. Config Lookup (config.py)                               │    │
+│  │    Config.get_model("gpt-4.1-mini") →                       │    │
+│  │    ModelConfig(litellm_model="openai/gpt-4.1-mini",         │    │
+│  │               api_key_var="os.environ/OPENAI_API_KEY")      │    │
 │  └─────────────────────────────┬───────────────────────────────┘    │
 │                                ↓                                    │
 │  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ 2. API Key Resolution                                       │    │
-│  │    os.environ["OPENAI_API_KEY"] → "sk-..."                  │    │
+│  │ 2. API Key Resolution (config.py)                          │    │
+│  │    ModelConfig.get_api_key() → os.environ["OPENAI_API_KEY"] │    │
+│  │    → "sk-..."                                               │    │
 │  └─────────────────────────────┬───────────────────────────────┘    │
 │                                ↓                                    │
 │  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ 3. LiteLLM Call                                             │    │
+│  │ 3. LiteLLM Call (llm.py)                                    │    │
 │  │    completion(model="openai/gpt-4.1-mini",                  │    │
 │  │               messages=[...], api_key="sk-...")             │    │
 │  └─────────────────────────────┬───────────────────────────────┘    │
@@ -105,19 +100,20 @@ Apantli is a FastAPI-based HTTP proxy that intercepts OpenAI-compatible API requ
 ┌────────────────────────────────────────────────────────────────┐  │
 │                          Apantli Server                        │  │
 │  ┌─────────────────────────────────────────────────────────┐   │  │
-│  │ 4. Cost Calculation                                     │   │  │
-│  │    litellm.completion_cost(response) → 0.0015           │   │  │
+│  │ 4. Cost Calculation (database.py)                       │   │  │
+│  │    Database._calculate_cost(response)                   │   │  │
+│  │    → litellm.completion_cost() → 0.0015                 │   │  │
 │  └─────────────────────────────┬───────────────────────────┘   │  │
 │                                ↓                               │  │
 │  ┌─────────────────────────────────────────────────────────┐   │  │
-│  │ 5. Database Logging                                     │   │  │
-│  │    INSERT INTO requests (timestamp, model, provider,    │◄──┼──┘
-│  │                          tokens, cost, duration_ms,     │   │
-│  │                          request_data, response_data)   │   │
+│  │ 5. Async Database Logging (database.py)                │   │  │
+│  │    await Database.log_request(...)                      │◄──┼──┘
+│  │    → aiosqlite.connect() → INSERT INTO requests        │   │
+│  │    (non-blocking async operation)                       │   │
 │  └─────────────────────────────┬───────────────────────────┘   │
 │                                ↓                               │
 │  ┌─────────────────────────────────────────────────────────┐   │
-│  │ 6. Return Response                                      │   │
+│  │ 6. Return Response (server.py)                          │   │
 │  │    Original LiteLLM response                            │   │
 │  └─────────────────────────────┬───────────────────────────┘   │
 └────────────────────────────────┼───────────────────────────────┘
@@ -157,25 +153,163 @@ User clicks row → toggleDetail() → Show full request/response JSON
 
 ## Core Components Detail
 
-### FastAPI Application
+### Module Overview
 
-**File**: `apantli/server.py`
+Apantli follows a modular architecture with six focused modules, each handling a specific concern:
+
+| Module | Lines | Responsibility |
+|:-------|:------|:---------------|
+| server.py | 903 | FastAPI app, HTTP routes, request orchestration |
+| config.py | 207 | Configuration management with Pydantic validation |
+| database.py | 124 | Async database operations with aiosqlite |
+| llm.py | 27 | Provider inference and LiteLLM integration |
+| errors.py | 22 | OpenAI-compatible error response formatting |
+| utils.py | 23 | Timezone conversion utilities |
+
+### Server Module (server.py)
 
 **Responsibilities**:
 
-- HTTP request handling
-- Route management
+- HTTP request handling and routing
+- Request orchestration across modules
 - Application lifecycle (startup/shutdown)
-- Error handling and logging
+- Middleware configuration (CORS)
+- Template rendering for dashboard
 
 **Key Features**:
 
 - Async request handling via FastAPI
-- Lifespan context manager for initialization
+- Lifespan context manager calling Config.reload() and Database.init()
 - OpenAI-compatible endpoints
-- Static HTML dashboard serving
+- Static file serving for dashboard assets
+- Imports and coordinates all other modules
 
-### LiteLLM Integration
+**Integration Points**:
+
+- Uses Config class for model lookups
+- Calls Database methods for logging
+- Uses LLM module for provider inference
+- Uses Errors module for error formatting
+- Uses Utils module for timezone operations
+
+### Configuration Module (config.py)
+
+**Responsibilities**:
+
+- Load and parse config.yaml with YAML library
+- Validate configuration with Pydantic models
+- Provide type-safe model configuration access
+- Resolve environment variables for API keys
+
+**Key Classes**:
+
+**ModelConfig (Pydantic model)**:
+- model_name: Client-facing alias
+- litellm_model: LiteLLM provider/model format
+- api_key_var: Environment variable reference (validated format)
+- Optional overrides: timeout, num_retries, temperature, max_tokens
+- Validation: API key format, environment variable existence warnings
+
+**Config class**:
+- models: Dict[str, ModelConfig] - O(1) model lookups
+- reload(): Load/reload configuration from file
+- get_model(name): Retrieve ModelConfig by alias
+- list_models(): Return all configured model names
+
+**Features**:
+
+- Early validation with clear error messages (Pydantic)
+- Configuration reload support without restart
+- Environment variable validation at startup
+- Backward compatibility with MODEL_MAP global
+
+### Database Module (database.py)
+
+**Responsibilities**:
+
+- Async SQLite operations using aiosqlite
+- Schema initialization and migration
+- Request/response logging with full JSON
+- Query execution for statistics and history
+- Cost calculation using LiteLLM
+
+**Key Class**:
+
+**Database class**:
+- path: SQLite database file path
+- _get_connection(): Async context manager for connections
+- init(): Create schema and indexes
+- log_request(): Insert request with async I/O
+- get_stats(): Query aggregated statistics
+- get_daily_stats(): Query daily breakdowns
+- get_requests(): Fetch request history
+
+**Features**:
+
+- Non-blocking async operations (aiosqlite)
+- Context managers for connection handling
+- Automatic cost calculation via litellm.completion_cost()
+- API key redaction before storage (sk-redacted)
+- Full request/response JSON storage for audit trail
+
+**Performance**:
+
+- Async operations prevent event loop blocking
+- Connection pooling via context managers
+- Indexed queries for dashboard performance
+- Typical operation time: 1-5ms (non-blocking)
+
+### LLM Module (llm.py)
+
+**Responsibilities**:
+
+- Infer provider from model name patterns
+- Provider-specific logic and routing hints
+
+**Key Functions**:
+
+**infer_provider_from_model(model_name: str) -> str**:
+- Pattern matching: gpt-*/o1-* → openai, claude* → anthropic, etc.
+- Handles prefixed models (openai/gpt-4) by extracting prefix
+- Returns "unknown" for unrecognized patterns
+
+**Provider Patterns**:
+- OpenAI: gpt-*, o1-*, chatgpt-*
+- Anthropic: claude*
+- Google: gemini*
+- Mistral: mistral*
+- Meta: llama*
+
+### Errors Module (errors.py)
+
+**Responsibilities**:
+
+- Build OpenAI-compatible error responses
+- Map exceptions to HTTP status codes
+- Format error messages for client compatibility
+
+**Key Function**:
+
+**build_error_response(error, status_code) -> dict**:
+- Extracts error message from exception
+- Determines error type and code from exception class
+- Returns standard OpenAI error format: {"error": {"message", "type", "code"}}
+
+### Utils Module (utils.py)
+
+**Responsibilities**:
+
+- Timezone conversion for date filtering
+- Local date to UTC timestamp range conversion
+
+**Key Function**:
+
+**convert_local_date_to_utc_range(date_str, timezone_offset) -> tuple**:
+- Converts local date (YYYY-MM-DD) to UTC timestamp range
+- Handles timezone offsets from browser
+- Returns (start_timestamp, end_timestamp) for SQL queries
+
+### LiteLLM SDK Integration
 
 **Purpose**: Abstract away provider-specific API differences
 
@@ -189,36 +323,15 @@ User clicks row → toggleDetail() → Show full request/response JSON
 **Benefits**:
 
 - Single interface for multiple providers
-- Automatic cost calculation
+- Automatic cost calculation via litellm.completion_cost()
 - Consistent response format
 - Streaming responses supported
 
-### Configuration System
+**Usage in Apantli**:
 
-**File**: `config.yaml`
-
-**Structure**:
-
-```yaml
-model_list:
-  - model_name: gpt-4.1-mini           # Alias used by clients
-    litellm_params:
-      model: openai/gpt-4.1-mini       # LiteLLM model identifier
-      api_key: os.environ/OPENAI_API_KEY  # Environment variable reference
-```
-
-**Loading Process**:
-
-1. Read `config.yaml` on startup (via lifespan manager)
-2. Parse YAML to dictionary
-3. Build `MODEL_MAP` for O(1) lookups
-4. Store as global state in server module
-
-**API Key Resolution**:
-
-- Format: `os.environ/VARIABLE_NAME`
-- Parsed at request time (not startup) to support dynamic updates
-- Falls back to empty string if environment variable missing
+- Called from server.py request handlers
+- Cost calculation handled by Database module
+- Provider inference done by LLM module for logging
 
 ### Database Schema
 
@@ -446,32 +559,44 @@ Allows server to start even with missing/invalid config.
 ### Request Latency
 
 ```
-Total latency = FastAPI overhead + LiteLLM overhead + Provider API latency + SQLite write
+Total latency = FastAPI overhead + Config lookup + LiteLLM overhead + Provider API latency + Async DB write
 
 Breakdown:
 - FastAPI: ~1-5ms (negligible)
+- Config lookup: <1ms (dictionary O(1) lookup)
 - LiteLLM: ~10-50ms (SDK overhead)
 - Provider API: 200-2000ms (dominant factor)
-- SQLite write: ~1-5ms (negligible)
+- Async DB write: ~1-5ms (non-blocking)
 ```
 
-SQLite writes are non-blocking due to async FastAPI handlers.
+Database writes are non-blocking async operations using aiosqlite, allowing the event loop to handle other requests during I/O.
 
 ### Memory Usage
 
-Baseline: ~50-100 MB (Python + FastAPI + LiteLLM)
+Baseline: ~50-100 MB (Python + FastAPI + LiteLLM + aiosqlite)
 
-Per-request overhead: Request and response JSON stored in memory briefly, then written to database. For typical requests (~1-5 KB), memory impact is minimal.
+Per-request overhead: Request and response JSON stored in memory briefly during processing. For typical requests (~1-5 KB), memory impact is minimal.
 
 Database size: Grows ~2-10 KB per request depending on message length. 10,000 requests ≈ 20-100 MB.
 
 ### Concurrency
 
-FastAPI uses async handlers, allowing concurrent request processing. However:
+**Async Architecture**:
+- FastAPI async handlers allow concurrent request processing
+- aiosqlite enables non-blocking database operations
+- Event loop not blocked during I/O operations
+- Multiple requests can be in-flight simultaneously
 
-- SQLite uses file-level locking (only one write at a time)
-- For single-user local proxy, this is not a bottleneck
-- For multi-user scenarios, consider external database
+**SQLite Constraints**:
+- SQLite uses file-level locking (one write at a time)
+- Reads can happen concurrently with other reads
+- For single-user local proxy, not a bottleneck
+- For multi-user high-concurrency scenarios, consider external database
+
+**Practical Performance**:
+- Single-user typical load: 1-10 requests/minute
+- Database operations complete in <5ms
+- No observed performance issues in normal usage
 
 ## Security Considerations
 
@@ -511,15 +636,31 @@ Streaming responses are fully implemented (server.py:244-288):
 
 ```
 apantli/
-├── apantli/                    # Python package
+├── apantli/                    # Python package (modular architecture)
 │   ├── __init__.py            # Package metadata
 │   ├── __main__.py            # CLI entry point
-│   ├── server.py              # FastAPI application
+│   ├── server.py              # FastAPI application (903 lines)
+│   ├── config.py              # Configuration management (207 lines)
+│   ├── database.py            # Async database operations (124 lines)
+│   ├── llm.py                 # Provider inference (27 lines)
+│   ├── errors.py              # Error formatting (22 lines)
+│   ├── utils.py               # Timezone utilities (23 lines)
 │   └── static/                # Static files for dashboard
 │       ├── alpine.min.js      # Alpine.js framework (44KB, self-hosted)
 │       └── alpine-persist.min.js  # Alpine.js persistence plugin
 ├── templates/                 # Jinja2 templates
 │   └── dashboard.html         # Web dashboard UI
+├── tests/                     # Test suite (unit + integration)
+│   ├── conftest.py            # Shared pytest fixtures
+│   ├── test_config.py         # Configuration tests
+│   ├── test_database.py       # Database tests
+│   ├── test_llm.py            # LLM module tests
+│   ├── test_errors.py         # Error formatting tests
+│   ├── test_utils.py          # Utility tests
+│   ├── integration/
+│   │   ├── test_proxy.py      # End-to-end tests
+│   │   └── test_error_handling.py  # Error handling tests
+│   └── README.md              # Test documentation
 ├── docs/                      # Documentation
 │   ├── README.md              # Documentation index
 │   ├── ARCHITECTURE.md        # System design
@@ -535,9 +676,8 @@ apantli/
 ├── .env                       # API keys (gitignored)
 ├── requests.db                # SQLite database (gitignored)
 ├── pyproject.toml             # Package metadata
-├── requirements.txt           # Dependencies
-├── test_proxy.py              # Basic functionality test
-├── test_error_handling.py     # Comprehensive error handling test suite
+├── requirements.txt           # Production dependencies
+├── requirements-dev.txt       # Development dependencies (pytest, etc.)
 └── utils/                     # Utility scripts
     ├── README.md              # Utilities documentation
     ├── generate_llm_config.py # Generate llm CLI config from config.yaml
@@ -556,14 +696,37 @@ Auto-reloads server when Python files change (does not watch `config.yaml` or `.
 
 ### Running Tests
 
+**Unit Tests** (fast, no server required):
+
 ```bash
-# Start server
+# Install development dependencies
+pip install -r requirements-dev.txt
+
+# Run all unit tests
+pytest tests/ -v
+
+# Run specific module tests
+pytest tests/test_config.py -v
+pytest tests/test_database.py -v
+```
+
+**Integration Tests** (require running server):
+
+```bash
+# Start server in one terminal
 apantli
 
-# In another terminal, run test scripts
-python3 test_proxy.py              # Basic functionality tests
-python3 test_error_handling.py     # Comprehensive error handling tests
+# Run integration tests in another terminal
+python3 tests/integration/test_proxy.py              # Basic functionality
+python3 tests/integration/test_error_handling.py     # Error scenarios
 ```
+
+**Test Coverage**:
+
+- 60 total test cases across all modules
+- Unit tests: Config, Database, LLM, Errors, Utils
+- Integration tests: End-to-end proxy functionality, error handling
+- Fast unit tests (<1 second) with no API key requirements
 
 For complete testing procedures, manual test scenarios, and validation strategies, see [TESTING.md](TESTING.md).
 

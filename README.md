@@ -83,38 +83,52 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 
 ## System Architecture
 
+Apantli uses a modular architecture with six focused modules:
+
 ```
 ┌─────────────┐
 │   Client    │  Any OpenAI-compatible client (curl, SDK, etc.)
 └──────┬──────┘
        │ HTTP POST /v1/chat/completions
        ↓
-┌──────────────────────────────────┐
-│     Apantli Proxy (FastAPI)      │
-│  ┌────────────────────────────┐  │
-│  │ 1. Parse request           │  │
-│  │ 2. Look up model config    │  │
-│  │ 3. Resolve API key         │  │
-│  └────────────┬───────────────┘  │
-│               ↓                  │
-│  ┌────────────────────────────┐  │
-│  │ LiteLLM SDK                │  │
-│  │ - Route to provider        │  │
-│  │ - Calculate costs          │  │
-│  └────────────┬───────────────┘  │
-│               ↓                  │
-│  ┌────────────────────────────┐  │
-│  │ SQLite Logger              │  │
-│  │ - Log request/response     │  │
-│  │ - Track tokens & costs     │  │
-│  └────────────────────────────┘  │
-└──────────────────────────────────┘
+┌──────────────────────────────────────────┐
+│     Apantli Proxy (FastAPI)              │
+│  ┌────────────────────────────────────┐  │
+│  │ Server (server.py)                 │  │
+│  │ - Routes & request orchestration   │  │
+│  └────────────┬───────────────────────┘  │
+│               ↓                          │
+│  ┌────────────────────────────────────┐  │
+│  │ Config (config.py)                 │  │
+│  │ - Pydantic validation              │  │
+│  │ - Model lookup & API keys          │  │
+│  └────────────┬───────────────────────┘  │
+│               ↓                          │
+│  ┌────────────────────────────────────┐  │
+│  │ LiteLLM SDK + LLM Module           │  │
+│  │ - Provider routing (llm.py)        │  │
+│  │ - Cost calculation                 │  │
+│  └────────────┬───────────────────────┘  │
+│               ↓                          │
+│  ┌────────────────────────────────────┐  │
+│  │ Database (database.py)             │  │
+│  │ - Async SQLite with aiosqlite      │  │
+│  │ - Request/response logging         │  │
+│  └────────────────────────────────────┘  │
+└──────────────────────────────────────────┘
        │ Response
        ↓
 ┌──────────────┐
 │   Client     │
 └──────────────┘
 ```
+
+**Key Features**:
+
+- Modular design with single responsibility per module
+- Async database operations for non-blocking I/O
+- Pydantic validation for type-safe configuration
+- Comprehensive unit test suite (60 test cases)
 
 ## Installation
 
