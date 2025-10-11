@@ -11,9 +11,9 @@ The architecture follows a modular design with six focused modules handling conf
 ## System Components
 
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                        Apantli Server                                │
-│                                                                      │
+┌─────────────────────────────────────────────────────────────────────┐
+│                        Apantli Server                               │
+│                                                                     │
 │  ┌────────────────────┐      ┌─────────────────────────────────┐    │
 │  │  FastAPI App       │      │  Lifespan Manager               │    │
 │  │  (server.py)       │◄─────┤  - Config.reload()              │    │
@@ -25,23 +25,23 @@ The architecture follows a modular design with six focused modules handling conf
 │            ↓                                                        │
 │  ┌──────────────────────────────────────────────────────────────┐   │
 │  │  Core Modules (Modular Architecture)                         │   │
-│  │  ┌───────────────┐  ┌──────────────┐  ┌──────────────────┐  │   │
-│  │  │  Config       │  │  Database    │  │  LLM             │  │   │
-│  │  │  (config.py)  │  │ (database.py)│  │  (llm.py)        │  │   │
-│  │  │               │  │              │  │                  │  │   │
-│  │  │ - ModelConfig │  │ - Database   │  │ - infer_provider │  │   │
-│  │  │ - Config      │  │   class      │  │ - Provider       │  │   │
-│  │  │ - Pydantic    │  │ - Async ops  │  │   patterns       │  │   │
-│  │  │   validation  │  │ - aiosqlite  │  │                  │  │   │
-│  │  └───────┬───────┘  └──────┬───────┘  └──────────────────┘  │   │
+│  │  ┌───────────────┐  ┌──────────────┐  ┌──────────────────┐   │   │
+│  │  │  Config       │  │  Database    │  │  LLM             │   │   │
+│  │  │  (config.py)  │  │ (database.py)│  │  (llm.py)        │   │   │
+│  │  │               │  │              │  │                  │   │   │
+│  │  │ - ModelConfig │  │ - Database   │  │ - infer_provider │   │   │
+│  │  │ - Config      │  │   class      │  │ - Provider       │   │   │
+│  │  │ - Pydantic    │  │ - Async ops  │  │   patterns       │   │   │
+│  │  │   validation  │  │ - aiosqlite  │  │                  │   │   │
+│  │  └───────┬───────┘  └──────┬───────┘  └──────────────────┘   │   │
 │  │          │                 │                                 │   │
-│  │  ┌───────┴────────┐  ┌─────┴──────┐  ┌──────────────────┐  │   │
-│  │  │  Errors        │  │  Utils     │  │  Static Files    │  │   │
-│  │  │  (errors.py)   │  │ (utils.py) │  │  - Alpine.js     │  │   │
-│  │  │                │  │            │  │  - Dashboard     │  │   │
-│  │  │ - Error format │  │ - Timezone │  │    assets        │  │   │
-│  │  │ - Status codes │  │   utils    │  │                  │  │   │
-│  │  └────────────────┘  └────────────┘  └──────────────────┘  │   │
+│  │  ┌───────┴────────┐  ┌─────┴──────┐  ┌──────────────────┐    │   │
+│  │  │  Errors        │  │  Utils     │  │  Static Files    │    │   │
+│  │  │  (errors.py)   │  │ (utils.py) │  │  - Alpine.js     │    │   │
+│  │  │                │  │            │  │  - Dashboard     │    │   │
+│  │  │ - Error format │  │ - Timezone │  │    assets        │    │   │
+│  │  │ - Status codes │  │   utils    │  │                  │    │   │
+│  │  └────────────────┘  └────────────┘  └──────────────────┘    │   │
 │  └──────────────────────────────────────────────────────────────┘   │
 │            │                              │                         │
 └────────────┼──────────────────────────────┼─────────────────────────┘
@@ -70,14 +70,14 @@ The architecture follows a modular design with six focused modules handling conf
 │                          Apantli Server                             │
 │                                                                     │
 │  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ 1. Config Lookup (config.py)                               │    │
+│  │ 1. Config Lookup (config.py)                                │    │
 │  │    Config.get_model("gpt-4.1-mini") →                       │    │
 │  │    ModelConfig(litellm_model="openai/gpt-4.1-mini",         │    │
 │  │               api_key_var="os.environ/OPENAI_API_KEY")      │    │
 │  └─────────────────────────────┬───────────────────────────────┘    │
 │                                ↓                                    │
 │  ┌─────────────────────────────────────────────────────────────┐    │
-│  │ 2. API Key Resolution (config.py)                          │    │
+│  │ 2. API Key Resolution (config.py)                           │    │
 │  │    ModelConfig.get_api_key() → os.environ["OPENAI_API_KEY"] │    │
 │  │    → "sk-..."                                               │    │
 │  └─────────────────────────────┬───────────────────────────────┘    │
@@ -106,9 +106,9 @@ The architecture follows a modular design with six focused modules handling conf
 │  └─────────────────────────────┬───────────────────────────┘   │  │
 │                                ↓                               │  │
 │  ┌─────────────────────────────────────────────────────────┐   │  │
-│  │ 5. Async Database Logging (database.py)                │   │  │
+│  │ 5. Async Database Logging (database.py)                 │   │  │
 │  │    await Database.log_request(...)                      │◄──┼──┘
-│  │    → aiosqlite.connect() → INSERT INTO requests        │   │
+│  │    → aiosqlite.connect() → INSERT INTO requests         │   │
 │  │    (non-blocking async operation)                       │   │
 │  └─────────────────────────────┬───────────────────────────┘   │
 │                                ↓                               │
