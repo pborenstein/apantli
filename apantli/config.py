@@ -14,8 +14,8 @@ DEFAULT_RETRIES = 3    # number of retry attempts
 # Log alignment constant to match uvicorn INFO log format
 # Format: "2025-10-11 14:16:31 INFO:     message"
 #         └─────────┴────────┴─────────┘
-#         11 chars + 9 chars + 10 chars = 30 chars
-LOG_INDENT = " " * 30
+#         11 chars + 9 chars + 8 chars = 28 chars
+LOG_INDENT = " " * 28
 
 # Model mapping from config.yaml (for backward compatibility)
 MODEL_MAP = {}
