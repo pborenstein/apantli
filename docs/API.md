@@ -630,6 +630,9 @@ GET /requests HTTP/1.1
     }
   ],
   "total": 285,
+  "total_tokens": 8450,
+  "total_cost": 0.0342,
+  "avg_cost": 0.0012,
   "offset": 0,
   "limit": 50
 }
@@ -652,11 +655,14 @@ GET /requests HTTP/1.1
 | `request_data` | string | Full request JSON (serialized) |
 | `response_data` | string | Full response JSON (serialized) |
 
-**Pagination Metadata**:
+**Pagination and Summary Metadata**:
 
 | Field | Type | Description |
 |:------|:-----|:------------|
 | `total` | integer | Total number of requests matching filters |
+| `total_tokens` | integer | Sum of all tokens for ALL matching requests (not just current page) |
+| `total_cost` | number | Sum of all costs for ALL matching requests (not just current page) in USD |
+| `avg_cost` | number | Average cost per request for ALL matching requests (not just current page) in USD |
 | `offset` | integer | Number of records skipped |
 | `limit` | integer | Maximum records in this response |
 

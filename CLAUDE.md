@@ -10,10 +10,10 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 
 **Request Flow**: Client → FastAPI (server.py) → Config lookup → API key resolution → LiteLLM SDK → Provider → Response + cost calc → Async DB log → Client
 
-**Module Structure** (1,315 lines total, down from 1,074 lines in single file):
-- `apantli/server.py` (903 lines) - FastAPI app, HTTP routes, request orchestration
-- `apantli/config.py` (207 lines) - Configuration with Pydantic validation
-- `apantli/database.py` (124 lines) - Async database operations with aiosqlite
+**Module Structure** (1,456 lines total, down from 1,074 lines in single file):
+- `apantli/server.py` (1052 lines) - FastAPI app, HTTP routes, request orchestration
+- `apantli/config.py` (213 lines) - Configuration with Pydantic validation
+- `apantli/database.py` (119 lines) - Async database operations with aiosqlite
 - `apantli/llm.py` (27 lines) - Provider inference
 - `apantli/errors.py` (22 lines) - Error formatting
 - `apantli/utils.py` (23 lines) - Timezone utilities
@@ -23,7 +23,7 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - `.env` - API keys (gitignored)
 - `requests.db` - SQLite (full request/response logs + costs)
 - `templates/dashboard.html` - Web UI (Alpine.js + vanilla JS)
-- `tests/` - Unit and integration tests (60 test cases)
+- `tests/` - Unit and integration tests (59 test cases)
 
 ## Implementation Details
 
@@ -36,10 +36,11 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 
 **Database (database.py)**:
 - Async operations: aiosqlite for non-blocking I/O
-- Database class: Encapsulates all DB logic with async methods
+- Database class: Encapsulates DB logging with async methods
 - Connection management: Context managers (`_get_connection()`)
-- Methods: `init()`, `log_request()`, `get_stats()`, `get_daily_stats()`, `get_requests()`
-- Cost calculation: Built-in `_calculate_cost()` using litellm.completion_cost()
+- Methods: `init()`, `log_request()`
+- Cost calculation: Uses litellm.completion_cost() during log_request()
+- Statistics queries: Implemented directly in server.py using raw SQL
 - Performance: Non-blocking async, ~1-5ms per operation
 
 **LLM Integration (llm.py)**:
@@ -69,7 +70,7 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - Database errors: Not caught (fail-fast for data consistency)
 - Config errors: Warning printed, continue with empty `MODEL_MAP`
 
-**Testing**: Comprehensive test suite with 60 test cases:
+**Testing**: Comprehensive test suite with 59 test cases:
 - Unit tests: `tests/test_config.py`, `test_database.py`, `test_llm.py`, `test_errors.py`, `test_utils.py`
 - Integration tests: `tests/integration/test_proxy.py`, `test_error_handling.py`
 - Fast unit tests (<1 second) with no API key requirements

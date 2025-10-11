@@ -130,7 +130,7 @@ Apantli uses a modular architecture with six focused modules:
 - Modular design with single responsibility per module
 - Async database operations for non-blocking I/O
 - Pydantic validation for type-safe configuration
-- Comprehensive unit test suite (60 test cases)
+- Comprehensive unit test suite (59 test cases)
 
 ## Installation
 

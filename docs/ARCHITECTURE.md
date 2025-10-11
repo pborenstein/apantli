@@ -159,9 +159,9 @@ Apantli follows a modular architecture with six focused modules, each handling a
 
 | Module | Lines | Responsibility |
 |:-------|:------|:---------------|
-| server.py | 903 | FastAPI app, HTTP routes, request orchestration |
-| config.py | 207 | Configuration management with Pydantic validation |
-| database.py | 124 | Async database operations with aiosqlite |
+| server.py | 1052 | FastAPI app, HTTP routes, request orchestration |
+| config.py | 213 | Configuration management with Pydantic validation |
+| database.py | 119 | Async database operations with aiosqlite |
 | llm.py | 27 | Provider inference and LiteLLM integration |
 | errors.py | 22 | OpenAI-compatible error response formatting |
 | utils.py | 23 | Timezone conversion utilities |
@@ -240,9 +240,8 @@ Apantli follows a modular architecture with six focused modules, each handling a
 - _get_connection(): Async context manager for connections
 - init(): Create schema and indexes
 - log_request(): Insert request with async I/O
-- get_stats(): Query aggregated statistics
-- get_daily_stats(): Query daily breakdowns
-- get_requests(): Fetch request history
+
+**Note**: Statistics queries (`/stats`, `/stats/daily`, `/requests`) are implemented directly in server.py using raw SQL for performance and flexibility.
 
 **Features**:
 
@@ -645,7 +644,7 @@ For localhost-only access, use `apantli --host 127.0.0.1`. For network exposure,
 
 ### Streaming Support
 
-Streaming responses are fully implemented (server.py:244-288):
+Streaming responses are fully implemented (server.py:133-246):
 
 1. `/v1/chat/completions` handles `stream=true` parameter
 2. Returns FastAPI `StreamingResponse` with Server-Sent Events
@@ -653,12 +652,15 @@ Streaming responses are fully implemented (server.py:244-288):
 4. Complete request/response logged after stream finishes
 
 **Implementation Details**:
-- Uses async generator to yield SSE-formatted chunks (line 258)
+- Checks `stream` parameter at line 133
+- Uses async generator function `generate()` at line 147
+- Yields SSE-formatted chunks via `yield f"data: {json.dumps(chunk_dict)}\n\n"` at line 172
 - Buffers all chunks to reconstruct complete response
-- Accumulates content from delta fields (lines 265-270)
-- Captures usage data from final chunk (line 276)
+- Accumulates content from delta fields (lines 159-164)
+- Captures usage data from final chunk (line 169)
 - Calculates cost and tokens after streaming completes
-- Logs to database with full conversation history (line 284)
+- Logs to database with full conversation history (line 218)
+- Returns StreamingResponse at line 246
 
 ## Project Structure
 
@@ -667,9 +669,9 @@ apantli/
 ├── apantli/                    # Python package (modular architecture)
 │   ├── __init__.py            # Package metadata
 │   ├── __main__.py            # CLI entry point
-│   ├── server.py              # FastAPI application (903 lines)
-│   ├── config.py              # Configuration management (207 lines)
-│   ├── database.py            # Async database operations (124 lines)
+│   ├── server.py              # FastAPI application (1052 lines)
+│   ├── config.py              # Configuration management (213 lines)
+│   ├── database.py            # Async database operations (119 lines)
 │   ├── llm.py                 # Provider inference (27 lines)
 │   ├── errors.py              # Error formatting (22 lines)
 │   ├── utils.py               # Timezone utilities (23 lines)
@@ -751,7 +753,7 @@ python3 tests/integration/test_error_handling.py     # Error scenarios
 
 **Test Coverage**:
 
-- 60 total test cases across all modules
+- 59 total test cases across all modules
 - Unit tests: Config, Database, LLM, Errors, Utils
 - Integration tests: End-to-end proxy functionality, error handling
 - Fast unit tests (<1 second) with no API key requirements

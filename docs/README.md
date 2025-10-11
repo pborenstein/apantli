@@ -50,7 +50,7 @@ Apantli is a local proxy server with modular architecture that:
 - Provides web dashboard for monitoring usage
 - Implements OpenAI-compatible API format
 - Uses Pydantic validation for type-safe configuration
-- Includes comprehensive unit test suite (60 test cases)
+- Includes comprehensive unit test suite (59 test cases)
 
 ## Key Features
 
