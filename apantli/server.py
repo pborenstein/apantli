@@ -450,13 +450,20 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
             end_dt = dt.fromisoformat(end_date) + timedelta(days=1)
             time_filter = f"AND timestamp < '{end_dt.date()}T00:00:00'"
 
-    # Get total count for pagination
+    # Get aggregate stats for ALL matching requests (for summary display)
     cursor.execute(f"""
-        SELECT COUNT(*)
+        SELECT COUNT(*),
+               SUM(total_tokens),
+               SUM(cost),
+               AVG(cost)
         FROM requests
         WHERE error IS NULL {time_filter}
     """)
-    total = cursor.fetchone()[0]
+    agg_row = cursor.fetchone()
+    total = agg_row[0] or 0
+    total_tokens = agg_row[1] or 0
+    total_cost = agg_row[2] or 0.0
+    avg_cost = agg_row[3] or 0.0
 
     # Get paginated results
     cursor.execute(f"""
@@ -487,6 +494,9 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
             for row in rows
         ],
         "total": total,
+        "total_tokens": total_tokens,
+        "total_cost": total_cost,
+        "avg_cost": avg_cost,
         "offset": offset,
         "limit": limit
     }
