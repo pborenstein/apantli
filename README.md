@@ -47,13 +47,6 @@ Apantli is a local proxy server that routes LLM requests to multiple providers w
 >
 > Apantli is designed for local use only and provides **no authentication or authorization**. Do not expose to the network without adding proper security controls. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#security-considerations) for details.
 
-### Screenshots
-
-- [Stats tab](docs/stats-tab.png)
-- [Requests tab](docs/requests-tab.png)
-
-
-
 ## Usage
 
 ### Starting the Server
@@ -94,7 +87,8 @@ Open http://localhost:4000/ for real-time monitoring with four tabs:
 
 | Stats | Calendar | Models | Requests |
 |:------|:---------|:-------|:---------|
-| Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, and recent errors | Monthly view of daily spending patterns with heatmap coloring showing cost intensity per day | Configured models with pricing information in sortable columns | Paginated request history (50 per page) with advanced server-side filtering. Apply global date filters (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range), provider dropdown (openai, anthropic, etc.), model dropdown (exact match), cost range (min/max thresholds), and text search (searches model name and request/response content). All filters combine with AND logic. Summary shows accurate totals for ALL filtered results, and filter state persists across page reloads |
+| Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, and recent errors <br> [Stats tab screenshot](docs/stats-tab.png) | Monthly view of daily spending patterns with heatmap coloring showing cost intensity per day | Configured models with pricing information in sortable columns | Paginated request history (50 per page) with advanced server-side filtering. Apply global date filters (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range), provider dropdown (openai, anthropic, etc.), model dropdown (exact match), cost range (min/max thresholds), and text search (searches model name and request/response content). All filters combine with AND logic. Summary shows accurate totals for ALL filtered results, and filter state persists across page reloads <br> [Requests tab screenshot](docs/requests-tab.png) |
+
 
 ### Client Integration
 
