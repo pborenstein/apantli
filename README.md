@@ -300,5 +300,5 @@ MIT License - see [LICENSE](LICENSE) file for details.
 
 "Apantli" (Nahuatl: āpantli) means "canal" or "channel" - a fitting name for a system that channels requests between clients and LLM providers.
 
-<a href="https://aztecglyphs.wired-humanities.org/content/apantli-mdz50r"><img src="./docs/apantli-glyph.jpg" width="120px"></a>
+<a href="https://aztecglyphs.wired-humanities.org/content/apantli-mdz50r"><img src="./docs/apantli-glyph.png" width="120px"></a>
 
