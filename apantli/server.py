@@ -229,13 +229,7 @@ async def chat_completions(request: Request):
                             # Calculate cost
                             try:
                                 import litellm
-                                # Create a mock response object for cost calculation
-                                class MockResponse:
-                                    def __init__(self, data):
-                                        self.model = data.get('model', '')
-                                        self.usage = type('Usage', (), usage)()
-                                mock_response = MockResponse(full_response)
-                                cost = litellm.completion_cost(completion_response=mock_response)
+                                cost = litellm.completion_cost(completion_response=full_response)
                             except:
                                 cost = 0.0
 
