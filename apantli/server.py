@@ -111,6 +111,16 @@ async def chat_completions(request: Request):
             for key, value in model_config.items():
                 if key not in ('model', 'api_key') and key not in request_data:
                     request_data[key] = value
+        else:
+            # Model not found in config - return helpful error
+            available_models = sorted(apantli.config.MODEL_MAP.keys())
+            error_msg = f"Model '{model}' not found in configuration."
+            if available_models:
+                error_msg += f" Available models: {', '.join(available_models)}"
+            return JSONResponse(
+                status_code=404,
+                content=build_error_response("invalid_request_error", error_msg, "model_not_found")
+            )
 
         # Apply global defaults if not specified
         if 'timeout' not in request_data:

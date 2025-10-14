@@ -173,15 +173,23 @@ def test_model_not_found() -> bool:
 
         print_info(f"Status Code: {response.status_code}")
 
-        # Could be 404 or 500 depending on how LiteLLM handles it
-        if response.status_code in (404, 500):
+        # Should return 404 with helpful error message
+        if response.status_code == 404:
             result = response.json()
             error = result.get("error", {})
-            print_success(f"Got expected error: {error.get('type')}")
-            print_result(result)
-            return True
+            message = error.get("message", "")
+
+            # Check for helpful error message with available models
+            if "not found in configuration" in message and "Available models:" in message:
+                print_success(f"Got helpful error with available models list")
+                print_result(result)
+                return True
+            else:
+                print_error(f"Error message doesn't include available models")
+                print_result(result)
+                return False
         else:
-            print_error(f"Unexpected status code: {response.status_code}")
+            print_error(f"Expected 404, got: {response.status_code}")
             print_result(response.json())
             return False
 
