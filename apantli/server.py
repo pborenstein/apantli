@@ -112,15 +112,28 @@ async def chat_completions(request: Request):
                 if key not in ('model', 'api_key') and key not in request_data:
                     request_data[key] = value
         else:
-            # Model not found in config - return helpful error
+            # Model not found in config - log and return helpful error
+            duration_ms = int((time.time() - start_time) * 1000)
             available_models = sorted(apantli.config.MODEL_MAP.keys())
             error_msg = f"Model '{model}' not found in configuration."
             if available_models:
                 error_msg += f" Available models: {', '.join(available_models)}"
-            return JSONResponse(
-                status_code=404,
-                content=build_error_response("invalid_request_error", error_msg, "model_not_found")
+
+            # Log to database
+            await log_request(
+                model,
+                "unknown",
+                None,
+                duration_ms,
+                request_data_for_logging,
+                error=f"UnknownModel: {error_msg}"
             )
+
+            # Console log
+            print(f"{LOG_INDENT}✗ LLM Response: {model} (unknown) | {duration_ms}ms | Error: UnknownModel")
+
+            error_response = build_error_response("invalid_request_error", error_msg, "model_not_found")
+            return JSONResponse(content=error_response, status_code=404)
 
         # Apply global defaults if not specified
         if 'timeout' not in request_data:
