@@ -17,7 +17,6 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 | [../launchd/README.md](../launchd/README.md) | macOS launchd service setup, management, and troubleshooting | macOS Users & DevOps |
 | [../launchd/NAMING.md](../launchd/NAMING.md) | launchd service naming convention and rationale | macOS Users & DevOps |
-| [../CHANGELOG.md](../CHANGELOG.md) | Version history and recent feature additions | All users |
 
 ## Quick Navigation
 
@@ -26,8 +25,6 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 **Developers**: Read [ARCHITECTURE.md](ARCHITECTURE.md) to understand the system design, then review [API.md](API.md) for endpoint details.
 
 **Configuration**: See [CONFIGURATION.md](CONFIGURATION.md) for detailed model setup and advanced configuration options.
-
-**What's New**: Check [CHANGELOG.md](../CHANGELOG.md) for recent feature additions including pagination and server-side filtering.
 
 **API Usage**: See [API.md](API.md) for comprehensive endpoint documentation with pagination and filtering examples.
 
