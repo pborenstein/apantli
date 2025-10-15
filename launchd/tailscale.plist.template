@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.{{USERNAME}}.apantli.tailscale</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>{{TAILSCALE_BIN}}</string>
+        <string>serve</string>
+        <string>--bg</string>
+        <string>--https=443</string>
+        <string>http://localhost:4000</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>{{HOME}}/Library/Logs/apantli-tailscale.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>{{HOME}}/Library/Logs/apantli-tailscale.error.log</string>
+</dict>
+</plist>
