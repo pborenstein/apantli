@@ -159,7 +159,7 @@ Apantli follows a modular architecture with six focused modules, each handling a
 
 | Module | Lines | Responsibility |
 |:-------|:------|:---------------|
-| server.py | 1052 | FastAPI app, HTTP routes, request orchestration |
+| server.py | 1069 | FastAPI app, HTTP routes, request orchestration |
 | config.py | 213 | Configuration management with Pydantic validation |
 | database.py | 119 | Async database operations with aiosqlite |
 | llm.py | 27 | Provider inference and LiteLLM integration |
@@ -708,15 +708,6 @@ Database already tracks costs. Add:
 1. Threshold configuration (e.g., `$10/day`)
 2. Background task to check costs periodically
 3. Email/webhook notification when exceeded
-
-### Request Filtering
-
-Add filtering to `/requests` endpoint:
-
-- By model
-- By date range
-- By cost threshold
-- Full-text search in messages
 
 ### Export Functionality
 

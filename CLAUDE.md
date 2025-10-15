@@ -10,8 +10,8 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 
 **Request Flow**: Client → FastAPI (server.py) → Config lookup → API key resolution → LiteLLM SDK → Provider → Response + cost calc → Async DB log → Client
 
-**Module Structure** (1,465 lines total, down from 1,074 lines in single file):
-- `apantli/server.py` (1052 lines) - FastAPI app, HTTP routes, request orchestration
+**Module Structure** (1,482 lines total, down from 1,074 lines in single file):
+- `apantli/server.py` (1069 lines) - FastAPI app, HTTP routes, request orchestration
 - `apantli/config.py` (213 lines) - Configuration with Pydantic validation
 - `apantli/database.py` (119 lines) - Async database operations with aiosqlite
 - `apantli/llm.py` (27 lines) - Provider inference

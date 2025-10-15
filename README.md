@@ -194,6 +194,19 @@ apantli
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for alternative installation methods and detailed setup.
 
+## Running as a Service (macOS)
+
+To run apantli automatically at startup using launchd:
+
+```bash
+cd launchd
+./install.sh
+```
+
+The installer creates launchd services that run apantli in the background and optionally expose it via Tailscale HTTPS. Includes a `dev.sh` script for development with auto-reload.
+
+See [launchd/README.md](launchd/README.md) for complete setup, configuration, and troubleshooting.
+
 ## Configuration
 
 ### Environment Variables (.env)

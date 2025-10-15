@@ -189,6 +189,18 @@ Content-Type: application/json
 }
 ```
 
+**Unknown model** (404 Not Found):
+
+```json
+{
+  "error": {
+    "message": "Model 'gpt-5' not found in configuration. Available models: gpt-4.1-mini, claude-haiku-3.5, claude-sonnet-4",
+    "type": "invalid_request_error",
+    "code": "model_not_found"
+  }
+}
+```
+
 ### cURL Examples
 
 **Basic request**:

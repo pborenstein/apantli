@@ -15,6 +15,8 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 | [LLM_CLI_INTEGRATION.md](LLM_CLI_INTEGRATION.md) | How llm CLI integration works - config files, transformation, and data flow | Developers |
 | [TESTING.md](TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
+| [../launchd/README.md](../launchd/README.md) | macOS launchd service setup, management, and troubleshooting | macOS Users & DevOps |
+| [../launchd/NAMING.md](../launchd/NAMING.md) | launchd service naming convention and rationale | macOS Users & DevOps |
 | [../CHANGELOG.md](../CHANGELOG.md) | Version history and recent feature additions | All users |
 
 ## Quick Navigation

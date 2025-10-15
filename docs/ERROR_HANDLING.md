@@ -61,17 +61,18 @@ data: [DONE]\n\n
 
 **Decision**: Use standard HTTP status codes matching error type
 
-| LiteLLM Exception | HTTP Status | Retry? |
-|:------------------|:------------|:-------|
-| RateLimitError | 429 | Yes (with Retry-After header) |
-| AuthenticationError | 401 | No |
-| PermissionDeniedError | 403 | No |
-| NotFoundError | 404 | No |
-| InternalServerError | 503 | Yes |
-| ServiceUnavailableError | 503 | Yes |
-| Timeout | 504 | Yes |
-| APIConnectionError | 502 | Yes |
-| Other/Unknown | 500 | No |
+| LiteLLM Exception | HTTP Status | Retry? | Notes |
+|:------------------|:------------|:-------|:------|
+| RateLimitError | 429 | Yes (with Retry-After header) | Provider rate limit exceeded |
+| AuthenticationError | 401 | No | Invalid or missing API key |
+| PermissionDeniedError | 403 | No | API key lacks permissions |
+| NotFoundError | 404 | No | Provider-side resource not found |
+| UnknownModel | 404 | No | Model not in config.yaml, returns list of available models |
+| InternalServerError | 503 | Yes | Provider internal error |
+| ServiceUnavailableError | 503 | Yes | Provider temporarily unavailable |
+| Timeout | 504 | Yes | Request exceeded timeout limit |
+| APIConnectionError | 502 | Yes | Cannot connect to provider |
+| Other/Unknown | 500 | No | Unexpected error |
 
 **Rationale**: Standard HTTP semantics make client integration easier
 
