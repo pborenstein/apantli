@@ -108,10 +108,12 @@ async def chat_completions(request: Request):
                 request_data['api_key'] = api_key
 
             # Pass through all other litellm_params (timeout, num_retries, temperature, etc.)
-            # Config values OVERRIDE client values for temperature, allowing per-model defaults
+            # Config provides defaults; client values (except null) always win
             for key, value in model_config.items():
                 if key not in ('model', 'api_key'):
-                    if key == 'temperature' or key not in request_data:
+                    # Use config value only if client didn't provide, or provided None/null
+                    # This allows: config defaults, client override, null → use config
+                    if key not in request_data or request_data.get(key) is None:
                         request_data[key] = value
         else:
             # Model not found in config - log and return helpful error

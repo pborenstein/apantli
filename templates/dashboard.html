@@ -1960,6 +1960,40 @@
                 detailRow.id = 'detail-' + requestId;
                 detailRow.style.display = expandedRequests.has(requestId) ? 'table-row' : 'none';
 
+                // Extract parameters from request data
+                let paramsHtml = '';
+                try {
+                    const req = JSON.parse(requestObj.request_data);
+                    const params = [];
+
+                    if (req.temperature !== null && req.temperature !== undefined) {
+                        params.push(`temp: ${req.temperature}`);
+                    }
+                    if (req.max_tokens !== null && req.max_tokens !== undefined) {
+                        params.push(`max: ${req.max_tokens}`);
+                    }
+                    if (req.timeout !== null && req.timeout !== undefined) {
+                        params.push(`timeout: ${req.timeout}s`);
+                    }
+                    if (req.num_retries !== null && req.num_retries !== undefined) {
+                        params.push(`retries: ${req.num_retries}`);
+                    }
+                    if (req.top_p !== null && req.top_p !== undefined) {
+                        params.push(`top_p: ${req.top_p}`);
+                    }
+
+                    if (params.length > 0) {
+                        paramsHtml = `
+                            <div class="detail-stat">
+                                <span class="detail-stat-label">Params: </span>
+                                <span class="detail-stat-value">${params.join(', ')}</span>
+                            </div>
+                        `;
+                    }
+                } catch(e) {
+                    // Ignore parsing errors
+                }
+
                 // Build detail content
                 const detailHeader = `
                     <div class="detail-header">
@@ -1984,6 +2018,7 @@
                                 <span class="detail-stat-label">Duration: </span>
                                 <span class="detail-stat-value">${requestObj.duration_ms}ms</span>
                             </div>
+                            ${paramsHtml}
                         </div>
                     </div>
                 `;
