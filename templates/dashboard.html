@@ -626,6 +626,27 @@
             opacity: 0.7;
         }
 
+        .chart-bar {
+            transition: opacity 0.2s;
+        }
+
+        .chart-bar:hover {
+            opacity: 0.8;
+        }
+
+        .chart-title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 14px;
+            margin-bottom: 10px;
+            color: var(--color-text);
+        }
+
+        .chart-legend-text {
+            fill: var(--color-text);
+            font-size: 12px;
+        }
+
         /* Model efficiency styles */
         .efficiency-grid {
             display: grid;
@@ -2132,53 +2153,180 @@
             if (!alpineData) return;
 
             const container = document.getElementById('provider-trends-chart');
-            const query = alpineData.buildQuery(alpineData.dateFilter);
+            const filter = alpineData.dateFilter;
+
+            // Detect single-day view (Today, Yesterday, or custom single-day range)
+            const isSingleDay = filter.startDate && filter.endDate && filter.startDate === filter.endDate;
 
             try {
-                // Use same date range as stats filter
-                const res = await fetch(`/stats/daily${query}`);
-                const data = await res.json();
+                if (isSingleDay) {
+                    // Fetch hourly data for single-day view
+                    const timezoneOffset = -new Date().getTimezoneOffset();
+                    const res = await fetch(`/stats/hourly?date=${filter.startDate}&timezone_offset=${timezoneOffset}`);
+                    const data = await res.json();
 
-                if (!data.daily || data.daily.length === 0) {
-                    container.innerHTML = '<div class="chart-empty">No data available for selected date range</div>';
-                    return;
-                }
+                    if (!data.hourly || data.hourly.length === 0) {
+                        container.innerHTML = '<div class="chart-empty">No data available for selected date</div>';
+                        return;
+                    }
 
-                // Sort daily data by date ascending for proper line rendering
-                const dailyData = data.daily.sort((a, b) => a.date.localeCompare(b.date));
+                    renderHourlyChart(container, data.hourly, data.date);
+                } else {
+                    // Fetch daily data for multi-day view
+                    const query = alpineData.buildQuery(filter);
+                    const res = await fetch(`/stats/daily${query}`);
+                    const data = await res.json();
 
-                // Group data by provider
-                const providerData = {};
-                dailyData.forEach(day => {
-                    day.by_provider.forEach(p => {
-                        if (!providerData[p.provider]) {
-                            providerData[p.provider] = [];
-                        }
-                        providerData[p.provider].push({
-                            date: day.date,
-                            cost: p.cost
+                    if (!data.daily || data.daily.length === 0) {
+                        container.innerHTML = '<div class="chart-empty">No data available for selected date range</div>';
+                        return;
+                    }
+
+                    // Sort daily data by date ascending for proper line rendering
+                    const dailyData = data.daily.sort((a, b) => a.date.localeCompare(b.date));
+
+                    // Group data by provider
+                    const providerData = {};
+                    dailyData.forEach(day => {
+                        day.by_provider.forEach(p => {
+                            if (!providerData[p.provider]) {
+                                providerData[p.provider] = [];
+                            }
+                            providerData[p.provider].push({
+                                date: day.date,
+                                cost: p.cost
+                            });
                         });
                     });
-                });
 
-                // Fill in missing dates with 0 cost for each provider
-                const allDates = dailyData.map(d => d.date);
-                Object.keys(providerData).forEach(provider => {
-                    const existingDates = new Set(providerData[provider].map(d => d.date));
-                    allDates.forEach(date => {
-                        if (!existingDates.has(date)) {
-                            providerData[provider].push({ date, cost: 0 });
-                        }
+                    // Fill in missing dates with 0 cost for each provider
+                    const allDates = dailyData.map(d => d.date);
+                    Object.keys(providerData).forEach(provider => {
+                        const existingDates = new Set(providerData[provider].map(d => d.date));
+                        allDates.forEach(date => {
+                            if (!existingDates.has(date)) {
+                                providerData[provider].push({ date, cost: 0 });
+                            }
+                        });
+                        // Re-sort after filling gaps
+                        providerData[provider].sort((a, b) => a.date.localeCompare(b.date));
                     });
-                    // Re-sort after filling gaps
-                    providerData[provider].sort((a, b) => a.date.localeCompare(b.date));
-                });
 
-                renderChart(container, providerData, allDates);
+                    renderChart(container, providerData, allDates);
+                }
             } catch (e) {
                 console.error('Failed to load provider trends:', e);
                 container.innerHTML = '<div class="chart-empty">Failed to load chart data</div>';
             }
+        }
+
+        function renderHourlyChart(container, hourlyData, date) {
+            const width = container.offsetWidth - 40; // Account for padding
+            const height = 300;
+            const margin = { top: 20, right: 80, bottom: 60, left: 60 };
+            const chartWidth = width - margin.left - margin.right;
+            const chartHeight = height - margin.top - margin.bottom;
+
+            // Calculate max cost for scaling
+            const maxCost = Math.max(...hourlyData.map(h => h.cost), 0.0001);
+            const minCost = 0;
+
+            // Group data by provider for stacked bars
+            const providerTotals = {};
+            hourlyData.forEach(hour => {
+                hour.by_provider.forEach(p => {
+                    if (!providerTotals[p.provider]) {
+                        providerTotals[p.provider] = new Array(24).fill(0);
+                    }
+                    providerTotals[p.provider][hour.hour] = p.cost;
+                });
+            });
+
+            const providers = Object.keys(providerTotals);
+            const barWidth = chartWidth / 24;
+
+            // Y scale: cost to pixel (inverted because SVG Y increases downward)
+            const yScale = (cost) => chartHeight - ((cost - minCost) / (maxCost - minCost)) * chartHeight;
+
+            // Format hour for display (0-23 to "12am", "1am", ... "11pm")
+            const formatHour = (hour) => {
+                if (hour === 0) return '12am';
+                if (hour < 12) return hour + 'am';
+                if (hour === 12) return '12pm';
+                return (hour - 12) + 'pm';
+            };
+
+            // Create SVG
+            let svg = `
+                <svg class="chart-svg" viewBox="0 0 ${width} ${height + 40}" xmlns="http://www.w3.org/2000/svg">
+                    <g transform="translate(${margin.left}, ${margin.top})">
+            `;
+
+            // Add grid lines
+            const gridSteps = 5;
+            for (let i = 0; i <= gridSteps; i++) {
+                const y = (i / gridSteps) * chartHeight;
+                svg += `<line class="chart-grid" x1="0" y1="${y}" x2="${chartWidth}" y2="${y}" />`;
+            }
+
+            // Add Y axis
+            svg += `<line class="chart-axis" x1="0" y1="0" x2="0" y2="${chartHeight}" />`;
+            for (let i = 0; i <= gridSteps; i++) {
+                const y = (i / gridSteps) * chartHeight;
+                const cost = maxCost - (i / gridSteps) * (maxCost - minCost);
+                svg += `<text class="chart-axis-text" x="-10" y="${y + 4}" text-anchor="end">$${cost.toFixed(3)}</text>`;
+            }
+
+            // Add X axis
+            svg += `<line class="chart-axis" x1="0" y1="${chartHeight}" x2="${chartWidth}" y2="${chartHeight}" />`;
+
+            // Add X axis labels (show every 3 hours to avoid crowding: 0, 3, 6, 9, 12, 15, 18, 21)
+            for (let hour = 0; hour < 24; hour += 3) {
+                const x = hour * barWidth + barWidth / 2;
+                svg += `<text class="chart-axis-text" x="${x}" y="${chartHeight + 20}" text-anchor="middle">${formatHour(hour)}</text>`;
+            }
+
+            // Draw stacked bars for each hour
+            for (let hour = 0; hour < 24; hour++) {
+                const x = hour * barWidth;
+                let yOffset = chartHeight;
+
+                providers.forEach(provider => {
+                    const cost = providerTotals[provider][hour];
+                    if (cost > 0) {
+                        const barHeight = chartHeight - yScale(cost);
+                        yOffset -= barHeight;
+                        const color = getProviderColor(provider);
+                        svg += `<rect class="chart-bar" x="${x + 2}" y="${yOffset}" width="${barWidth - 4}" height="${barHeight}" fill="${color}" />`;
+                    }
+                });
+            }
+
+            // Add legend
+            let legendY = 0;
+            providers.forEach((provider, i) => {
+                const color = getProviderColor(provider);
+                const legendX = chartWidth + 10;
+                svg += `
+                    <circle cx="${legendX}" cy="${legendY + 4}" r="4" fill="${color}" />
+                    <text class="chart-legend-text" x="${legendX + 10}" y="${legendY + 8}">${provider}</text>
+                `;
+                legendY += 20;
+            });
+
+            svg += `
+                    </g>
+                </svg>
+            `;
+
+            // Display date as title
+            const dateObj = new Date(date + 'T00:00:00');
+            const dateStr = dateObj.toLocaleDateString('en-US', { weekday: 'short', year: 'numeric', month: 'short', day: 'numeric' });
+
+            container.innerHTML = `
+                <div class="chart-title">Hourly Usage - ${dateStr}</div>
+                ${svg}
+            `;
         }
 
         function renderChart(container, providerData, dates) {

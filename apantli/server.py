@@ -888,6 +888,106 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
     }
 
 
+@app.get("/stats/hourly")
+async def stats_hourly(date: str, timezone_offset: int = None):
+    """Get hourly aggregated statistics for a single day with provider breakdown.
+
+    Parameters:
+    - date: ISO 8601 date (YYYY-MM-DD)
+    - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
+    """
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+
+    # Build WHERE clause using efficient timestamp comparisons
+    # and GROUP BY using timezone-adjusted hours
+    if timezone_offset is not None:
+        # Convert local date range to UTC timestamps for efficient WHERE clause
+        start_utc, _ = convert_local_date_to_utc_range(date, timezone_offset)
+        end_dt = datetime.fromisoformat(date) + timedelta(days=1)
+        end_date = end_dt.strftime('%Y-%m-%d')
+        _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
+        where_filter = f"timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
+
+        # Timezone conversion for GROUP BY to group by local hour
+        hours = abs(timezone_offset) // 60
+        minutes = abs(timezone_offset) % 60
+        sign = '+' if timezone_offset >= 0 else '-'
+        tz_modifier = f"{sign}{hours:02d}:{minutes:02d}"
+        hour_expr = f"CAST(strftime('%H', timestamp, '{tz_modifier}') AS INTEGER)"
+    else:
+        # No timezone conversion needed
+        end_dt = datetime.fromisoformat(date) + timedelta(days=1)
+        where_filter = f"timestamp >= '{date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
+        hour_expr = "CAST(strftime('%H', timestamp) AS INTEGER)"
+
+    # Get hourly aggregates with provider breakdown
+    cursor.execute(f"""
+        SELECT
+            {hour_expr} as hour,
+            provider,
+            COUNT(*) as requests,
+            SUM(cost) as cost,
+            SUM(total_tokens) as tokens
+        FROM requests
+        WHERE error IS NULL
+          AND {where_filter}
+        GROUP BY {hour_expr}, provider
+        ORDER BY hour ASC
+    """)
+    rows = cursor.fetchall()
+
+    # Group by hour
+    hourly_data = {}
+    for row in rows:
+        hour, provider, requests, cost, tokens = row
+        if hour not in hourly_data:
+            hourly_data[hour] = {
+                'hour': hour,
+                'requests': 0,
+                'cost': 0.0,
+                'total_tokens': 0,
+                'by_provider': []
+            }
+        hourly_data[hour]['requests'] += requests
+        hourly_data[hour]['cost'] += cost or 0.0
+        hourly_data[hour]['total_tokens'] += tokens or 0
+        hourly_data[hour]['by_provider'].append({
+            'provider': provider,
+            'requests': requests,
+            'cost': round(cost or 0, 4)
+        })
+
+    # Convert to sorted list (ensure all 24 hours are present, even if 0)
+    hourly_list = []
+    for hour in range(24):
+        if hour in hourly_data:
+            hourly_data[hour]['cost'] = round(hourly_data[hour]['cost'], 4)
+            hourly_list.append(hourly_data[hour])
+        else:
+            # Fill in missing hours with zeros
+            hourly_list.append({
+                'hour': hour,
+                'requests': 0,
+                'cost': 0.0,
+                'total_tokens': 0,
+                'by_provider': []
+            })
+
+    # Calculate totals
+    total_cost = sum(h['cost'] for h in hourly_list)
+    total_requests = sum(h['requests'] for h in hourly_list)
+
+    conn.close()
+
+    return {
+        'hourly': hourly_list,
+        'date': date,
+        'total_cost': round(total_cost, 4),
+        'total_requests': total_requests
+    }
+
+
 @app.get("/stats/date-range")
 async def stats_date_range():
     """Get the actual date range of data in the database."""
