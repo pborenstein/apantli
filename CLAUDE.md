@@ -40,9 +40,19 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - Database class: Encapsulates DB logging with async methods
 - Connection management: Context managers (`_get_connection()`)
 - Methods: `init()`, `log_request()`
+- Global instance: Module-level functions (`init_db()`, `log_request()`) use global `_db` instance for backward compatibility
 - Cost calculation: Uses litellm.completion_cost() during log_request()
 - Statistics queries: Implemented directly in server.py using raw SQL
 - Performance: Non-blocking async, ~1-5ms per operation
+
+**Global State Patterns**:
+- Trade-off: Uses mutable globals (`MODEL_MAP`, `DB_PATH`, `_db`) for simplicity and backward compatibility
+- `config.py`: Global `MODEL_MAP` dict populated by `load_config()`, accessed via module reference in server.py
+- `database.py`: Global `_db` instance initialized by `init_db()`, reused by `log_request()`
+- `server.py`: Mutates module globals at startup (e.g., `apantli.database.DB_PATH = args.db`)
+- Benefits: Simple API, minimal boilerplate, easy CLI argument integration
+- Downsides: Makes testing harder (must manage global state), hidden dependencies between modules
+- Acceptable for a lightweight local proxy; consider dependency injection for larger projects
 
 **LLM Integration (llm.py)**:
 - Provider inference: Pattern matching for `gpt-*`/`o1-*` → openai, `claude*` → anthropic, etc.
@@ -119,8 +129,13 @@ litellm_params = model_config.to_litellm_params()
 
 **Database Usage**:
 ```python
+# Modern approach (direct Database class usage)
 db = Database("requests.db")
 await db.init()
 await db.log_request(model, provider, response, duration_ms, request_data)
-stats = await db.get_stats(hours=24)
+
+# Legacy approach (module-level functions, uses global _db instance)
+from apantli.database import init_db, log_request
+await init_db()  # Initializes global _db
+await log_request(model, provider, response, duration_ms, request_data)
 ```

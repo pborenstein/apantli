@@ -228,6 +228,18 @@ async def chat_completions(request: Request):
                 'usage': {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}
             }
 
+            def safe_yield(data: str) -> bool:
+                """Yield data safely, return False if client disconnected."""
+                nonlocal socket_error_logged
+                try:
+                    yield data
+                    return True
+                except (BrokenPipeError, ConnectionError, ConnectionResetError) as e:
+                    if not socket_error_logged:
+                        logging.info(f"Client disconnected during streaming: {type(e).__name__}")
+                        socket_error_logged = True
+                    return False
+
             async def generate():
                 nonlocal full_response
                 socket_error_logged = False
@@ -235,66 +247,41 @@ async def chat_completions(request: Request):
 
                 try:
                     for chunk in response:
-                        try:
-                            chunk_dict = chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk)
-                            chunks.append(chunk_dict)
+                        chunk_dict = chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk)
+                        chunks.append(chunk_dict)
 
-                            # Accumulate content
-                            if 'choices' in chunk_dict and len(chunk_dict['choices']) > 0:
-                                delta = chunk_dict['choices'][0].get('delta', {})
-                                if 'content' in delta and delta['content'] is not None:
-                                    full_response['choices'][0]['message']['content'] += delta['content']
-                                if 'finish_reason' in chunk_dict['choices'][0]:
-                                    full_response['choices'][0]['finish_reason'] = chunk_dict['choices'][0]['finish_reason']
+                        # Accumulate content
+                        if 'choices' in chunk_dict and len(chunk_dict['choices']) > 0:
+                            delta = chunk_dict['choices'][0].get('delta', {})
+                            if 'content' in delta and delta['content'] is not None:
+                                full_response['choices'][0]['message']['content'] += delta['content']
+                            if 'finish_reason' in chunk_dict['choices'][0]:
+                                full_response['choices'][0]['finish_reason'] = chunk_dict['choices'][0]['finish_reason']
 
-                            # Capture ID and usage
-                            if 'id' in chunk_dict and chunk_dict['id']:
-                                full_response['id'] = chunk_dict['id']
-                            if 'usage' in chunk_dict:
-                                full_response['usage'] = chunk_dict['usage']
+                        # Capture ID and usage
+                        if 'id' in chunk_dict and chunk_dict['id']:
+                            full_response['id'] = chunk_dict['id']
+                        if 'usage' in chunk_dict:
+                            full_response['usage'] = chunk_dict['usage']
 
-                            yield f"data: {json.dumps(chunk_dict)}\n\n"
-
-                        except (BrokenPipeError, ConnectionError, ConnectionResetError) as e:
-                            # Client disconnected - log once and stop streaming
-                            if not socket_error_logged:
-                                logging.info(f"Client disconnected during streaming: {type(e).__name__}")
-                                socket_error_logged = True
-                            break
+                        if not safe_yield(f"data: {json.dumps(chunk_dict)}\n\n"):
+                            return  # Client disconnected
 
                 except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError) as e:
                     # Provider error during streaming - send error event
                     stream_error = f"{type(e).__name__}: {str(e)}"
-                    error_event = build_error_response(
-                        "stream_error",
-                        str(e),
-                        type(e).__name__.lower()
-                    )
-                    try:
-                        yield f"data: {json.dumps(error_event)}\n\n"
-                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
-                        # Client already gone, can't send error
-                        if not socket_error_logged:
-                            logging.info("Client disconnected before error could be sent")
-                            socket_error_logged = True
+                    error_event = build_error_response("stream_error", str(e), type(e).__name__.lower())
+                    safe_yield(f"data: {json.dumps(error_event)}\n\n")
 
                 except Exception as e:
                     # Unexpected error during streaming
                     stream_error = f"UnexpectedStreamError: {str(e)}"
                     error_event = build_error_response("stream_error", str(e), "internal_error")
-                    try:
-                        yield f"data: {json.dumps(error_event)}\n\n"
-                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
-                        if not socket_error_logged:
-                            logging.info("Client disconnected before error could be sent")
-                            socket_error_logged = True
+                    safe_yield(f"data: {json.dumps(error_event)}\n\n")
 
                 finally:
                     # Always send [DONE] and log to database
-                    try:
-                        yield "data: [DONE]\n\n"
-                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
-                        pass  # Client gone, can't send [DONE]
+                    safe_yield("data: [DONE]\n\n")
 
                     # Log to database
                     try:
@@ -310,9 +297,8 @@ async def chat_completions(request: Request):
                             completion_tokens = usage.get('completion_tokens', 0)
                             total_tokens = usage.get('total_tokens', 0)
 
-                            # Calculate cost
+                            # Calculate cost for console logging
                             try:
-                                import litellm
                                 cost = litellm.completion_cost(completion_response=full_response)
                             except:
                                 cost = 0.0
@@ -352,9 +338,8 @@ async def chat_completions(request: Request):
         completion_tokens = usage.get('completion_tokens', 0)
         total_tokens = usage.get('total_tokens', 0)
 
-        # Calculate cost using litellm
+        # Calculate cost for console logging
         try:
-            import litellm
             cost = litellm.completion_cost(completion_response=response)
         except:
             cost = 0.0
