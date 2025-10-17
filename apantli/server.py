@@ -227,6 +227,7 @@ async def chat_completions(request: Request):
                 'choices': [{'message': {'role': 'assistant', 'content': ''}, 'finish_reason': None}],
                 'usage': {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}
             }
+            socket_error_logged = False
 
             def safe_yield(data: str) -> bool:
                 """Yield data safely, return False if client disconnected."""
@@ -241,8 +242,7 @@ async def chat_completions(request: Request):
                     return False
 
             async def generate():
-                nonlocal full_response
-                socket_error_logged = False
+                nonlocal full_response, socket_error_logged
                 stream_error = None
 
                 try:
