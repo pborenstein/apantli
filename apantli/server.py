@@ -39,7 +39,7 @@ from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, LOG_INDENT, load_co
 from apantli.database import DB_PATH, init_db, log_request
 from apantli.errors import build_error_response
 from apantli.llm import infer_provider_from_model
-from apantli.utils import convert_local_date_to_utc_range
+from apantli.utils import convert_local_date_to_utc_range, build_time_filter
 
 # Import modules themselves for accessing globals
 import apantli.config
@@ -73,6 +73,63 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Error mapping for LLM API exceptions
+ERROR_MAP = {
+    RateLimitError: (429, "rate_limit_error", "rate_limit_exceeded"),
+    AuthenticationError: (401, "authentication_error", "invalid_api_key"),
+    PermissionDeniedError: (403, "permission_denied", "permission_denied"),
+    NotFoundError: (404, "invalid_request_error", "model_not_found"),
+    Timeout: (504, "timeout_error", "request_timeout"),
+    InternalServerError: (503, "service_unavailable", "service_unavailable"),
+    ServiceUnavailableError: (503, "service_unavailable", "service_unavailable"),
+    APIConnectionError: (502, "connection_error", "connection_error"),
+}
+
+
+async def handle_llm_error(e: Exception, start_time: float, request_data: dict,
+                          request_data_for_logging: dict) -> JSONResponse:
+    """Handle LLM API errors with consistent logging and response formatting."""
+    import time
+
+    duration_ms = int((time.time() - start_time) * 1000)
+    model_name = request_data.get('model', 'unknown')
+    provider = infer_provider_from_model(model_name)
+
+    # Determine error details from ERROR_MAP
+    error_name = type(e).__name__
+    status_code = 500
+    error_type = "api_error"
+    error_code = "internal_error"
+
+    for exc_type, (code, etype, ecode) in ERROR_MAP.items():
+        if isinstance(e, exc_type):
+            status_code = code
+            error_type = etype
+            error_code = ecode
+            break
+
+    # Special handling for provider errors
+    if isinstance(e, (InternalServerError, ServiceUnavailableError)):
+        error_name = "ProviderError"
+
+    # Log to database
+    await log_request(
+        model_name,
+        provider,
+        None,
+        duration_ms,
+        request_data_for_logging,
+        error=f"{error_name}: {str(e)}"
+    )
+
+    # Console log
+    print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: {error_name}")
+
+    # Build and return error response
+    error_response = build_error_response(error_type, str(e), error_code)
+    return JSONResponse(content=error_response, status_code=status_code)
 
 
 @app.post("/v1/chat/completions")
@@ -306,135 +363,14 @@ async def chat_completions(request: Request):
 
         return JSONResponse(content=response_dict)
 
-    except RateLimitError as e:
-        duration_ms = int((time.time() - start_time) * 1000)
-        model_name = request_data.get('model', 'unknown')
-        provider = infer_provider_from_model(model_name)
-        await log_request(
-            model_name,
-            provider,
-            None,
-            duration_ms,
-            request_data_for_logging,
-            error=f"RateLimitError: {str(e)}"
-        )
-        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: RateLimitError")
-        error_response = build_error_response("rate_limit_error", str(e), "rate_limit_exceeded")
-        return JSONResponse(content=error_response, status_code=429)
-
-    except AuthenticationError as e:
-        duration_ms = int((time.time() - start_time) * 1000)
-        model_name = request_data.get('model', 'unknown')
-        provider = infer_provider_from_model(model_name)
-        await log_request(
-            model_name,
-            provider,
-            None,
-            duration_ms,
-            request_data_for_logging,
-            error=f"AuthenticationError: {str(e)}"
-        )
-        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: AuthenticationError")
-        error_response = build_error_response("authentication_error", str(e), "invalid_api_key")
-        return JSONResponse(content=error_response, status_code=401)
-
-    except PermissionDeniedError as e:
-        duration_ms = int((time.time() - start_time) * 1000)
-        model_name = request_data.get('model', 'unknown')
-        provider = infer_provider_from_model(model_name)
-        await log_request(
-            model_name,
-            provider,
-            None,
-            duration_ms,
-            request_data_for_logging,
-            error=f"PermissionDeniedError: {str(e)}"
-        )
-        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: PermissionDeniedError")
-        error_response = build_error_response("permission_denied", str(e), "permission_denied")
-        return JSONResponse(content=error_response, status_code=403)
-
-    except NotFoundError as e:
-        duration_ms = int((time.time() - start_time) * 1000)
-        model_name = request_data.get('model', 'unknown')
-        provider = infer_provider_from_model(model_name)
-        await log_request(
-            model_name,
-            provider,
-            None,
-            duration_ms,
-            request_data_for_logging,
-            error=f"NotFoundError: {str(e)}"
-        )
-        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: NotFoundError")
-        error_response = build_error_response("invalid_request_error", str(e), "model_not_found")
-        return JSONResponse(content=error_response, status_code=404)
-
-    except Timeout as e:
-        duration_ms = int((time.time() - start_time) * 1000)
-        model_name = request_data.get('model', 'unknown')
-        provider = infer_provider_from_model(model_name)
-        await log_request(
-            model_name,
-            provider,
-            None,
-            duration_ms,
-            request_data_for_logging,
-            error=f"Timeout: {str(e)}"
-        )
-        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: Timeout")
-        error_response = build_error_response("timeout_error", str(e), "request_timeout")
-        return JSONResponse(content=error_response, status_code=504)
-
-    except (InternalServerError, ServiceUnavailableError) as e:
-        duration_ms = int((time.time() - start_time) * 1000)
-        model_name = request_data.get('model', 'unknown')
-        provider = infer_provider_from_model(model_name)
-        await log_request(
-            model_name,
-            provider,
-            None,
-            duration_ms,
-            request_data_for_logging,
-            error=f"ProviderError: {str(e)}"
-        )
-        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: ProviderError")
-        error_response = build_error_response("service_unavailable", str(e), "service_unavailable")
-        return JSONResponse(content=error_response, status_code=503)
-
-    except APIConnectionError as e:
-        duration_ms = int((time.time() - start_time) * 1000)
-        model_name = request_data.get('model', 'unknown')
-        provider = infer_provider_from_model(model_name)
-        await log_request(
-            model_name,
-            provider,
-            None,
-            duration_ms,
-            request_data_for_logging,
-            error=f"APIConnectionError: {str(e)}"
-        )
-        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: APIConnectionError")
-        error_response = build_error_response("connection_error", str(e), "connection_error")
-        return JSONResponse(content=error_response, status_code=502)
+    except (RateLimitError, AuthenticationError, PermissionDeniedError, NotFoundError,
+            Timeout, InternalServerError, ServiceUnavailableError, APIConnectionError) as e:
+        return await handle_llm_error(e, start_time, request_data, request_data_for_logging)
 
     except Exception as e:
         # Catch-all for unexpected errors
         logging.exception(f"Unexpected error in chat completions: {e}")
-        duration_ms = int((time.time() - start_time) * 1000)
-        model_name = request_data.get('model', 'unknown')
-        provider = infer_provider_from_model(model_name)
-        await log_request(
-            model_name,
-            provider,
-            None,
-            duration_ms,
-            request_data_for_logging,
-            error=f"UnexpectedError: {str(e)}"
-        )
-        print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: UnexpectedError")
-        error_response = build_error_response("api_error", str(e), "internal_error")
-        return JSONResponse(content=error_response, status_code=500)
+        return await handle_llm_error(e, start_time, request_data, request_data_for_logging)
 
 
 @app.get("/health")
@@ -515,36 +451,7 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
     cursor = conn.cursor()
 
     # Build time filter using efficient timestamp comparisons
-    time_filter = ""
-    if hours:
-        time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
-    elif start_date and end_date:
-        if timezone_offset is not None:
-            # Convert local date range to UTC timestamps for efficient indexed queries
-            start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
-            _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
-            time_filter = f"AND timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
-        else:
-            # No timezone conversion needed
-            time_filter = f"AND timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_date}T00:00:00' + interval '1 day'"
-            # SQLite doesn't have interval, so we'll use date arithmetic
-            from datetime import datetime as dt
-            end_dt = dt.fromisoformat(end_date) + timedelta(days=1)
-            time_filter = f"AND timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
-    elif start_date:
-        if timezone_offset is not None:
-            start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
-            time_filter = f"AND timestamp >= '{start_utc}'"
-        else:
-            time_filter = f"AND timestamp >= '{start_date}T00:00:00'"
-    elif end_date:
-        if timezone_offset is not None:
-            _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
-            time_filter = f"AND timestamp < '{end_utc}'"
-        else:
-            from datetime import datetime as dt
-            end_dt = dt.fromisoformat(end_date) + timedelta(days=1)
-            time_filter = f"AND timestamp < '{end_dt.date()}T00:00:00'"
+    time_filter = build_time_filter(hours, start_date, end_date, timezone_offset)
 
     # Build attribute filters
     filters = []
@@ -643,32 +550,7 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
     cursor = conn.cursor()
 
     # Build time filter using efficient timestamp comparisons
-    time_filter = ""
-    if hours:
-        time_filter = f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
-    elif start_date and end_date:
-        if timezone_offset is not None:
-            # Convert local date range to UTC timestamps for efficient indexed queries
-            start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
-            _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
-            time_filter = f"AND timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
-        else:
-            # No timezone conversion needed
-            end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
-            time_filter = f"AND timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
-    elif start_date:
-        if timezone_offset is not None:
-            start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
-            time_filter = f"AND timestamp >= '{start_utc}'"
-        else:
-            time_filter = f"AND timestamp >= '{start_date}T00:00:00'"
-    elif end_date:
-        if timezone_offset is not None:
-            _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
-            time_filter = f"AND timestamp < '{end_utc}'"
-        else:
-            end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
-            time_filter = f"AND timestamp < '{end_dt.date()}T00:00:00'"
+    time_filter = build_time_filter(hours, start_date, end_date, timezone_offset)
 
     # Total stats
     cursor.execute(f"""

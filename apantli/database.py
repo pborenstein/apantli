@@ -106,14 +106,20 @@ class Database:
 # Backward compatibility: module-level functions that use global DB_PATH
 # These maintain the original API for existing code
 
+# Global database instance (initialized by init_db())
+_db: Optional[Database] = None
+
+
 async def init_db():
   """Initialize SQLite database with requests table (async)."""
-  db = Database(DB_PATH)
-  await db.init()
+  global _db
+  _db = Database(DB_PATH)
+  await _db.init()
 
 
 async def log_request(model: str, provider: str, response: dict, duration_ms: int,
                      request_data: dict, error: Optional[str] = None):
   """Log a request to SQLite (async)."""
-  db = Database(DB_PATH)
-  await db.log_request(model, provider, response, duration_ms, request_data, error)
+  if _db is None:
+    raise RuntimeError("Database not initialized. Call init_db() first.")
+  await _db.log_request(model, provider, response, duration_ms, request_data, error)
