@@ -6,7 +6,6 @@ Compatible with OpenAI API format, uses LiteLLM SDK for provider routing.
 
 import os
 import socket
-import sqlite3
 import json
 import argparse
 import logging
@@ -472,12 +471,9 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
 @app.delete("/errors")
 async def clear_errors():
     """Clear all errors from the database."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM requests WHERE error IS NOT NULL")
-    deleted = cursor.rowcount
-    conn.commit()
-    conn.close()
+    from apantli.database import Database
+    db = Database(DB_PATH)
+    deleted = await db.clear_errors()
     return {"deleted": deleted}
 
 
@@ -490,9 +486,6 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
     - end_date: ISO 8601 date (YYYY-MM-DD), defaults to today
     - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
     """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
     # Set default date range if not provided
     if not end_date:
         end_date = datetime.utcnow().strftime('%Y-%m-%d')
@@ -521,64 +514,10 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
         where_filter = f"timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
         date_expr = "DATE(timestamp)"
 
-    # Get daily aggregates with model breakdown (includes provider for grouping)
-    cursor.execute(f"""
-        SELECT
-            {date_expr} as date,
-            provider,
-            model,
-            COUNT(*) as requests,
-            SUM(cost) as cost,
-            SUM(total_tokens) as tokens
-        FROM requests
-        WHERE error IS NULL
-          AND {where_filter}
-        GROUP BY {date_expr}, provider, model
-        ORDER BY date DESC
-    """)
-    rows = cursor.fetchall()
-
-    # Group by date
-    daily_data = {}
-    for row in rows:
-        date, provider, model, requests, cost, tokens = row
-        if date not in daily_data:
-            daily_data[date] = {
-                'date': date,
-                'requests': 0,
-                'cost': 0.0,
-                'total_tokens': 0,
-                'by_model': []
-            }
-        daily_data[date]['requests'] += requests
-        daily_data[date]['cost'] += cost or 0.0
-        daily_data[date]['total_tokens'] += tokens or 0
-        daily_data[date]['by_model'].append({
-            'provider': provider,
-            'model': model,
-            'requests': requests,
-            'cost': round(cost or 0, 4)
-        })
-
-    # Convert to sorted list
-    daily_list = sorted(daily_data.values(), key=lambda x: x['date'], reverse=True)
-
-    # Round costs
-    for day in daily_list:
-        day['cost'] = round(day['cost'], 4)
-
-    # Calculate totals
-    total_cost = sum(day['cost'] for day in daily_list)
-    total_requests = sum(day['requests'] for day in daily_list)
-
-    conn.close()
-
-    return {
-        'daily': daily_list,
-        'total_days': len(daily_list),
-        'total_cost': round(total_cost, 4),
-        'total_requests': total_requests
-    }
+    # Use Database class to get daily stats
+    from apantli.database import Database
+    db = Database(DB_PATH)
+    return await db.get_daily_stats(start_date, end_date, where_filter, date_expr)
 
 
 @app.get("/stats/hourly")
@@ -589,9 +528,6 @@ async def stats_hourly(date: str, timezone_offset: int = None):
     - date: ISO 8601 date (YYYY-MM-DD)
     - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
     """
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
     # Build WHERE clause using efficient timestamp comparisons
     # and GROUP BY using timezone-adjusted hours
     if timezone_offset is not None:
@@ -611,53 +547,18 @@ async def stats_hourly(date: str, timezone_offset: int = None):
         where_filter = f"timestamp >= '{date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
         hour_expr = "CAST(strftime('%H', timestamp) AS INTEGER)"
 
-    # Get hourly aggregates with provider breakdown
-    cursor.execute(f"""
-        SELECT
-            {hour_expr} as hour,
-            provider,
-            model,
-            COUNT(*) as requests,
-            SUM(cost) as cost,
-            SUM(total_tokens) as tokens
-        FROM requests
-        WHERE error IS NULL
-          AND {where_filter}
-        GROUP BY {hour_expr}, provider, model
-        ORDER BY hour ASC
-    """)
-    rows = cursor.fetchall()
+    # Use Database class to get hourly stats
+    from apantli.database import Database
+    db = Database(DB_PATH)
+    result = await db.get_hourly_stats(where_filter, hour_expr)
 
-    # Group by hour
-    hourly_data = {}
-    for row in rows:
-        hour, provider, model, requests, cost, tokens = row
-        if hour not in hourly_data:
-            hourly_data[hour] = {
-                'hour': hour,
-                'requests': 0,
-                'cost': 0.0,
-                'total_tokens': 0,
-                'by_model': []
-            }
-        hourly_data[hour]['requests'] += requests
-        hourly_data[hour]['cost'] += cost or 0.0
-        hourly_data[hour]['total_tokens'] += tokens or 0
-        hourly_data[hour]['by_model'].append({
-            'provider': provider,
-            'model': model,
-            'requests': requests,
-            'cost': round(cost or 0, 4)
-        })
-
-    # Convert to sorted list (ensure all 24 hours are present, even if 0)
+    # Ensure all 24 hours are present (fill missing hours with zeros)
+    hourly_dict = {h['hour']: h for h in result['hourly']}
     hourly_list = []
     for hour in range(24):
-        if hour in hourly_data:
-            hourly_data[hour]['cost'] = round(hourly_data[hour]['cost'], 4)
-            hourly_list.append(hourly_data[hour])
+        if hour in hourly_dict:
+            hourly_list.append(hourly_dict[hour])
         else:
-            # Fill in missing hours with zeros
             hourly_list.append({
                 'hour': hour,
                 'requests': 0,
@@ -665,12 +566,6 @@ async def stats_hourly(date: str, timezone_offset: int = None):
                 'total_tokens': 0,
                 'by_model': []
             })
-
-    # Calculate totals
-    total_cost = sum(h['cost'] for h in hourly_list)
-    total_requests = sum(h['requests'] for h in hourly_list)
-
-    conn.close()
 
     return {
         'hourly': hourly_list,
@@ -683,28 +578,9 @@ async def stats_hourly(date: str, timezone_offset: int = None):
 @app.get("/stats/date-range")
 async def stats_date_range():
     """Get the actual date range of data in the database."""
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT MIN(DATE(timestamp)), MAX(DATE(timestamp))
-        FROM requests
-        WHERE error IS NULL
-    """)
-    row = cursor.fetchone()
-    conn.close()
-
-    if row and row[0] and row[1]:
-        return {
-            'start_date': row[0],
-            'end_date': row[1]
-        }
-    else:
-        # No data yet, return empty
-        return {
-            'start_date': None,
-            'end_date': None
-        }
+    from apantli.database import Database
+    db = Database(DB_PATH)
+    return await db.get_date_range()
 
 
 @app.get("/")

@@ -318,6 +318,175 @@ class Database:
         ]
       }
 
+  async def get_daily_stats(self, start_date: str, end_date: str, where_filter: str, date_expr: str):
+    """Get daily aggregated statistics with model breakdown.
+
+    Args:
+      start_date: ISO date for default calculations (YYYY-MM-DD)
+      end_date: ISO date for default calculations (YYYY-MM-DD)
+      where_filter: SQL WHERE clause (without WHERE keyword)
+      date_expr: SQL expression for grouping by date with timezone
+
+    Returns:
+      Dict with daily array, total_days, total_cost, total_requests
+    """
+    async with self._get_connection() as conn:
+      cursor = await conn.execute(f"""
+        SELECT
+          {date_expr} as date,
+          provider,
+          model,
+          COUNT(*) as requests,
+          SUM(cost) as cost,
+          SUM(total_tokens) as tokens
+        FROM requests
+        WHERE error IS NULL
+          AND {where_filter}
+        GROUP BY {date_expr}, provider, model
+        ORDER BY date DESC
+      """)
+      rows = await cursor.fetchall()
+
+      # Group by date
+      daily_data = {}
+      for row in rows:
+        date, provider, model, requests, cost, tokens = row
+        if date not in daily_data:
+          daily_data[date] = {
+            'date': date,
+            'requests': 0,
+            'cost': 0.0,
+            'total_tokens': 0,
+            'by_model': []
+          }
+        daily_data[date]['requests'] += requests
+        daily_data[date]['cost'] += cost or 0.0
+        daily_data[date]['total_tokens'] += tokens or 0
+        daily_data[date]['by_model'].append({
+          'provider': provider,
+          'model': model,
+          'requests': requests,
+          'cost': round(cost or 0, 4)
+        })
+
+      # Convert to sorted list
+      daily_list = sorted(daily_data.values(), key=lambda x: x['date'], reverse=True)
+
+      # Round costs
+      for day in daily_list:
+        day['cost'] = round(day['cost'], 4)
+
+      # Calculate totals
+      total_cost = sum(day['cost'] for day in daily_list)
+      total_requests = sum(day['requests'] for day in daily_list)
+
+      return {
+        'daily': daily_list,
+        'total_days': len(daily_list),
+        'total_cost': round(total_cost, 4),
+        'total_requests': total_requests
+      }
+
+  async def get_hourly_stats(self, where_filter: str, hour_expr: str):
+    """Get hourly aggregated statistics for a single day.
+
+    Args:
+      where_filter: SQL WHERE clause (without WHERE keyword)
+      hour_expr: SQL expression for grouping by hour with timezone
+
+    Returns:
+      Dict with hourly array, total_cost, total_requests
+    """
+    async with self._get_connection() as conn:
+      cursor = await conn.execute(f"""
+        SELECT
+          {hour_expr} as hour,
+          provider,
+          model,
+          COUNT(*) as requests,
+          SUM(cost) as cost,
+          SUM(total_tokens) as tokens
+        FROM requests
+        WHERE error IS NULL
+          AND {where_filter}
+        GROUP BY {hour_expr}, provider, model
+        ORDER BY hour ASC
+      """)
+      rows = await cursor.fetchall()
+
+      # Group by hour
+      hourly_data = {}
+      for row in rows:
+        hour, provider, model, requests, cost, tokens = row
+        if hour not in hourly_data:
+          hourly_data[hour] = {
+            'hour': hour,
+            'requests': 0,
+            'cost': 0.0,
+            'total_tokens': 0,
+            'by_model': []
+          }
+        hourly_data[hour]['requests'] += requests
+        hourly_data[hour]['cost'] += cost or 0.0
+        hourly_data[hour]['total_tokens'] += tokens or 0
+        hourly_data[hour]['by_model'].append({
+          'provider': provider,
+          'model': model,
+          'requests': requests,
+          'cost': round(cost or 0, 4)
+        })
+
+      # Convert to sorted list
+      hourly_list = sorted(hourly_data.values(), key=lambda x: x['hour'])
+
+      # Round costs
+      for hour in hourly_list:
+        hour['cost'] = round(hour['cost'], 4)
+
+      # Calculate totals
+      total_cost = sum(hour['cost'] for hour in hourly_list)
+      total_requests = sum(hour['requests'] for hour in hourly_list)
+
+      return {
+        'hourly': hourly_list,
+        'total_cost': round(total_cost, 4),
+        'total_requests': total_requests
+      }
+
+  async def clear_errors(self):
+    """Clear all errors from the database.
+
+    Returns:
+      Number of deleted records
+    """
+    async with self._get_connection() as conn:
+      cursor = await conn.execute("DELETE FROM requests WHERE error IS NOT NULL")
+      return cursor.rowcount
+
+  async def get_date_range(self):
+    """Get the actual date range of data in the database.
+
+    Returns:
+      Dict with start_date and end_date (None values if no data)
+    """
+    async with self._get_connection() as conn:
+      cursor = await conn.execute("""
+        SELECT MIN(DATE(timestamp)), MAX(DATE(timestamp))
+        FROM requests
+        WHERE error IS NULL
+      """)
+      row = await cursor.fetchone()
+
+      if row and row[0] and row[1]:
+        return {
+          'start_date': row[0],
+          'end_date': row[1]
+        }
+      return {
+        'start_date': None,
+        'end_date': None
+      }
+
 
 # Backward compatibility: module-level functions that use global DB_PATH
 # These maintain the original API for existing code
