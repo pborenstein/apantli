@@ -830,18 +830,19 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
         where_filter = f"timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
         date_expr = "DATE(timestamp)"
 
-    # Get daily aggregates with provider breakdown
+    # Get daily aggregates with model breakdown (includes provider for grouping)
     cursor.execute(f"""
         SELECT
             {date_expr} as date,
             provider,
+            model,
             COUNT(*) as requests,
             SUM(cost) as cost,
             SUM(total_tokens) as tokens
         FROM requests
         WHERE error IS NULL
           AND {where_filter}
-        GROUP BY {date_expr}, provider
+        GROUP BY {date_expr}, provider, model
         ORDER BY date DESC
     """)
     rows = cursor.fetchall()
@@ -849,20 +850,21 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
     # Group by date
     daily_data = {}
     for row in rows:
-        date, provider, requests, cost, tokens = row
+        date, provider, model, requests, cost, tokens = row
         if date not in daily_data:
             daily_data[date] = {
                 'date': date,
                 'requests': 0,
                 'cost': 0.0,
                 'total_tokens': 0,
-                'by_provider': []
+                'by_model': []
             }
         daily_data[date]['requests'] += requests
         daily_data[date]['cost'] += cost or 0.0
         daily_data[date]['total_tokens'] += tokens or 0
-        daily_data[date]['by_provider'].append({
+        daily_data[date]['by_model'].append({
             'provider': provider,
+            'model': model,
             'requests': requests,
             'cost': round(cost or 0, 4)
         })
@@ -923,13 +925,14 @@ async def stats_hourly(date: str, timezone_offset: int = None):
         SELECT
             {hour_expr} as hour,
             provider,
+            model,
             COUNT(*) as requests,
             SUM(cost) as cost,
             SUM(total_tokens) as tokens
         FROM requests
         WHERE error IS NULL
           AND {where_filter}
-        GROUP BY {hour_expr}, provider
+        GROUP BY {hour_expr}, provider, model
         ORDER BY hour ASC
     """)
     rows = cursor.fetchall()
@@ -937,20 +940,21 @@ async def stats_hourly(date: str, timezone_offset: int = None):
     # Group by hour
     hourly_data = {}
     for row in rows:
-        hour, provider, requests, cost, tokens = row
+        hour, provider, model, requests, cost, tokens = row
         if hour not in hourly_data:
             hourly_data[hour] = {
                 'hour': hour,
                 'requests': 0,
                 'cost': 0.0,
                 'total_tokens': 0,
-                'by_provider': []
+                'by_model': []
             }
         hourly_data[hour]['requests'] += requests
         hourly_data[hour]['cost'] += cost or 0.0
         hourly_data[hour]['total_tokens'] += tokens or 0
-        hourly_data[hour]['by_provider'].append({
+        hourly_data[hour]['by_model'].append({
             'provider': provider,
+            'model': model,
             'requests': requests,
             'cost': round(cost or 0, 4)
         })
@@ -968,7 +972,7 @@ async def stats_hourly(date: str, timezone_offset: int = None):
                 'requests': 0,
                 'cost': 0.0,
                 'total_tokens': 0,
-                'by_provider': []
+                'by_model': []
             })
 
     # Calculate totals
