@@ -683,16 +683,17 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
     """)
     totals = cursor.fetchone()
 
-    # By model
+    # By model (include provider for segmented visualization)
     cursor.execute(f"""
         SELECT
             model,
+            provider,
             COUNT(*) as requests,
             SUM(cost) as cost,
             SUM(total_tokens) as tokens
         FROM requests
         WHERE error IS NULL {time_filter}
-        GROUP BY model
+        GROUP BY model, provider
         ORDER BY cost DESC
     """)
     by_model = cursor.fetchall()
@@ -752,7 +753,7 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
             "avg_duration_ms": round(totals[4] or 0, 2)
         },
         "by_model": [
-            {"model": row[0], "requests": row[1], "cost": round(row[2] or 0, 4), "tokens": row[3]}
+            {"model": row[0], "provider": row[1], "requests": row[2], "cost": round(row[3] or 0, 4), "tokens": row[4]}
             for row in by_model
         ],
         "by_provider": [

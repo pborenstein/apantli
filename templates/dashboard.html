@@ -485,9 +485,15 @@
             background: var(--color-background-tertiary);
             border-radius: 4px;
             overflow: hidden;
+            display: flex;
         }
 
         .bar-fill {
+            height: 100%;
+            transition: width 0.3s ease;
+        }
+
+        .bar-segment {
             height: 100%;
             transition: width 0.3s ease;
         }
@@ -2599,26 +2605,62 @@
                 </div>
             `;
 
-            // Provider breakdown visualization
+            // Provider breakdown visualization with model segments
             const totalCost = data.totals.cost;
 
             let providerHtml = '';
-            if (data.by_provider.length > 0 && totalCost > 0) {
-                providerHtml = data.by_provider.map(p => {
-                    const percentage = (p.cost / totalCost * 100);
-                    const color = getProviderColor(p.provider);
+            if (data.by_model.length > 0 && totalCost > 0) {
+                // Group models by provider
+                const modelsByProvider = {};
+                data.by_model.forEach(m => {
+                    if (!modelsByProvider[m.provider]) {
+                        modelsByProvider[m.provider] = [];
+                    }
+                    modelsByProvider[m.provider].push(m);
+                });
+
+                // Sort providers by total cost
+                const providerTotals = Object.entries(modelsByProvider).map(([provider, models]) => ({
+                    provider,
+                    models,
+                    totalCost: models.reduce((sum, m) => sum + m.cost, 0),
+                    totalRequests: models.reduce((sum, m) => sum + m.requests, 0)
+                })).sort((a, b) => b.totalCost - a.totalCost);
+
+                providerHtml = providerTotals.map(p => {
+                    const providerPercentage = (p.totalCost / totalCost * 100);
+
+                    // Sort models by cost within provider and assign colors
+                    const sortedModels = p.models.sort((a, b) => b.cost - a.cost);
+                    sortedModels.forEach((m, index) => {
+                        m.color = getModelColor(p.provider, index, sortedModels.length);
+                    });
+
+                    // Create segmented bar
+                    const segments = sortedModels.map(m => {
+                        const modelPercentage = (m.cost / totalCost * 100);
+                        return `<div class="bar-segment" style="width: ${modelPercentage}%; background: ${m.color};" title="${m.model}: $${m.cost.toFixed(4)}"></div>`;
+                    }).join('');
+
+                    // Model details list
+                    const modelDetails = sortedModels.map(m =>
+                        `<span style="color: ${m.color};">●</span> ${escapeHtml(m.model)}: $${m.cost.toFixed(4)} (${m.requests} req)`
+                    ).join(' • ');
 
                     return `
                         <div class="provider-bar">
                             <div class="provider-header">
                                 <span class="provider-name">${p.provider}</span>
-                                <span class="provider-percentage">${percentage.toFixed(0)}%</span>
+                                <span class="provider-percentage">${providerPercentage.toFixed(0)}%</span>
                             </div>
                             <div class="bar-container">
-                                <div class="bar-fill" style="width: ${percentage}%; background: ${color}"></div>
+                                ${segments}
                             </div>
                             <div class="provider-details">
-                                $${p.cost.toFixed(4)} across ${p.requests} requests ($${(p.cost / p.requests).toFixed(4)} per request)
+                                $${p.totalCost.toFixed(4)} across ${p.totalRequests} requests ($${(p.totalCost / p.totalRequests).toFixed(4)} per request)
+                            </div>
+                            <div class="provider-details" style="font-size: 11px; margin-top: 4px;">
+                                ${modelDetails}
                             </div>
                         </div>
                     `;
