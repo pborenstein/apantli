@@ -66,7 +66,9 @@ model_list:
 - **Default behavior** - Temperature, max_tokens, top_p, etc.
 - **Provider-specific settings** - Azure API version, custom endpoints, etc.
 
-Any parameter accepted by `litellm.completion()` can be set here. Parameters set in `litellm_params` become defaults for that model alias - clients can override them in individual requests.
+Any parameter accepted by `litellm.completion()` can be set here.
+
+**Parameter Precedence**: Parameters set in `litellm_params` provide defaults for that model alias. Clients can override these defaults in individual requests. When a client explicitly provides a parameter value (including zero or false), that value is used. When a client omits a parameter or sends null, the config default is used.
 
 ### Configuration Fields
 
@@ -399,7 +401,13 @@ model_list:
       num_retries: 5     # Override global retries for this model
 ```
 
-These become defaults for this model alias. Clients can still override in individual requests.
+**Parameter Behavior**: These parameters provide defaults for this model alias. Clients can override any parameter in individual requests. The precedence is:
+
+1. Client provides explicit value (including 0, false, empty string) → use client value
+2. Client omits parameter or sends null → use config default
+3. No config default → LiteLLM uses its own defaults
+
+This allows you to set sensible defaults (e.g., temperature: 0.99 for creative models) while still allowing clients to override when needed (e.g., temperature: 0.0 for deterministic outputs).
 
 **Per-model timeout and retry configuration**:
 

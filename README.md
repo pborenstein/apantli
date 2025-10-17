@@ -232,16 +232,18 @@ model_list:
       model: anthropic/claude-sonnet-4-20250514
       api_key: os.environ/ANTHROPIC_API_KEY
 
-  # Optional: Per-model configuration
+  # Optional: Per-model configuration with parameter defaults
   - model_name: gpt-4.1-mini-fast
     litellm_params:
       model: openai/gpt-4.1-mini
       api_key: os.environ/OPENAI_API_KEY
       timeout: 30          # Override default timeout
       num_retries: 5       # Override default retries
-      temperature: 0.7     # Default temperature
-      max_tokens: 1000     # Default max tokens
+      temperature: 0.7     # Default temperature (clients can override)
+      max_tokens: 1000     # Default max tokens (clients can override)
 ```
+
+Config parameters provide defaults that clients can override in individual requests.
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md) for detailed configuration options, provider-specific setup, and client integration guides.
 

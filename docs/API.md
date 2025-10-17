@@ -117,6 +117,8 @@ Content-Type: application/json
 | `presence_penalty` | number | No | Presence penalty (-2.0 to 2.0) |
 | `frequency_penalty` | number | No | Frequency penalty (-2.0 to 2.0) |
 
+**Parameter Precedence**: Optional parameters can be configured with defaults in `config.yaml` (see [CONFIGURATION.md](CONFIGURATION.md#custom-model-parameters)). When you provide a parameter in your request, it overrides the config default. When you omit a parameter or send null, the config default is used (if configured).
+
 ### Message Object Format
 
 ```json

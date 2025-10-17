@@ -33,6 +33,7 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - Type-safe: Strong typing with Pydantic, early error detection
 - Reload support: Can reload config without restart
 - Backward compatible: `MODEL_MAP` global still available for legacy code
+- Parameter precedence: Config provides defaults, client values (except null) override config
 
 **Database (database.py)**:
 - Async operations: aiosqlite for non-blocking I/O
@@ -57,7 +58,7 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - Timezone conversion: `convert_local_date_to_utc_range()` for dashboard date filtering
 - Browser timezone handling: Converts local dates to UTC for SQL queries
 
-**Dashboard**: Jinja2 template at `/`, Alpine.js for reactivity, 4 tabs (Stats, Calendar, Models, Requests), 5-second auto-refresh on Stats tab.
+**Dashboard**: Jinja2 template at `/`, Alpine.js for reactivity, 4 tabs (Stats, Calendar, Models, Requests), 5-second auto-refresh on Stats tab. Request details show parameter values (temperature, max_tokens, timeout, num_retries, top_p).
 
 **Error Handling**: Comprehensive implementation with configurable timeouts/retries. See ERROR_HANDLING.md for design decisions.
 - Timeout: `--timeout` CLI arg (default 120s), per-model override via `timeout` in litellm_params

@@ -33,7 +33,9 @@ Detailed request history with server-side filtering and pagination. Uses the sam
 
 Advanced filters include provider dropdown (openai, anthropic, etc.), model dropdown (populated from available models), cost range slider (min/max thresholds), and text search (searches model name and request/response content). All filtering applied on backend for accurate totals.
 
-Features expandable details (click rows to show full request/response JSON), view modes (toggle between JSON and conversation view), copy to clipboard (copy individual messages), and persistent filter state (all filter selections persist across page reloads).
+Features expandable details (click rows to show full request/response JSON with request parameters), view modes (toggle between JSON and conversation view), copy to clipboard (copy individual messages), and persistent filter state (all filter selections persist across page reloads).
+
+**Request Parameters Display**: When viewing request details, a compact parameter line shows the key parameters used for that request: temperature, max_tokens, timeout, num_retries, and top_p. Only non-null values are displayed, making it easy to see which parameters were explicitly set or inherited from config defaults.
 
 ## Theme Toggle
 
