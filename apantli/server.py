@@ -108,9 +108,11 @@ async def chat_completions(request: Request):
                 request_data['api_key'] = api_key
 
             # Pass through all other litellm_params (timeout, num_retries, temperature, etc.)
+            # Config values OVERRIDE client values for temperature, allowing per-model defaults
             for key, value in model_config.items():
-                if key not in ('model', 'api_key') and key not in request_data:
-                    request_data[key] = value
+                if key not in ('model', 'api_key'):
+                    if key == 'temperature' or key not in request_data:
+                        request_data[key] = value
         else:
             # Model not found in config - log and return helpful error
             duration_ms = int((time.time() - start_time) * 1000)
@@ -914,7 +916,12 @@ async def stats_date_range():
 @app.get("/")
 async def dashboard(request: Request):
     """Simple HTML dashboard."""
-    return templates.TemplateResponse("dashboard.html", {"request": request})
+    response = templates.TemplateResponse("dashboard.html", {"request": request})
+    # Prevent browser caching of the HTML to avoid stale UI bugs
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 def main():

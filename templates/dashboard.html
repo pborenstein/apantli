@@ -5,6 +5,10 @@
     <link rel="icon" href="/static/favicon.ico" sizes="32x32">
     <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
     <link rel="manifest" href="/static/site.webmanifest">
+    <script>
+        // Version marker to help debug caching issues
+        window.APANTLI_VERSION = '2025-10-16-001';
+    </script>
     <script defer src="/static/alpine-persist.min.js"></script>
     <script defer src="/static/alpine.min.js"></script>
     <style>
@@ -1100,22 +1104,19 @@
 
         switch(range) {
             case 'all':
-                // Fetch actual date range from database
+                // Clear filter to show all requests
+                filter.startDate = '';
+                filter.endDate = '';
+                // Still fetch DB range for display purposes
                 try {
                     const res = await fetch('/stats/date-range');
                     const data = await res.json();
                     if (data.start_date && data.end_date) {
                         this.dbDateRange.startDate = data.start_date;
                         this.dbDateRange.endDate = data.end_date;
-                        filter.startDate = data.start_date;
-                        filter.endDate = data.end_date;
-                    } else {
-                        filter.startDate = '';
-                        filter.endDate = '';
                     }
                 } catch (e) {
-                    filter.startDate = '';
-                    filter.endDate = '';
+                    // Ignore errors
                 }
                 break;
             case 'today':
@@ -1228,6 +1229,10 @@
                 <input type="date" x-model="dateFilter.startDate">
                 <span>to</span>
                 <input type="date" x-model="dateFilter.endDate">
+                <button @click="dateFilter = { startDate: '', endDate: '' }" style="margin-left: 10px; padding: 4px 8px; border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text); cursor: pointer;">Clear Filter</button>
+            </div>
+            <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: 8px;" x-show="dateFilter.startDate || dateFilter.endDate">
+                Active filter: <span x-text="dateFilter.startDate || '(none)'"></span> to <span x-text="dateFilter.endDate || '(none)'"></span>
             </div>
         </div>
 
@@ -1288,6 +1293,10 @@
                 <input type="date" x-model="dateFilter.startDate">
                 <span>to</span>
                 <input type="date" x-model="dateFilter.endDate">
+                <button @click="dateFilter = { startDate: '', endDate: '' }" style="margin-left: 10px; padding: 4px 8px; border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text); cursor: pointer;">Clear Filter</button>
+            </div>
+            <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: 8px;" x-show="dateFilter.startDate || dateFilter.endDate">
+                Active filter: <span x-text="dateFilter.startDate || '(none)'"></span> to <span x-text="dateFilter.endDate || '(none)'"></span>
             </div>
         </div>
 

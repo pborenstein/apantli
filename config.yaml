@@ -5,14 +5,14 @@ model_list:
       api_key: os.environ/OPENAI_API_KEY
       # Optional: timeout, num_retries, temperature, max_tokens, etc.
 
-  - model_name: gpt-4.1-nano
-    litellm_params:
-      model: openai/gpt-4.1-nano
-      api_key: os.environ/OPENAI_API_KEY
-
   - model_name: gpt-4.1-mini
     litellm_params:
       model: openai/gpt-4.1-mini
+      api_key: os.environ/OPENAI_API_KEY
+
+  - model_name: gpt-4.1-nano
+    litellm_params:
+      model: openai/gpt-4.1-nano
       api_key: os.environ/OPENAI_API_KEY
 
   - model_name: gpt-4o
@@ -54,3 +54,9 @@ model_list:
     litellm_params:
       model: anthropic/claude-3-5-haiku-20241022
       api_key: os.environ/ANTHROPIC_API_KEY
+
+  - model_name: hot-haiku
+    litellm_params:
+      model: anthropic/claude-3-5-haiku-20241022
+      api_key: os.environ/ANTHROPIC_API_KEY
+      temperature: 0.99
