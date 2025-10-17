@@ -2639,7 +2639,10 @@
                     // Create segmented bar
                     const segments = sortedModels.map(m => {
                         const modelPercentage = (m.cost / totalCost * 100);
-                        return `<div class="bar-segment" style="width: ${modelPercentage}%; background: ${m.color};" title="${m.model}: $${m.cost.toFixed(4)}"></div>`;
+                        const modelLabel = escapeHtml(m.model);
+                        return `<div class="bar-segment" style="width: ${modelPercentage}%; background: ${m.color}; cursor: pointer;"
+                                     onmouseover="showChartTooltip(event, '${p.provider}', '${modelLabel}', ${m.cost})"
+                                     onmouseout="hideChartTooltip()"></div>`;
                     }).join('');
 
                     // Model details list
