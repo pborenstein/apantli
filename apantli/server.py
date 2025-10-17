@@ -903,10 +903,7 @@ async def stats_hourly(date: str, timezone_offset: int = None):
     # and GROUP BY using timezone-adjusted hours
     if timezone_offset is not None:
         # Convert local date range to UTC timestamps for efficient WHERE clause
-        start_utc, _ = convert_local_date_to_utc_range(date, timezone_offset)
-        end_dt = datetime.fromisoformat(date) + timedelta(days=1)
-        end_date = end_dt.strftime('%Y-%m-%d')
-        _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
+        start_utc, end_utc = convert_local_date_to_utc_range(date, timezone_offset)
         where_filter = f"timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
 
         # Timezone conversion for GROUP BY to group by local hour
