@@ -2159,8 +2159,8 @@
             const b = parseInt(baseColor.slice(5, 7), 16);
 
             // Generate tint: darker for first model, lighter for subsequent
-            // Lightness range: 0% (darkest) to 50% (lightest)
-            const lightness = totalModels === 1 ? 0 : (modelIndex / (totalModels - 1)) * 0.5;
+            // Lightness range: 0% (darkest) to 75% (lightest)
+            const lightness = totalModels === 1 ? 0 : (modelIndex / (totalModels - 1)) * 0.75;
 
             // Mix with white to create tint
             const nr = Math.round(r + (255 - r) * lightness);
