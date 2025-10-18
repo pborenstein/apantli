@@ -570,8 +570,8 @@ async def stats_hourly(date: str, timezone_offset: int = None):
     return {
         'hourly': hourly_list,
         'date': date,
-        'total_cost': round(total_cost, 4),
-        'total_requests': total_requests
+        'total_cost': result['total_cost'],
+        'total_requests': result['total_requests']
     }
 
 
