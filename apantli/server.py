@@ -34,7 +34,7 @@ import uvicorn
 from dotenv import load_dotenv
 
 # Import from local modules
-from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, LOG_INDENT, load_config
+from apantli.config import LOG_INDENT, load_config
 from apantli.database import Database
 from apantli.errors import build_error_response, get_error_details
 from apantli.llm import infer_provider_from_model
@@ -54,8 +54,14 @@ templates = Jinja2Templates(directory="templates")
 async def lifespan(app: FastAPI):
     """Initialize database and load config on startup."""
     load_config()
-    # Get db_path from app.state if set by main(), otherwise use default
+
+    # Get config values from app.state if set by main(), otherwise use defaults
     db_path = getattr(app.state, 'db_path', 'requests.db')
+    app.state.timeout = getattr(app.state, 'timeout', 120)
+    app.state.retries = getattr(app.state, 'retries', 3)
+    app.state.model_map = apantli.config.MODEL_MAP
+
+    # Initialize database
     db = Database(db_path)
     await db.init()
     app.state.db = db
@@ -143,8 +149,9 @@ async def chat_completions(request: Request):
             return JSONResponse(content=error_response, status_code=400)
 
         # Look up model in config
-        if model in apantli.config.MODEL_MAP:
-            model_config = apantli.config.MODEL_MAP[model]
+        model_map = request.app.state.model_map
+        if model in model_map:
+            model_config = model_map[model]
 
             # Replace model with LiteLLM format
             request_data['model'] = model_config['model']
@@ -168,7 +175,7 @@ async def chat_completions(request: Request):
         else:
             # Model not found in config - log and return helpful error
             duration_ms = int((time.time() - start_time) * 1000)
-            available_models = sorted(apantli.config.MODEL_MAP.keys())
+            available_models = sorted(model_map.keys())
             error_msg = f"Model '{model}' not found in configuration."
             if available_models:
                 error_msg += f" Available models: {', '.join(available_models)}"
@@ -189,11 +196,11 @@ async def chat_completions(request: Request):
             error_response = build_error_response("invalid_request_error", error_msg, "model_not_found")
             return JSONResponse(content=error_response, status_code=404)
 
-        # Apply global defaults if not specified
+        # Apply defaults if not specified
         if 'timeout' not in request_data:
-            request_data['timeout'] = DEFAULT_TIMEOUT
+            request_data['timeout'] = request.app.state.timeout
         if 'num_retries' not in request_data:
-            request_data['num_retries'] = DEFAULT_RETRIES
+            request_data['num_retries'] = request.app.state.retries
 
         # Update logging copy with final request_data (includes API key and all params)
         request_data_for_logging = request_data.copy()
@@ -364,10 +371,10 @@ async def health():
 
 
 @app.get("/models")
-async def models():
+async def models(request: Request):
     """List available models from config."""
     model_list = []
-    for model_name, litellm_params in apantli.config.MODEL_MAP.items():
+    for model_name, litellm_params in request.app.state.model_map.items():
         # Try to get pricing info from LiteLLM
         litellm_model = litellm_params['model']
         input_cost = None
@@ -630,8 +637,8 @@ def main():
 
     # Store config values in app.state for lifespan to access
     app.state.db_path = args.db
-    apantli.config.DEFAULT_TIMEOUT = args.timeout
-    apantli.config.DEFAULT_RETRIES = args.retries
+    app.state.timeout = args.timeout
+    app.state.retries = args.retries
 
     # Configure logging format with timestamps
     log_config = uvicorn.config.LOGGING_CONFIG

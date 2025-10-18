@@ -94,7 +94,9 @@ The small modules (`errors.py`, `llm.py`, `utils.py`) are particularly well-done
 
 ### HIGH PRIORITY
 
-#### 1. Global State Management (server.py, config.py, database.py)
+#### 1. Global State Management (server.py, config.py, database.py) ✅ COMPLETED
+
+**Status**: Fixed as of 2025-10-18. Using FastAPI's app.state pattern (Option B).
 
 **Issue**: Mutable global state creates hidden dependencies and makes testing harder.
 
@@ -798,7 +800,7 @@ Recommendation: Run `mypy` and address findings.
    - Impact: Much better testability and readability
    - Effort: 4-6 hours (needs careful extraction and testing)
 
-7. **Remove global state, use dependency injection**
+7. ✅ **Remove global state, use dependency injection** - COMPLETED 2025-10-18
    - Impact: Cleaner architecture, easier testing
    - Effort: 3-4 hours
 
