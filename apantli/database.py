@@ -9,10 +9,6 @@ from contextlib import asynccontextmanager
 import litellm
 
 
-# Database path (can be overridden by CLI args in main())
-DB_PATH = "requests.db"
-
-
 class Database:
   """Async database interface for request logging."""
 
@@ -486,25 +482,3 @@ class Database:
         'start_date': None,
         'end_date': None
       }
-
-
-# Backward compatibility: module-level functions that use global DB_PATH
-# These maintain the original API for existing code
-
-# Global database instance (initialized by init_db())
-_db: Optional[Database] = None
-
-
-async def init_db():
-  """Initialize SQLite database with requests table (async)."""
-  global _db
-  _db = Database(DB_PATH)
-  await _db.init()
-
-
-async def log_request(model: str, provider: str, response: dict, duration_ms: int,
-                     request_data: dict, error: Optional[str] = None):
-  """Log a request to SQLite (async)."""
-  if _db is None:
-    raise RuntimeError("Database not initialized. Call init_db() first.")
-  await _db.log_request(model, provider, response, duration_ms, request_data, error)

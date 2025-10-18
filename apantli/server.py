@@ -35,14 +35,13 @@ from dotenv import load_dotenv
 
 # Import from local modules
 from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, LOG_INDENT, load_config
-from apantli.database import DB_PATH, init_db, log_request
+from apantli.database import Database
 from apantli.errors import build_error_response
 from apantli.llm import infer_provider_from_model
 from apantli.utils import convert_local_date_to_utc_range, build_time_filter
 
 # Import modules themselves for accessing globals
 import apantli.config
-import apantli.database
 
 # Load environment variables
 load_dotenv()
@@ -55,7 +54,11 @@ templates = Jinja2Templates(directory="templates")
 async def lifespan(app: FastAPI):
     """Initialize database and load config on startup."""
     load_config()
-    await init_db()
+    # Get db_path from app.state if set by main(), otherwise use default
+    db_path = getattr(app.state, 'db_path', 'requests.db')
+    db = Database(db_path)
+    await db.init()
+    app.state.db = db
     yield
 
 
@@ -99,7 +102,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
 
 
 async def handle_llm_error(e: Exception, start_time: float, request_data: dict,
-                          request_data_for_logging: dict) -> JSONResponse:
+                          request_data_for_logging: dict, db: Database) -> JSONResponse:
     """Handle LLM API errors with consistent logging and response formatting."""
     import time
 
@@ -125,7 +128,7 @@ async def handle_llm_error(e: Exception, start_time: float, request_data: dict,
         error_name = "ProviderError"
 
     # Log to database
-    await log_request(
+    await db.log_request(
         model_name,
         provider,
         None,
@@ -148,6 +151,7 @@ async def chat_completions(request: Request):
     """OpenAI-compatible chat completions endpoint."""
     import time
 
+    db = request.app.state.db
     start_time = time.time()
     request_data = await request.json()
     # Will be updated with API key later, used for database logging
@@ -192,7 +196,7 @@ async def chat_completions(request: Request):
                 error_msg += f" Available models: {', '.join(available_models)}"
 
             # Log to database
-            await log_request(
+            await db.log_request(
                 model,
                 "unknown",
                 None,
@@ -303,7 +307,7 @@ async def chat_completions(request: Request):
                     # Log to database
                     try:
                         duration_ms = int((time.time() - start_time) * 1000)
-                        await log_request(model, provider, full_response, duration_ms, request_data_for_logging, error=stream_error)
+                        await db.log_request(model, provider, full_response, duration_ms, request_data_for_logging, error=stream_error)
 
                         # Log completion
                         if stream_error:
@@ -347,7 +351,7 @@ async def chat_completions(request: Request):
         duration_ms = int((time.time() - start_time) * 1000)
 
         # Log to database
-        await log_request(model, provider, response_dict, duration_ms, request_data_for_logging)
+        await db.log_request(model, provider, response_dict, duration_ms, request_data_for_logging)
 
         # Log completion
         usage = response_dict.get('usage', {})
@@ -367,12 +371,12 @@ async def chat_completions(request: Request):
 
     except (RateLimitError, AuthenticationError, PermissionDeniedError, NotFoundError,
             Timeout, InternalServerError, ServiceUnavailableError, APIConnectionError) as e:
-        return await handle_llm_error(e, start_time, request_data, request_data_for_logging)
+        return await handle_llm_error(e, start_time, request_data, request_data_for_logging, db)
 
     except Exception as e:
         # Catch-all for unexpected errors
         logging.exception(f"Unexpected error in chat completions: {e}")
-        return await handle_llm_error(e, start_time, request_data, request_data_for_logging)
+        return await handle_llm_error(e, start_time, request_data, request_data_for_logging, db)
 
 
 @app.get("/health")
@@ -662,8 +666,8 @@ def main():
     litellm.suppress_debug_info = True
     litellm.set_verbose = False
 
-    # Update global config values in their respective modules
-    apantli.database.DB_PATH = args.db
+    # Store config values in app.state for lifespan to access
+    app.state.db_path = args.db
     apantli.config.DEFAULT_TIMEOUT = args.timeout
     apantli.config.DEFAULT_RETRIES = args.retries
 

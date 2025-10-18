@@ -14,7 +14,7 @@ try:
     from apantli.errors import build_error_response
     from apantli.utils import convert_local_date_to_utc_range
     from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES
-    from apantli.database import init_db, log_request
+    from apantli.database import Database
     print("✓ All modules import successfully")
 except ImportError as e:
     print(f"✗ Import failed: {e}")
