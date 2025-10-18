@@ -228,18 +228,6 @@ async def chat_completions(request: Request):
             }
             socket_error_logged = False
 
-            def safe_yield(data: str) -> bool:
-                """Yield data safely, return False if client disconnected."""
-                nonlocal socket_error_logged
-                try:
-                    yield data
-                    return True
-                except (BrokenPipeError, ConnectionError, ConnectionResetError) as e:
-                    if not socket_error_logged:
-                        logging.info(f"Client disconnected during streaming: {type(e).__name__}")
-                        socket_error_logged = True
-                    return False
-
             async def generate():
                 nonlocal full_response, socket_error_logged
                 stream_error = None
@@ -263,24 +251,42 @@ async def chat_completions(request: Request):
                         if 'usage' in chunk_dict:
                             full_response['usage'] = chunk_dict['usage']
 
-                        if not safe_yield(f"data: {json.dumps(chunk_dict)}\n\n"):
+                        try:
+                            yield f"data: {json.dumps(chunk_dict)}\n\n"
+                        except (BrokenPipeError, ConnectionError, ConnectionResetError) as e:
+                            if not socket_error_logged:
+                                logging.info(f"Client disconnected during streaming: {type(e).__name__}")
+                                socket_error_logged = True
                             return  # Client disconnected
 
                 except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError) as e:
                     # Provider error during streaming - send error event
                     stream_error = f"{type(e).__name__}: {str(e)}"
                     error_event = build_error_response("stream_error", str(e), type(e).__name__.lower())
-                    safe_yield(f"data: {json.dumps(error_event)}\n\n")
+                    try:
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
+                        if not socket_error_logged:
+                            logging.info("Client disconnected before error could be sent")
+                            socket_error_logged = True
 
                 except Exception as e:
                     # Unexpected error during streaming
                     stream_error = f"UnexpectedStreamError: {str(e)}"
                     error_event = build_error_response("stream_error", str(e), "internal_error")
-                    safe_yield(f"data: {json.dumps(error_event)}\n\n")
+                    try:
+                        yield f"data: {json.dumps(error_event)}\n\n"
+                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
+                        if not socket_error_logged:
+                            logging.info("Client disconnected before error could be sent")
+                            socket_error_logged = True
 
                 finally:
                     # Always send [DONE] and log to database
-                    safe_yield("data: [DONE]\n\n")
+                    try:
+                        yield "data: [DONE]\n\n"
+                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
+                        pass  # Client gone, can't send [DONE]
 
                     # Log to database
                     try:
