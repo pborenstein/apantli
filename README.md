@@ -5,20 +5,37 @@ Lightweight local LLM proxy with SQLite cost tracking. Routes requests to multip
 
 ## Quick Start
 
-1. **Install dependencies**:
+1. **Clone the repository**:
+
+   ```bash
+   git clone <repository-url>
+   cd apantli
+   ```
+
+2. **Install dependencies**:
 
    ```bash
    uv sync
    ```
 
-2. **Configure API keys** in `.env`:
+3. **Activate the virtual environment**:
 
    ```bash
-   OPENAI_API_KEY=sk-proj-...
-   ANTHROPIC_API_KEY=sk-ant-...
+   # bash/zsh
+   source .venv/bin/activate
+
+   # fish
+   source .venv/bin/activate.fish
    ```
 
-3. **Configure models** in `config.yaml`:
+4. **Configure API keys** in `.env`:
+
+   ```bash
+   cp .env.example .env
+   # Edit .env with your API keys
+   ```
+
+5. **Configure models** in `config.yaml`:
 
    ```yaml
    model_list:
@@ -28,13 +45,13 @@ Lightweight local LLM proxy with SQLite cost tracking. Routes requests to multip
          api_key: os.environ/OPENAI_API_KEY
    ```
 
-4. **Start the server**:
+6. **Start the server**:
 
    ```bash
    apantli
    ```
 
-5. **View dashboard**: http://localhost:4000/
+7. **View dashboard**: http://localhost:4000/
 
 ## Project Overview
 
