@@ -294,8 +294,68 @@ def test_streaming_disconnect() -> bool:
         return False
 
 
+def test_missing_model_parameter() -> bool:
+    """Test 7: Verify missing model parameter returns OpenAI-compatible error."""
+    print_test("Missing Model Parameter")
+
+    # Send request without model parameter
+    payload = {
+        "messages": [{"role": "user", "content": "test"}]
+    }
+
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/chat/completions",
+            json=payload,
+            timeout=TIMEOUT
+        )
+
+        print_info(f"Status Code: {response.status_code}")
+
+        if response.status_code != 400:
+            print_error(f"Expected 400, got {response.status_code}")
+            return False
+
+        result = response.json()
+        print_result(result)
+
+        # Check OpenAI-compatible error format
+        if "error" not in result:
+            print_error("Missing 'error' field in response")
+            return False
+
+        error = result["error"]
+        required_fields = ["message", "type", "code"]
+
+        for field in required_fields:
+            if field not in error:
+                print_error(f"Missing required field in error: {field}")
+                return False
+
+        # Verify specific values
+        if error["type"] != "invalid_request_error":
+            print_error(f"Expected type 'invalid_request_error', got '{error['type']}'")
+            return False
+
+        if error["code"] != "missing_model":
+            print_error(f"Expected code 'missing_model', got '{error['code']}'")
+            return False
+
+        if "Model is required" not in error["message"]:
+            print_error(f"Unexpected error message: {error['message']}")
+            return False
+
+        print_success("Missing model parameter handled correctly")
+        print_info(f"Error message: {error['message']}")
+        return True
+
+    except Exception as e:
+        print_error(f"Exception: {e}")
+        return False
+
+
 def test_error_response_format() -> bool:
-    """Test 7: Verify error response format is OpenAI-compatible."""
+    """Test 8: Verify error response format is OpenAI-compatible."""
     print_test("Error Response Format")
 
     payload = {
@@ -355,6 +415,7 @@ def main():
         ("Normal Request", test_normal_request),
         ("API Key Protection", test_authentication_error),
         ("Model Not Found", test_model_not_found),
+        ("Missing Model Parameter", test_missing_model_parameter),
         ("Normal Streaming", test_streaming_normal),
         ("Streaming Disconnect", test_streaming_disconnect),
         ("Error Response Format", test_error_response_format),

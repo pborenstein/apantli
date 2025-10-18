@@ -175,23 +175,51 @@ Content-Type: application/json
 
 ### Error Responses
 
-**Missing model** (400 Bad Request):
+All errors return OpenAI-compatible JSON format for cross-compatibility with OpenAI SDKs.
+
+**Error Format**:
 
 ```json
 {
-  "detail": "Model is required"
+  "error": {
+    "message": "Human-readable error description",
+    "type": "error_type_category",
+    "code": "specific_error_code"
+  }
 }
 ```
 
-**Provider error** (500 Internal Server Error):
+**Possible Error Status Codes**:
+
+| Status | Condition | Example Message | Retryable |
+|:-------|:----------|:----------------|:----------|
+| 400 | Missing required parameter | Model is required | No |
+| 401 | Authentication failed | Invalid API key for provider | No |
+| 403 | Permission denied | API key lacks permissions for this model | No |
+| 404 | Model not found in config | Model 'gpt-5' not found in configuration | No |
+| 429 | Rate limited | Rate limit exceeded for provider | Yes (with Retry-After) |
+| 502 | Connection error | Cannot connect to provider API | Yes |
+| 503 | Provider unavailable | Provider is overloaded or in maintenance | Yes |
+| 504 | Request timeout | Request exceeded timeout limit | Yes |
+| 500 | Other errors | Unexpected internal error | No |
+
+See [ERROR_HANDLING.md](ERROR_HANDLING.md#http-status-code-mapping) for detailed error handling strategy and retry recommendations.
+
+**Example Error Responses**:
+
+**Missing model parameter** (400):
 
 ```json
 {
-  "detail": "Authentication error: Invalid API key"
+  "error": {
+    "message": "Model is required",
+    "type": "invalid_request_error",
+    "code": "missing_model"
+  }
 }
 ```
 
-**Unknown model** (404 Not Found):
+**Model not found** (404):
 
 ```json
 {
@@ -202,6 +230,71 @@ Content-Type: application/json
   }
 }
 ```
+
+**Note**: The available models list is always complete (not truncated) and displayed in alphabetical order.
+
+### Streaming Error Handling
+
+When an error occurs during a streaming response (`stream=true`), the server sends an error event in Server-Sent Events (SSE) format, followed by the `[DONE]` marker:
+
+**SSE Format**:
+
+```
+data: {"error": {"message": "Request timeout", "type": "timeout_error", "code": "request_timeout"}}
+
+data: [DONE]
+```
+
+**Important**: Always check for error events in the stream. A stream may return partial content before an error occurs.
+
+**Error Detection Example (Python)**:
+
+```python
+import requests
+import json
+
+response = requests.post(
+    "http://localhost:4000/v1/chat/completions",
+    json={
+        "model": "gpt-4.1-mini",
+        "messages": [{"role": "user", "content": "Hello"}],
+        "stream": True
+    },
+    stream=True
+)
+
+for line in response.iter_lines():
+    if line:
+        line_str = line.decode('utf-8')
+        if line_str.startswith('data: '):
+            data_str = line_str[6:]  # Remove 'data: ' prefix
+
+            if data_str == '[DONE]':
+                break
+
+            try:
+                data = json.loads(data_str)
+
+                # Check for error
+                if "error" in data:
+                    print(f"Stream error: {data['error']['message']}")
+                    break
+
+                # Process normal chunk
+                if "choices" in data:
+                    delta = data["choices"][0].get("delta", {})
+                    content = delta.get("content", "")
+                    if content:
+                        print(content, end="", flush=True)
+
+            except json.JSONDecodeError:
+                print(f"Invalid JSON in stream: {data_str}")
+                break
+
+print()  # Newline after stream
+```
+
+**Error Codes in Streaming**: The same HTTP status code mapping applies (see Error Responses section above), but in streaming responses the error is sent as an SSE event rather than an HTTP error status.
 
 ### cURL Examples
 

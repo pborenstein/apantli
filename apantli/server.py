@@ -87,6 +87,17 @@ ERROR_MAP = {
 }
 
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    """Convert FastAPI HTTPException to OpenAI-compatible error format."""
+    error_response = build_error_response(
+        "invalid_request_error",
+        exc.detail if isinstance(exc.detail, str) else str(exc.detail),
+        f"http_{exc.status_code}"
+    )
+    return JSONResponse(content=error_response, status_code=exc.status_code)
+
+
 async def handle_llm_error(e: Exception, start_time: float, request_data: dict,
                           request_data_for_logging: dict) -> JSONResponse:
     """Handle LLM API errors with consistent logging and response formatting."""
@@ -146,7 +157,8 @@ async def chat_completions(request: Request):
         # Extract model and remap if needed
         model = request_data.get('model')
         if not model:
-            raise HTTPException(status_code=400, detail="Model is required")
+            error_response = build_error_response("invalid_request_error", "Model is required", "missing_model")
+            return JSONResponse(content=error_response, status_code=400)
 
         # Look up model in config
         if model in apantli.config.MODEL_MAP:

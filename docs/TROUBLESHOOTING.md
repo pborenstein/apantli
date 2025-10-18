@@ -420,7 +420,7 @@ Solutions to common issues when running Apantli.
 **Symptoms**:
 
 - HTTP 400 Bad Request
-- Response: `{"detail": "Model is required"}`
+- Response: `{"error": {"message": "Model is required", "type": "invalid_request_error", "code": "missing_model"}}`
 
 **Solutions**:
 
