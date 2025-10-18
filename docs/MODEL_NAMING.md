@@ -11,7 +11,7 @@ If you're confused about when to use `gpt-4.1-mini` versus `openai/gpt-4.1-mini`
 Apantli sits between three systems, each with its own naming convention:
 
 1. **OpenAI-Compatible API** (what clients send) — Uses short names like `"gpt-4.1-mini"`
-2. **LiteLLM SDK** (what routes requests) — Needs provider prefixes like `"openai/gpt-4.1-mini"`
+2. **LiteLLM SDK** (what routes requests) — Uses provider/model format like `"openai/gpt-4.1-mini"` for unambiguous routing
 3. **The Apantli config.yaml** (what maps one to the other) — Contains both names with different field labels
 
 None of these naming choices belong to Apantli. They're inherited from external APIs and SDKs.
@@ -65,7 +65,7 @@ Here's what happens when a client makes a request:
 │      messages=[...]                                                │
 │    )                                                               │
 │                                                                    │
-│    Needs: Provider prefix (openai/, anthropic/, etc.)              │
+│    Uses: Provider/model format for unambiguous routing            │
 └────────────────────────────────────────────────────────────────────┘
                                     │
                                     ▼
@@ -88,7 +88,7 @@ Here's what happens when a client makes a request:
 
 **Full identifier** (`openai/gpt-4.1-mini`):
 
-- Required by LiteLLM SDK for routing
+- Used by LiteLLM SDK for unambiguous routing (can infer provider, but explicit format prevents ambiguity)
 - Specifies which provider to use
 - Includes version info (e.g., `claude-3-5-haiku-20241022`)
 - No ambiguity when multiple providers offer same model name
@@ -100,7 +100,7 @@ Here's what happens when a client makes a request:
 Because they serve different purposes:
 
 - `model_name`: What clients send in API requests (the alias)
-- `litellm_params.model`: What LiteLLM needs to route the request (provider/model)
+- `litellm_params.model`: What LiteLLM uses to route the request (provider/model format for unambiguous routing)
 
 The field names come from different APIs (OpenAI-compatible vs. LiteLLM SDK).
 
@@ -173,11 +173,11 @@ This shows that `claude-sonnet-4` is actually Anthropic's model from May 2025.
 
 ## Why Not Standardize Everything?
 
-We'd love to, but:
+That would break compatibility:
 
 - **OpenAI API** uses `"model": "gpt-4"` (no provider prefix)
-- **LiteLLM SDK** requires `model="openai/gpt-4"` (with prefix)
-- **Changing either** would break compatibility
+- **LiteLLM SDK** uses `model="openai/gpt-4"` (explicit provider/model format)
+- **Changing either** would break existing client code
 
 Apantli's job is to bridge these systems while keeping both APIs happy.
 
