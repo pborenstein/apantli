@@ -204,6 +204,165 @@ The `VACUUM` command rebuilds the database file to reclaim unused space after de
 
 ## Querying the Database
 
+## Database Class API
+
+The `Database` class in `apantli/database.py` encapsulates all database operations with async methods.
+
+### Constructor
+
+```python
+Database(path: str)
+```
+
+Creates a database instance pointing to the specified SQLite file.
+
+### Core Methods
+
+#### `async init()`
+
+Initializes the database schema and indexes. Creates the `requests` table if it doesn't exist and establishes performance indexes for timestamp, date+provider, and cost queries.
+
+**Usage**:
+```python
+db = Database("requests.db")
+await db.init()
+```
+
+#### `async log_request(model, provider, response, duration_ms, request_data, error=None)`
+
+Logs a completed request (successful or failed) to the database.
+
+**Parameters**:
+- `model` (str): Model name as requested by client
+- `provider` (str): Provider name (openai, anthropic, etc.)
+- `response` (dict): Full response from provider (None for errors)
+- `duration_ms` (int): Request duration in milliseconds
+- `request_data` (dict): Full request JSON
+- `error` (str, optional): Error message if request failed
+
+**Behavior**:
+- Extracts token usage from response
+- Calculates cost using `litellm.completion_cost()`
+- Stores full request/response JSON
+- Records UTC timestamp
+
+### Query Methods
+
+#### `async get_requests(time_filter="", offset=0, limit=50, provider=None, model=None, min_cost=None, max_cost=None, search=None)`
+
+Returns paginated request history with filtering and aggregates.
+
+**Parameters**:
+- `time_filter` (str): SQL WHERE clause fragment (from `build_time_filter()`)
+- `offset` (int): Number of records to skip (default: 0)
+- `limit` (int): Maximum records to return (default: 50)
+- `provider` (str, optional): Filter by provider name
+- `model` (str, optional): Filter by model name
+- `min_cost` (float, optional): Minimum cost threshold
+- `max_cost` (float, optional): Maximum cost threshold
+- `search` (str, optional): Search in model name or request/response content
+
+**Returns**:
+```python
+{
+  "requests": [...],      # Array of request objects
+  "total": 150,          # Total matching records
+  "total_tokens": 45000, # Sum of all tokens
+  "total_cost": 2.45,    # Sum of all costs
+  "avg_cost": 0.016,     # Average cost per request
+  "offset": 0,
+  "limit": 50
+}
+```
+
+#### `async get_stats(time_filter="")`
+
+Returns aggregated usage statistics with model/provider breakdown and performance metrics.
+
+**Parameters**:
+- `time_filter` (str): SQL WHERE clause fragment
+
+**Returns**:
+```python
+{
+  "totals": {...},           # Overall totals (requests, cost, tokens, avg_duration_ms)
+  "by_model": [...],         # Per-model breakdown
+  "by_provider": [...],      # Per-provider breakdown
+  "performance": [...],      # Model performance metrics (tokens/sec, duration)
+  "recent_errors": [...]     # Last 10 errors
+}
+```
+
+#### `async get_daily_stats(start_date, end_date, where_filter, date_expr)`
+
+Returns daily aggregated statistics with model breakdown.
+
+**Parameters**:
+- `start_date` (str): ISO date (YYYY-MM-DD)
+- `end_date` (str): ISO date (YYYY-MM-DD)
+- `where_filter` (str): SQL WHERE clause (without WHERE keyword)
+- `date_expr` (str): SQL expression for grouping by date with timezone
+
+**Returns**:
+```python
+{
+  "daily": [...],          # Array of daily objects with by_model breakdown
+  "total_days": 30,
+  "total_cost": 45.67,
+  "total_requests": 1234
+}
+```
+
+#### `async get_hourly_stats(where_filter, hour_expr)`
+
+Returns hourly aggregated statistics for a single day.
+
+**Parameters**:
+- `where_filter` (str): SQL WHERE clause (without WHERE keyword)
+- `hour_expr` (str): SQL expression for grouping by hour with timezone
+
+**Returns**:
+```python
+{
+  "hourly": [...],         # Array of hourly objects with by_model breakdown
+  "total_cost": 1.23,
+  "total_requests": 45
+}
+```
+
+#### `async clear_errors()`
+
+Deletes all error records from the database.
+
+**Returns**: Number of deleted records (int)
+
+#### `async get_date_range()`
+
+Returns the actual date range of data in the database.
+
+**Returns**:
+```python
+{
+  "start_date": "2024-01-01",  # ISO date or None if no data
+  "end_date": "2024-01-31"     # ISO date or None if no data
+}
+```
+
+### Backward Compatibility
+
+For legacy code, module-level functions are provided:
+
+```python
+from apantli.database import init_db, log_request
+
+await init_db()  # Initializes global _db instance
+await log_request(model, provider, response, duration_ms, request_data, error)
+```
+
+These use a global `_db` instance and the module-level `DB_PATH` variable.
+
+## Command-Line Queries
+
 ### Quick Reference
 
 For quick database queries from the command line:

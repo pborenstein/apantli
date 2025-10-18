@@ -197,9 +197,9 @@ The database module handles all persistent storage using async SQLite operations
 
 **Responsibilities**: Async SQLite operations using aiosqlite, schema initialization and migration, request/response logging with full JSON, query execution for statistics and history, and cost calculation using LiteLLM.
 
-**Database Class**: The Database class encapsulates database operations with a path property (SQLite file path), _get_connection() async context manager for connections, init() to create schema and indexes, and log_request() to insert requests with async I/O.
+**Database Class**: The Database class encapsulates all database operations with a path property (SQLite file path), _get_connection() async context manager for connections, init() to create schema and indexes, and log_request() to insert requests with async I/O.
 
-**Note**: Statistics queries (`/stats`, `/stats/daily`, `/requests`) are implemented directly in server.py using raw SQL for performance and flexibility.
+**Query Methods**: The Database class provides query methods for all statistics endpoints: get_stats() for aggregated statistics with model/provider breakdown and performance metrics, get_requests() for paginated request history with filtering (by provider, model, cost, search terms), get_daily_stats() for daily aggregations, get_hourly_stats() for hourly aggregations, clear_errors() for error deletion, and get_date_range() for available date range. All database queries are encapsulated in the Database class rather than using raw SQL in server.py.
 
 **Key Features**: Non-blocking async operations via aiosqlite prevent event loop blocking. Context managers handle connection pooling. Automatic cost calculation via litellm.completion_cost(). Full request/response JSON storage including API keys for debugging provides complete audit trail. Indexed queries deliver fast dashboard performance with typical operation time of 1-5ms (non-blocking).
 
