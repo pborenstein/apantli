@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>LLM Proxy Stats</title>
+    <title>apantli ≈ dashboard</title>
     <link rel="icon" href="/static/favicon.ico" sizes="32x32">
     <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
     <link rel="manifest" href="/static/site.webmanifest">
@@ -81,6 +81,13 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+
+        .apantli-glyph {
+            height: 1.5em;
+            vertical-align: middle;
+            margin: 0 0.3em;
+            display: inline-block;
         }
 
         h2 {
@@ -1224,7 +1231,7 @@
     $watch('currentPage', value => loadRequests());
 ">
     <h1>
-        <span>LLM Proxy Statistics</span>
+        <span>apantli<img src="/static/apantli-glyph.png" alt="~" class="apantli-glyph">dashboard</span>
         <button class="theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
             <span x-show="theme === 'light'">Dark Mode</span>
             <span x-show="theme === 'dark'">Light Mode</span>
