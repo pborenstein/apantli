@@ -246,7 +246,9 @@ await db.log_request(model, provider, response, duration_ms, request_data)
 
 Simpler, clearer, fewer lines.
 
-#### 3. Oversized chat_completions Function (server.py, lines 145-376)
+#### 3. Oversized chat_completions Function (server.py, lines 145-376) ✅ COMPLETED
+
+**Status**: Fixed as of 2025-10-18. Refactored into focused helper functions: `resolve_model_config()`, `calculate_cost()`, `execute_streaming_request()`, `execute_request()`.
 
 **Issue**: 228-line function that handles request parsing, config lookup, API calls, streaming, error handling, logging, and response formatting.
 
@@ -796,7 +798,7 @@ Recommendation: Run `mypy` and address findings.
 
 ### Medium-term Improvements
 
-6. **Refactor chat_completions into smaller functions**
+6. ✅ **Refactor chat_completions into smaller functions** - COMPLETED 2025-10-18
    - Impact: Much better testability and readability
    - Effort: 4-6 hours (needs careful extraction and testing)
 

@@ -94,6 +94,241 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     return JSONResponse(content=error_response, status_code=exc.status_code)
 
 
+def resolve_model_config(model: str, request_data: dict, model_map: dict,
+                        timeout: int, retries: int) -> dict:
+    """Resolve model configuration and merge with request parameters.
+
+    Args:
+        model: Model name from request
+        request_data: Request data dict (will be modified)
+        model_map: Model configuration map from app.state
+        timeout: Default timeout from app.state
+        retries: Default retries from app.state
+
+    Returns:
+        Updated request_data dict
+
+    Raises:
+        HTTPException: If model not found in configuration
+    """
+    if model not in model_map:
+        available_models = sorted(model_map.keys())
+        error_msg = f"Model '{model}' not found in configuration."
+        if available_models:
+            error_msg += f" Available models: {', '.join(available_models)}"
+        raise HTTPException(status_code=404, detail=error_msg)
+
+    model_config = model_map[model]
+
+    # Replace model with LiteLLM format
+    request_data['model'] = model_config['model']
+
+    # Handle api_key from config (resolve environment variable)
+    api_key = model_config.get('api_key', '')
+    if api_key.startswith('os.environ/'):
+        env_var = api_key.split('/', 1)[1]
+        api_key = os.environ.get(env_var, '')
+    if api_key:
+        request_data['api_key'] = api_key
+
+    # Pass through all other litellm_params (timeout, num_retries, temperature, etc.)
+    # Config provides defaults; client values (except null) always win
+    for key, value in model_config.items():
+        if key not in ('model', 'api_key'):
+            # Use config value only if client didn't provide, or provided None/null
+            # This allows: config defaults, client override, null → use config
+            if key not in request_data or request_data.get(key) is None:
+                request_data[key] = value
+
+    # Apply global defaults if not specified
+    if 'timeout' not in request_data:
+        request_data['timeout'] = timeout
+    if 'num_retries' not in request_data:
+        request_data['num_retries'] = retries
+
+    return request_data
+
+
+def calculate_cost(response) -> float:
+    """Calculate cost for a completion response, returning 0.0 on error."""
+    try:
+        return litellm.completion_cost(completion_response=response)
+    except:
+        return 0.0
+
+
+async def execute_streaming_request(
+    response,
+    model: str,
+    request_data: dict,
+    request_data_for_logging: dict,
+    start_time: float,
+    db: Database
+) -> StreamingResponse:
+    """Execute and stream LiteLLM response with logging.
+
+    Args:
+        response: LiteLLM streaming response
+        model: Original model name from request
+        request_data: Request data dict
+        request_data_for_logging: Copy of request data for logging
+        start_time: Request start time
+        db: Database instance
+
+    Returns:
+        StreamingResponse with SSE format
+    """
+    import time
+
+    # Extract provider before creating generator (from remapped litellm model name)
+    litellm_model = request_data.get('model', '')
+    provider = infer_provider_from_model(litellm_model)
+
+    # Collect chunks for logging
+    full_response = {
+        'id': None,
+        'model': request_data['model'],  # Use full LiteLLM model name for cost calculation
+        'choices': [{'message': {'role': 'assistant', 'content': ''}, 'finish_reason': None}],
+        'usage': {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}
+    }
+    socket_error_logged = False
+
+    async def generate():
+        nonlocal full_response, socket_error_logged
+        stream_error = None
+
+        try:
+            for chunk in response:
+                chunk_dict = chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk)
+
+                # Accumulate content
+                if 'choices' in chunk_dict and len(chunk_dict['choices']) > 0:
+                    delta = chunk_dict['choices'][0].get('delta', {})
+                    if 'content' in delta and delta['content'] is not None:
+                        full_response['choices'][0]['message']['content'] += delta['content']
+                    if 'finish_reason' in chunk_dict['choices'][0]:
+                        full_response['choices'][0]['finish_reason'] = chunk_dict['choices'][0]['finish_reason']
+
+                # Capture ID and usage
+                if 'id' in chunk_dict and chunk_dict['id']:
+                    full_response['id'] = chunk_dict['id']
+                if 'usage' in chunk_dict:
+                    full_response['usage'] = chunk_dict['usage']
+
+                try:
+                    yield f"data: {json.dumps(chunk_dict)}\n\n"
+                except (BrokenPipeError, ConnectionError, ConnectionResetError) as e:
+                    if not socket_error_logged:
+                        logging.info(f"Client disconnected during streaming: {type(e).__name__}")
+                        socket_error_logged = True
+                    return  # Client disconnected
+
+        except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError) as e:
+            # Provider error during streaming - send error event
+            stream_error = f"{type(e).__name__}: {str(e)}"
+            error_event = build_error_response("stream_error", str(e), type(e).__name__.lower())
+            try:
+                yield f"data: {json.dumps(error_event)}\n\n"
+            except (BrokenPipeError, ConnectionError, ConnectionResetError):
+                if not socket_error_logged:
+                    logging.info("Client disconnected before error could be sent")
+                    socket_error_logged = True
+
+        except Exception as e:
+            # Unexpected error during streaming
+            stream_error = f"UnexpectedStreamError: {str(e)}"
+            error_event = build_error_response("stream_error", str(e), "internal_error")
+            try:
+                yield f"data: {json.dumps(error_event)}\n\n"
+            except (BrokenPipeError, ConnectionError, ConnectionResetError):
+                if not socket_error_logged:
+                    logging.info("Client disconnected before error could be sent")
+                    socket_error_logged = True
+
+        finally:
+            # Always send [DONE] and log to database
+            try:
+                yield "data: [DONE]\n\n"
+            except (BrokenPipeError, ConnectionError, ConnectionResetError):
+                pass  # Client gone, can't send [DONE]
+
+            # Log to database
+            try:
+                duration_ms = int((time.time() - start_time) * 1000)
+                await db.log_request(model, provider, full_response, duration_ms, request_data_for_logging, error=stream_error)
+
+                # Log completion
+                if stream_error:
+                    print(f"{LOG_INDENT}✗ LLM Response: {model} ({provider}) | {duration_ms}ms | Error: {stream_error}")
+                else:
+                    usage = full_response.get('usage', {})
+                    prompt_tokens = usage.get('prompt_tokens', 0)
+                    completion_tokens = usage.get('completion_tokens', 0)
+                    total_tokens = usage.get('total_tokens', 0)
+                    cost = calculate_cost(full_response)
+                    print(f"{LOG_INDENT}✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f} [streaming]")
+            except Exception as e:
+                logging.error(f"Error logging streaming request to database: {e}")
+
+    return StreamingResponse(generate(), media_type="text/event-stream")
+
+
+async def execute_request(
+    response,
+    model: str,
+    request_data: dict,
+    request_data_for_logging: dict,
+    start_time: float,
+    db: Database
+) -> JSONResponse:
+    """Execute non-streaming LiteLLM request with logging.
+
+    Args:
+        response: LiteLLM response object
+        model: Original model name from request
+        request_data: Request data dict
+        request_data_for_logging: Copy of request data for logging
+        start_time: Request start time
+        db: Database instance
+
+    Returns:
+        JSONResponse with completion data
+    """
+    import time
+
+    # Convert to dict for logging and response
+    if hasattr(response, 'model_dump'):
+        response_dict = response.model_dump()
+    elif hasattr(response, 'dict'):
+        response_dict = response.dict()
+    else:
+        response_dict = json.loads(response.json())
+
+    # Extract provider from request_data (which has the remapped litellm model name)
+    litellm_model = request_data.get('model', '')
+    provider = infer_provider_from_model(litellm_model)
+
+    # Fallback: try response metadata if still unknown
+    if provider == 'unknown' and hasattr(response, '_hidden_params'):
+        provider = response._hidden_params.get('custom_llm_provider', 'unknown')
+
+    # Calculate duration
+    duration_ms = int((time.time() - start_time) * 1000)
+
+    # Log to database
+    await db.log_request(model, provider, response_dict, duration_ms, request_data_for_logging)
+
+    # Log completion
+    usage = response_dict.get('usage', {})
+    prompt_tokens = usage.get('prompt_tokens', 0)
+    completion_tokens = usage.get('completion_tokens', 0)
+    total_tokens = usage.get('total_tokens', 0)
+    cost = calculate_cost(response)
+    print(f"{LOG_INDENT}✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f}")
+
+    return JSONResponse(content=response_dict)
+
+
 async def handle_llm_error(e: Exception, start_time: float, request_data: dict,
                           request_data_for_logging: dict, db: Database) -> JSONResponse:
     """Handle LLM API errors with consistent logging and response formatting."""
@@ -138,71 +373,24 @@ async def chat_completions(request: Request):
     db = request.app.state.db
     start_time = time.time()
     request_data = await request.json()
-    # Will be updated with API key later, used for database logging
-    request_data_for_logging = request_data.copy()
 
     try:
-        # Extract model and remap if needed
+        # Validate model parameter
         model = request_data.get('model')
         if not model:
             error_response = build_error_response("invalid_request_error", "Model is required", "missing_model")
             return JSONResponse(content=error_response, status_code=400)
 
-        # Look up model in config
-        model_map = request.app.state.model_map
-        if model in model_map:
-            model_config = model_map[model]
+        # Resolve model configuration and merge with request
+        request_data = resolve_model_config(
+            model,
+            request_data,
+            request.app.state.model_map,
+            request.app.state.timeout,
+            request.app.state.retries
+        )
 
-            # Replace model with LiteLLM format
-            request_data['model'] = model_config['model']
-
-            # Handle api_key from config (resolve environment variable)
-            api_key = model_config.get('api_key', '')
-            if api_key.startswith('os.environ/'):
-                env_var = api_key.split('/', 1)[1]
-                api_key = os.environ.get(env_var, '')
-            if api_key:
-                request_data['api_key'] = api_key
-
-            # Pass through all other litellm_params (timeout, num_retries, temperature, etc.)
-            # Config provides defaults; client values (except null) always win
-            for key, value in model_config.items():
-                if key not in ('model', 'api_key'):
-                    # Use config value only if client didn't provide, or provided None/null
-                    # This allows: config defaults, client override, null → use config
-                    if key not in request_data or request_data.get(key) is None:
-                        request_data[key] = value
-        else:
-            # Model not found in config - log and return helpful error
-            duration_ms = int((time.time() - start_time) * 1000)
-            available_models = sorted(model_map.keys())
-            error_msg = f"Model '{model}' not found in configuration."
-            if available_models:
-                error_msg += f" Available models: {', '.join(available_models)}"
-
-            # Log to database
-            await db.log_request(
-                model,
-                "unknown",
-                None,
-                duration_ms,
-                request_data_for_logging,
-                error=f"UnknownModel: {error_msg}"
-            )
-
-            # Console log
-            print(f"{LOG_INDENT}✗ LLM Response: {model} (unknown) | {duration_ms}ms | Error: UnknownModel")
-
-            error_response = build_error_response("invalid_request_error", error_msg, "model_not_found")
-            return JSONResponse(content=error_response, status_code=404)
-
-        # Apply defaults if not specified
-        if 'timeout' not in request_data:
-            request_data['timeout'] = request.app.state.timeout
-        if 'num_retries' not in request_data:
-            request_data['num_retries'] = request.app.state.retries
-
-        # Update logging copy with final request_data (includes API key and all params)
+        # Create logging copy with final request_data (includes API key and all params)
         request_data_for_logging = request_data.copy()
 
         # Log request start
@@ -213,146 +401,19 @@ async def chat_completions(request: Request):
         # Call LiteLLM
         response = completion(**request_data)
 
-        # Handle streaming responses
-        if request_data.get('stream', False):
-            # Extract provider before creating generator (from remapped litellm model name)
-            litellm_model = request_data.get('model', '')
-            provider = infer_provider_from_model(litellm_model)
-
-            # Collect chunks for logging
-            chunks = []
-            full_response = {
-                'id': None,
-                'model': request_data['model'],  # Use full LiteLLM model name for cost calculation
-                'choices': [{'message': {'role': 'assistant', 'content': ''}, 'finish_reason': None}],
-                'usage': {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}
-            }
-            socket_error_logged = False
-
-            async def generate():
-                nonlocal full_response, socket_error_logged
-                stream_error = None
-
-                try:
-                    for chunk in response:
-                        chunk_dict = chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk)
-                        chunks.append(chunk_dict)
-
-                        # Accumulate content
-                        if 'choices' in chunk_dict and len(chunk_dict['choices']) > 0:
-                            delta = chunk_dict['choices'][0].get('delta', {})
-                            if 'content' in delta and delta['content'] is not None:
-                                full_response['choices'][0]['message']['content'] += delta['content']
-                            if 'finish_reason' in chunk_dict['choices'][0]:
-                                full_response['choices'][0]['finish_reason'] = chunk_dict['choices'][0]['finish_reason']
-
-                        # Capture ID and usage
-                        if 'id' in chunk_dict and chunk_dict['id']:
-                            full_response['id'] = chunk_dict['id']
-                        if 'usage' in chunk_dict:
-                            full_response['usage'] = chunk_dict['usage']
-
-                        try:
-                            yield f"data: {json.dumps(chunk_dict)}\n\n"
-                        except (BrokenPipeError, ConnectionError, ConnectionResetError) as e:
-                            if not socket_error_logged:
-                                logging.info(f"Client disconnected during streaming: {type(e).__name__}")
-                                socket_error_logged = True
-                            return  # Client disconnected
-
-                except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError) as e:
-                    # Provider error during streaming - send error event
-                    stream_error = f"{type(e).__name__}: {str(e)}"
-                    error_event = build_error_response("stream_error", str(e), type(e).__name__.lower())
-                    try:
-                        yield f"data: {json.dumps(error_event)}\n\n"
-                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
-                        if not socket_error_logged:
-                            logging.info("Client disconnected before error could be sent")
-                            socket_error_logged = True
-
-                except Exception as e:
-                    # Unexpected error during streaming
-                    stream_error = f"UnexpectedStreamError: {str(e)}"
-                    error_event = build_error_response("stream_error", str(e), "internal_error")
-                    try:
-                        yield f"data: {json.dumps(error_event)}\n\n"
-                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
-                        if not socket_error_logged:
-                            logging.info("Client disconnected before error could be sent")
-                            socket_error_logged = True
-
-                finally:
-                    # Always send [DONE] and log to database
-                    try:
-                        yield "data: [DONE]\n\n"
-                    except (BrokenPipeError, ConnectionError, ConnectionResetError):
-                        pass  # Client gone, can't send [DONE]
-
-                    # Log to database
-                    try:
-                        duration_ms = int((time.time() - start_time) * 1000)
-                        await db.log_request(model, provider, full_response, duration_ms, request_data_for_logging, error=stream_error)
-
-                        # Log completion
-                        if stream_error:
-                            print(f"{LOG_INDENT}✗ LLM Response: {model} ({provider}) | {duration_ms}ms | Error: {stream_error}")
-                        else:
-                            usage = full_response.get('usage', {})
-                            prompt_tokens = usage.get('prompt_tokens', 0)
-                            completion_tokens = usage.get('completion_tokens', 0)
-                            total_tokens = usage.get('total_tokens', 0)
-
-                            # Calculate cost for console logging
-                            try:
-                                cost = litellm.completion_cost(completion_response=full_response)
-                            except:
-                                cost = 0.0
-
-                            print(f"{LOG_INDENT}✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f} [streaming]")
-                    except Exception as e:
-                        logging.error(f"Error logging streaming request to database: {e}")
-
-            return StreamingResponse(generate(), media_type="text/event-stream")
-
-        # Non-streaming response
-        # Convert to dict for logging and response
-        if hasattr(response, 'model_dump'):
-            response_dict = response.model_dump()
-        elif hasattr(response, 'dict'):
-            response_dict = response.dict()
+        # Route to appropriate handler based on streaming mode
+        if is_streaming:
+            return await execute_streaming_request(response, model, request_data, request_data_for_logging, start_time, db)
         else:
-            response_dict = json.loads(response.json())
+            return await execute_request(response, model, request_data, request_data_for_logging, start_time, db)
 
-        # Extract provider from request_data (which has the remapped litellm model name)
-        litellm_model = request_data.get('model', '')
-        provider = infer_provider_from_model(litellm_model)
-
-        # Fallback: try response metadata if still unknown
-        if provider == 'unknown' and hasattr(response, '_hidden_params'):
-            provider = response._hidden_params.get('custom_llm_provider', 'unknown')
-
-        # Calculate duration
+    except HTTPException as e:
+        # Model not found - log and return error
         duration_ms = int((time.time() - start_time) * 1000)
-
-        # Log to database
-        await db.log_request(model, provider, response_dict, duration_ms, request_data_for_logging)
-
-        # Log completion
-        usage = response_dict.get('usage', {})
-        prompt_tokens = usage.get('prompt_tokens', 0)
-        completion_tokens = usage.get('completion_tokens', 0)
-        total_tokens = usage.get('total_tokens', 0)
-
-        # Calculate cost for console logging
-        try:
-            cost = litellm.completion_cost(completion_response=response)
-        except:
-            cost = 0.0
-
-        print(f"{LOG_INDENT}✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f}")
-
-        return JSONResponse(content=response_dict)
+        await db.log_request(model, "unknown", None, duration_ms, request_data, error=f"UnknownModel: {e.detail}")
+        print(f"{LOG_INDENT}✗ LLM Response: {model} (unknown) | {duration_ms}ms | Error: UnknownModel")
+        error_response = build_error_response("invalid_request_error", e.detail, "model_not_found")
+        return JSONResponse(content=error_response, status_code=e.status_code)
 
     except (RateLimitError, AuthenticationError, PermissionDeniedError, NotFoundError,
             Timeout, InternalServerError, ServiceUnavailableError, APIConnectionError) as e:
