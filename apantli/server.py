@@ -36,9 +36,9 @@ from dotenv import load_dotenv
 # Import from local modules
 from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, LOG_INDENT, load_config
 from apantli.database import Database
-from apantli.errors import build_error_response
+from apantli.errors import build_error_response, get_error_details
 from apantli.llm import infer_provider_from_model
-from apantli.utils import convert_local_date_to_utc_range, build_time_filter
+from apantli.utils import convert_local_date_to_utc_range, build_time_filter, build_date_expr, build_hour_expr
 
 # Import modules themselves for accessing globals
 import apantli.config
@@ -77,19 +77,6 @@ app.add_middleware(
 )
 
 
-# Error mapping for LLM API exceptions
-ERROR_MAP = {
-    RateLimitError: (429, "rate_limit_error", "rate_limit_exceeded"),
-    AuthenticationError: (401, "authentication_error", "invalid_api_key"),
-    PermissionDeniedError: (403, "permission_denied", "permission_denied"),
-    NotFoundError: (404, "invalid_request_error", "model_not_found"),
-    Timeout: (504, "timeout_error", "request_timeout"),
-    InternalServerError: (503, "service_unavailable", "service_unavailable"),
-    ServiceUnavailableError: (503, "service_unavailable", "service_unavailable"),
-    APIConnectionError: (502, "connection_error", "connection_error"),
-}
-
-
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
     """Convert FastAPI HTTPException to OpenAI-compatible error format."""
@@ -110,20 +97,11 @@ async def handle_llm_error(e: Exception, start_time: float, request_data: dict,
     model_name = request_data.get('model', 'unknown')
     provider = infer_provider_from_model(model_name)
 
-    # Determine error details from ERROR_MAP
-    error_name = type(e).__name__
-    status_code = 500
-    error_type = "api_error"
-    error_code = "internal_error"
-
-    for exc_type, (code, etype, ecode) in ERROR_MAP.items():
-        if isinstance(e, exc_type):
-            status_code = code
-            error_type = etype
-            error_code = ecode
-            break
+    # Get error details from error mapping
+    status_code, error_type, error_code = get_error_details(e)
 
     # Special handling for provider errors
+    error_name = type(e).__name__
     if isinstance(e, (InternalServerError, ServiceUnavailableError)):
         error_name = "ProviderError"
 
@@ -431,7 +409,7 @@ async def models():
 
 
 @app.get("/requests")
-async def requests(hours: int = None, start_date: str = None, end_date: str = None,
+async def requests(request: Request, hours: int = None, start_date: str = None, end_date: str = None,
                   timezone_offset: int = None, offset: int = 0, limit: int = 50,
                   provider: str = None, model: str = None,
                   min_cost: float = None, max_cost: float = None, search: str = None):
@@ -456,9 +434,8 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
     # Build time filter using efficient timestamp comparisons
     time_filter = build_time_filter(hours, start_date, end_date, timezone_offset)
 
-    # Use Database class to get requests
-    from apantli.database import Database
-    db = Database(DB_PATH)
+    # Use Database instance from app state
+    db = request.app.state.db
     return await db.get_requests(
         time_filter=time_filter,
         offset=offset,
@@ -472,7 +449,7 @@ async def requests(hours: int = None, start_date: str = None, end_date: str = No
 
 
 @app.get("/stats")
-async def stats(hours: int = None, start_date: str = None, end_date: str = None, timezone_offset: int = None):
+async def stats(request: Request, hours: int = None, start_date: str = None, end_date: str = None, timezone_offset: int = None):
     """Get usage statistics, optionally filtered by time range.
 
     Parameters:
@@ -484,23 +461,21 @@ async def stats(hours: int = None, start_date: str = None, end_date: str = None,
     # Build time filter using efficient timestamp comparisons
     time_filter = build_time_filter(hours, start_date, end_date, timezone_offset)
 
-    # Use Database class to get stats
-    from apantli.database import Database
-    db = Database(DB_PATH)
+    # Use Database instance from app state
+    db = request.app.state.db
     return await db.get_stats(time_filter=time_filter)
 
 
 @app.delete("/errors")
-async def clear_errors():
+async def clear_errors(request: Request):
     """Clear all errors from the database."""
-    from apantli.database import Database
-    db = Database(DB_PATH)
+    db = request.app.state.db
     deleted = await db.clear_errors()
     return {"deleted": deleted}
 
 
 @app.get("/stats/daily")
-async def stats_daily(start_date: str = None, end_date: str = None, timezone_offset: int = None):
+async def stats_daily(request: Request, start_date: str = None, end_date: str = None, timezone_offset: int = None):
     """Get daily aggregated statistics with provider breakdown.
 
     Parameters:
@@ -523,27 +498,21 @@ async def stats_daily(start_date: str = None, end_date: str = None, timezone_off
         start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
         _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
         where_filter = f"timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
-
-        # Still need timezone conversion for GROUP BY to group by local date
-        hours = abs(timezone_offset) // 60
-        minutes = abs(timezone_offset) % 60
-        sign = '+' if timezone_offset >= 0 else '-'
-        tz_modifier = f"{sign}{hours:02d}:{minutes:02d}"
-        date_expr = f"DATE(timestamp, '{tz_modifier}')"
     else:
         # No timezone conversion needed
         end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
         where_filter = f"timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
-        date_expr = "DATE(timestamp)"
 
-    # Use Database class to get daily stats
-    from apantli.database import Database
-    db = Database(DB_PATH)
+    # Build date expression for GROUP BY
+    date_expr = build_date_expr(timezone_offset)
+
+    # Use Database instance from app state
+    db = request.app.state.db
     return await db.get_daily_stats(start_date, end_date, where_filter, date_expr)
 
 
 @app.get("/stats/hourly")
-async def stats_hourly(date: str, timezone_offset: int = None):
+async def stats_hourly(request: Request, date: str, timezone_offset: int = None):
     """Get hourly aggregated statistics for a single day with provider breakdown.
 
     Parameters:
@@ -556,22 +525,16 @@ async def stats_hourly(date: str, timezone_offset: int = None):
         # Convert local date range to UTC timestamps for efficient WHERE clause
         start_utc, end_utc = convert_local_date_to_utc_range(date, timezone_offset)
         where_filter = f"timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
-
-        # Timezone conversion for GROUP BY to group by local hour
-        hours = abs(timezone_offset) // 60
-        minutes = abs(timezone_offset) % 60
-        sign = '+' if timezone_offset >= 0 else '-'
-        tz_modifier = f"{sign}{hours:02d}:{minutes:02d}"
-        hour_expr = f"CAST(strftime('%H', timestamp, '{tz_modifier}') AS INTEGER)"
     else:
         # No timezone conversion needed
         end_dt = datetime.fromisoformat(date) + timedelta(days=1)
         where_filter = f"timestamp >= '{date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
-        hour_expr = "CAST(strftime('%H', timestamp) AS INTEGER)"
 
-    # Use Database class to get hourly stats
-    from apantli.database import Database
-    db = Database(DB_PATH)
+    # Build hour expression for GROUP BY
+    hour_expr = build_hour_expr(timezone_offset)
+
+    # Use Database instance from app state
+    db = request.app.state.db
     result = await db.get_hourly_stats(where_filter, hour_expr)
 
     # Ensure all 24 hours are present (fill missing hours with zeros)
@@ -598,10 +561,9 @@ async def stats_hourly(date: str, timezone_offset: int = None):
 
 
 @app.get("/stats/date-range")
-async def stats_date_range():
+async def stats_date_range(request: Request):
     """Get the actual date range of data in the database."""
-    from apantli.database import Database
-    db = Database(DB_PATH)
+    db = request.app.state.db
     return await db.get_date_range()
 
 

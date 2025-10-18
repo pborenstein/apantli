@@ -69,3 +69,48 @@ def build_time_filter(hours: Optional[int] = None,
       return f"AND timestamp < '{end_dt.date()}T00:00:00'"
 
   return ""
+
+
+def build_timezone_modifier(timezone_offset: int) -> str:
+  """Convert timezone offset in minutes to SQLite modifier string.
+
+  Args:
+    timezone_offset: Minutes from UTC (e.g., -480 for PST, +60 for CET)
+
+  Returns:
+    SQLite datetime modifier (e.g., "-08:00" for PST, "+01:00" for CET)
+  """
+  hours = abs(timezone_offset) // 60
+  minutes = abs(timezone_offset) % 60
+  sign = '+' if timezone_offset >= 0 else '-'
+  return f"{sign}{hours:02d}:{minutes:02d}"
+
+
+def build_date_expr(timezone_offset: Optional[int]) -> str:
+  """Build SQL date expression with optional timezone conversion.
+
+  Args:
+    timezone_offset: Minutes from UTC, or None for UTC
+
+  Returns:
+    SQL expression for extracting date (e.g., "DATE(timestamp, '-08:00')")
+  """
+  if timezone_offset is not None:
+    tz_mod = build_timezone_modifier(timezone_offset)
+    return f"DATE(timestamp, '{tz_mod}')"
+  return "DATE(timestamp)"
+
+
+def build_hour_expr(timezone_offset: Optional[int]) -> str:
+  """Build SQL hour expression with optional timezone conversion.
+
+  Args:
+    timezone_offset: Minutes from UTC, or None for UTC
+
+  Returns:
+    SQL expression for extracting hour as integer
+  """
+  if timezone_offset is not None:
+    tz_mod = build_timezone_modifier(timezone_offset)
+    return f"CAST(strftime('%H', timestamp, '{tz_mod}') AS INTEGER)"
+  return "CAST(strftime('%H', timestamp) AS INTEGER)"

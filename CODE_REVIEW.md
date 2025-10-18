@@ -323,7 +323,9 @@ async def chat_completions(request: Request):
 
 Each function becomes testable in isolation and has a clear, single purpose.
 
-#### 4. Timezone Logic Duplication (utils.py, server.py)
+#### 4. Timezone Logic Duplication (utils.py, server.py) ✅ COMPLETED
+
+**Status**: Fixed as of 2025-10-18. Extracted `build_timezone_modifier()`, `build_date_expr()`, and `build_hour_expr()` utility functions.
 
 **Issue**: Timezone conversion logic appears in three places:
 
@@ -398,7 +400,9 @@ Eliminates ~30 lines of duplication.
 
 ### MEDIUM PRIORITY
 
-#### 5. Error Mapping Duplication (server.py)
+#### 5. Error Mapping Duplication (server.py) ✅ COMPLETED
+
+**Status**: Fixed as of 2025-10-18. Moved `ERROR_MAP` to errors.py and added `get_error_details()` helper function.
 
 **Issue**: Lines 78-87 define `ERROR_MAP`, then lines 116-121 iterate it to find matching exception types.
 
@@ -488,7 +492,9 @@ If you truly need a module-level API, delete the `Config` class and just use the
 
 The current design suggests uncertainty about the right pattern. Pick one.
 
-#### 7. Request Data Logging Includes API Keys (database.py line 100)
+#### 7. Request Data Logging Includes API Keys (database.py line 100) - NOT IMPLEMENTING
+
+**Decision**: Keeping API keys in database for debugging purposes. File permissions protect the database.
 
 **Issue**: Full `request_data` including API keys is stored in the database.
 
@@ -774,21 +780,17 @@ Recommendation: Run `mypy` and address findings.
    - Impact: Eliminates duplication, simplifies API
    - Effort: 30 minutes (update server.py to use Database class)
 
-2. **Extract timezone utilities** (utils.py, server.py)
+2. ✅ **Extract timezone utilities** (utils.py, server.py) - COMPLETED 2025-10-18
    - Impact: Eliminates 30+ lines of duplication
    - Effort: 1 hour
 
-3. **Move ERROR_MAP to errors.py** with helper function
+3. ✅ **Move ERROR_MAP to errors.py** with helper function - COMPLETED 2025-10-18
    - Impact: Better module organization
    - Effort: 30 minutes
 
-4. **Redact API keys before database storage**
-   - Impact: Improved security
-   - Effort: 15 minutes
-
-5. **Fix database test expectations** (test_database.py line 152)
-   - Impact: Tests actually validate what they claim to
-   - Effort: 15 minutes
+4. ~~**Redact API keys before database storage**~~ - NOT IMPLEMENTING
+   - Decision: Keeping API keys in database for debugging purposes
+   - Test marked as skipped in test_database.py
 
 ### Medium-term Improvements
 
