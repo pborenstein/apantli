@@ -106,7 +106,7 @@ Content-Type: application/json
 
 | Parameter | Type | Required | Description |
 |:----------|:-----|:---------|:------------|
-| `model` | string | Yes | Model name from `config.yaml` |
+| `model` | string | Yes | Model alias from `config.yaml` (e.g., `gpt-4.1-mini`) |
 | `messages` | array | Yes | Array of message objects |
 | `temperature` | number | No | Sampling temperature (0.0-2.0) |
 | `max_tokens` | integer | No | Maximum tokens to generate |
@@ -116,6 +116,8 @@ Content-Type: application/json
 | `stop` | string/array | No | Stop sequences |
 | `presence_penalty` | number | No | Presence penalty (-2.0 to 2.0) |
 | `frequency_penalty` | number | No | Frequency penalty (-2.0 to 2.0) |
+
+**Note**: Use the short model alias (like `gpt-4.1-mini`), not the provider/model format (like `openai/gpt-4.1-mini`). See [MODEL_NAMING.md](MODEL_NAMING.md) if you're confused about model naming.
 
 **Parameter Precedence**: Optional parameters can be configured with defaults in `config.yaml` (see [CONFIGURATION.md](CONFIGURATION.md#custom-model-parameters)). When you provide a parameter in your request, it overrides the config default. When you omit a parameter or send null, the config default is used (if configured).
 

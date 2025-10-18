@@ -17,23 +17,58 @@ The dashboard auto-refreshes statistics every 5 seconds when viewing the Stats t
 
 ### Stats Tab
 
-Real-time usage statistics with time-range filtering. Includes quick filters (All Time, Today, Yesterday, This Week, This Month, Last 30 Days) and custom date range picker. Displays total requests, cost, tokens, average duration, breakdown by provider and model, provider cost trends chart, and model efficiency comparisons. Auto-refreshes every 5 seconds.
+Real-time usage statistics with time-range filtering. Features include:
+
+- Quick filters: All Time, Today, Yesterday, This Week, This Month, Last 30 Days
+- Custom date range picker
+- Total requests, cost, tokens, and average duration
+- Breakdown by provider and model
+- Provider cost trends chart
+- Model efficiency comparisons
+- Auto-refreshes every 5 seconds
 
 ### Calendar Tab
 
-Visual month-by-month cost heatmap with month navigation (previous/next buttons). Cost heatmap uses darker colors for higher costs. Click any day to see provider breakdown with day number, cost, and request count.
+Visual month-by-month cost heatmap. Features include:
+
+- Month navigation (previous/next buttons)
+- Cost heatmap (darker colors for higher costs)
+- Click any day to see provider breakdown
+- Shows day number, cost, and request count
 
 ### Models Tab
 
-List of configured models with pricing information. Shows all models from `config.yaml` with input/output cost per million tokens, provider and LiteLLM routing name, and sortable columns (click headers).
+List of configured models with pricing information. Displays:
+
+- All models from `config.yaml`
+- Input/output cost per million tokens
+- Provider and LiteLLM routing name
+- Sortable columns (click headers)
 
 ### Requests Tab
 
-Detailed request history with server-side filtering and pagination. Uses the same global date filter as Stats tab (persists across page reloads). Navigate through all requests (50 per page, adjustable up to 200) with Previous/Next buttons with disabled states, page indicator showing "Page X of Y", and item counter showing "Showing N of M requests".
+Detailed request history with server-side filtering and pagination. Uses the same global date filter as Stats tab (persists across page reloads).
 
-Advanced filters include provider dropdown (openai, anthropic, etc.), model dropdown (populated from available models), cost range slider (min/max thresholds), and text search (searches model name and request/response content). All filtering applied on backend for accurate totals.
+**Pagination controls**:
 
-Features expandable details (click rows to show full request/response JSON with request parameters), view modes (toggle between JSON and conversation view), copy to clipboard (copy individual messages), and persistent filter state (all filter selections persist across page reloads).
+- Navigate through all requests (50 per page, adjustable up to 200)
+- Previous/Next buttons with disabled states
+- Page indicator showing "Page X of Y"
+- Item counter showing "Showing N of M requests"
+
+**Advanced filters** (all applied on backend for accurate totals):
+
+- Provider dropdown (openai, anthropic, etc.)
+- Model dropdown (populated from available models - shows client aliases, see [MODEL_NAMING.md](MODEL_NAMING.md))
+- Cost range slider (min/max thresholds)
+- Text search (searches model name and request/response content)
+
+**Request details**:
+
+- Expandable rows (click to show full request/response JSON with request parameters)
+- View modes (toggle between JSON and conversation view)
+- Copy to clipboard (copy individual messages)
+- Persistent filter state (all selections persist across page reloads)
 
 **Request Parameters Display**: When viewing request details, a compact parameter line shows the key parameters used for that request: temperature, max_tokens, timeout, num_retries, and top_p. Only non-null values are displayed, making it easy to see which parameters were explicitly set or inherited from config defaults.
 
@@ -43,9 +78,25 @@ Click the theme button in the header to switch between light and dark mode. Them
 
 ## Date Filtering and Persistence
 
-The dashboard features a unified date filter that applies across Stats and Requests tabs with options for All Time (shows all historical data), Today (current day in your timezone), Yesterday, This Week (Monday-Sunday), This Month (first day to last day), Last 30 Days (rolling 30-day window), and Custom range (pick any start and end dates).
+The dashboard features a unified date filter that applies across Stats and Requests tabs.
 
-The selected filter persists across page reloads (stored in browser localStorage) and automatically applies to both Stats and Requests tabs. Switching between tabs maintains the current date selection. Pagination resets to page 1 when date filter changes. Backend receives timezone offset for accurate date boundary calculations.
+**Filter options**:
+
+- All Time (shows all historical data)
+- Today (current day in your timezone)
+- Yesterday
+- This Week (Monday-Sunday)
+- This Month (first day to last day)
+- Last 30 Days (rolling 30-day window)
+- Custom range (pick any start and end dates)
+
+**Persistence behavior**:
+
+- Selected filter persists across page reloads (stored in browser localStorage)
+- Automatically applies to both Stats and Requests tabs
+- Switching between tabs maintains the current date selection
+- Pagination resets to page 1 when date filter changes
+- Backend receives timezone offset for accurate date boundary calculations
 
 ## Request Filtering Workflow
 
@@ -69,11 +120,30 @@ Update UI with filtered data and pagination controls
 4. Type "python" in search box
 5. Result: Shows all Anthropic requests from this month costing at least $0.01 mentioning "python"
 
-Benefits include accurate totals (summary shows count for ALL filtered results, not just current page), better performance (filtering done on indexed database), lower memory usage (only fetches current page of results), and persistent state (filter selections saved in localStorage).
+**Benefits**:
+
+- Accurate totals (summary shows count for ALL filtered results, not just current page)
+- Better performance (filtering done on indexed database)
+- Lower memory usage (only fetches current page of results)
+- Persistent state (filter selections saved in localStorage)
 
 ## Timezone Handling
 
-All timestamps are displayed in your local timezone. The database stores UTC internally, but the dashboard automatically converts for display and date filtering.
+All timestamps are displayed in your browser's local timezone, automatically detected from your operating system. The database stores all times in UTC internally.
+
+**How it works**:
+
+- **Timestamp display**: The dashboard reads your browser's timezone setting and converts UTC timestamps to local time for display
+- **Date filtering**: When you select a date like "2025-10-05", the dashboard converts your local date to UTC timestamps for queries
+  - Example: Selecting 2025-10-05 in Pacific Time (UTC-7) queries from 2025-10-05T07:00:00 UTC to 2025-10-06T07:00:00 UTC
+  - This ensures date ranges match your local calendar, not UTC dates
+- **Timezone detection**: Uses JavaScript's `Intl.DateTimeFormat().resolvedOptions().timeZone` to detect your browser's timezone
+
+**Limitations**:
+
+- Cannot override browser timezone (dashboard uses your system setting)
+- If you see unexpected dates/times, check your system timezone settings
+- Dashboard always matches browser timezone, even if server runs in different timezone
 
 ## Developer Notes
 
@@ -81,7 +151,13 @@ All timestamps are displayed in your local timezone. The database stores UTC int
 
 **Customization**: For dashboard customization (adding tabs, themes, filters), edit `templates/dashboard.html`. See inline comments for guidance.
 
-**Performance**: Dashboard uses indexed queries, client-side sorting, and parallel data fetching. Handles 100K+ requests efficiently.
+**Performance**: Dashboard uses indexed queries and client-side sorting for fast navigation. Performance characteristics:
+
+- <100K requests: Queries complete in <200ms
+- 100K-500K requests: Queries complete in 500ms-2s
+- >500K requests: May see slower queries; consider archiving old data
+
+All statistics are calculated server-side using indexed queries for best performance.
 
 ## Troubleshooting
 

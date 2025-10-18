@@ -13,6 +13,7 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 | [DATABASE.md](DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [ERROR_HANDLING.md](ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
 | [LLM_CLI_INTEGRATION.md](LLM_CLI_INTEGRATION.md) | How llm CLI integration works - config files, transformation, and data flow | Developers |
+| [MODEL_NAMING.md](MODEL_NAMING.md) | Why model names are confusing (client aliases vs provider identifiers) | Users & Developers |
 | [TESTING.md](TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 | [../launchd/README.md](../launchd/README.md) | macOS launchd service setup, management, and troubleshooting | macOS Users & DevOps |

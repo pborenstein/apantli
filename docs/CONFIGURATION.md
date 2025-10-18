@@ -78,6 +78,8 @@ Any parameter accepted by `litellm.completion()` can be set here.
 | `litellm_params.model` | Yes | LiteLLM model identifier (format: `provider/model`) |
 | `litellm_params.api_key` | Yes | API key reference (format: `os.environ/VAR_NAME`) |
 
+**Note**: Confused about `model_name` vs `litellm_params.model`? See [MODEL_NAMING.md](MODEL_NAMING.md) for a detailed explanation of client aliases versus provider identifiers.
+
 **Common Optional Parameters**:
 - `temperature` - Sampling temperature (0.0-2.0)
 - `max_tokens` - Maximum tokens to generate
