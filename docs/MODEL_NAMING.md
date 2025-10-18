@@ -6,15 +6,14 @@ If you're confused about when to use `gpt-4.1-mini` versus `openai/gpt-4.1-mini`
 
 **TL;DR**: Different APIs and SDKs use the word "model" to mean different things. Apantli bridges these systems, so you'll encounter multiple naming conventions depending on context.
 
-## The Root Cause: Three Different APIs
+## The Root Cause: Two Different APIs
 
-Apantli sits between three systems, each with its own naming convention:
+Apantli bridges two systems with different naming conventions:
 
-1. **OpenAI-Compatible API** (what clients send) — Uses short names like `"gpt-4.1-mini"`
-2. **LiteLLM SDK** (what routes requests) — Uses provider/model format like `"openai/gpt-4.1-mini"` for unambiguous routing
-3. **The Apantli config.yaml** (what maps one to the other) — Contains both names with different field labels
+1. **OpenAI-Compatible API** (client side) — Uses short names like `"gpt-4.1-mini"`
+2. **LiteLLM SDK** (provider side) — Uses provider/model format like `"openai/gpt-4.1-mini"` for unambiguous routing
 
-None of these naming choices belong to Apantli. They're inherited from external APIs and SDKs.
+The Apantli config.yaml contains both naming styles because it maps between them. The naming inconsistency comes from external APIs and SDKs, not Apantli.
 
 ## What "Model" Means in Each Context
 
@@ -193,13 +192,12 @@ Apantli's job is to bridge these systems while keeping both APIs happy.
 
 ## Summary
 
-Model naming is confusing because **you're dealing with three different APIs at once**:
+Model naming is confusing because **Apantli bridges two different APIs**:
 
-1. **Clients** speak OpenAI format (short aliases)
-2. **LiteLLM** speaks provider/model format (with prefixes)
-3. **The Apantli config.yaml** maps one to the other (contains both names)
+1. **Clients** speak OpenAI format (short aliases like `gpt-4.1-mini`)
+2. **LiteLLM** speaks provider/model format (with prefixes like `openai/gpt-4.1-mini`)
 
-The word "model" appears multiple times because each API defines its own fields. None of this is arbitrary — it's the cost of bridging different ecosystems while maintaining compatibility.
+The Apantli config.yaml contains both naming styles because it maps between them. The word "model" appears multiple times because each API defines its own fields. None of this is arbitrary — it's the cost of bridging different ecosystems while maintaining compatibility.
 
 When in doubt: **clients send the alias, config maps to provider/model, responses echo the alias**.
 
