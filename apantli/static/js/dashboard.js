@@ -1304,6 +1304,17 @@
             renderErrorsTable(applySortIfNeeded('errors', errorsData), tableSortState['errors']);
         }
 
+        // Navigate to requests tab with filters
+        function filterRequests(filters) {
+            if (!alpineData) return;
+
+            // Set the filters
+            Object.assign(alpineData.requestFilters, filters);
+
+            // Switch to requests tab
+            alpineData.currentTab = 'requests';
+        }
+
         function sortByModelTable(columnIndex) {
             sortTable('by-model', columnIndex, byModelData, renderByModelTable);
         }
@@ -1321,7 +1332,7 @@
                 </thead>
                 <tbody>
                     ${data.map(row => `
-                        <tr>
+                        <tr class="clickable-row" onclick="filterRequests({ model: '${escapeHtml(row[0])}', provider: '', search: '', minCost: '', maxCost: '' })">
                             <td>${row[0]}</td>
                             <td>${row[1]}</td>
                             <td>$${row[2].toFixed(4)}</td>
@@ -1483,7 +1494,7 @@
                 </thead>
                 <tbody>
                     ${data.map(row => `
-                        <tr>
+                        <tr class="clickable-row" onclick="filterRequests({ provider: '${escapeHtml(row[0])}', model: '', search: '', minCost: '', maxCost: '' })">
                             <td>${row[0]}</td>
                             <td>${row[1]}</td>
                             <td>$${row[2].toFixed(4)}</td>
@@ -1516,7 +1527,7 @@
                 </thead>
                 <tbody>
                     ${data.map(row => `
-                        <tr>
+                        <tr class="clickable-row" onclick="filterRequests({ model: '${escapeHtml(row[1])}', provider: '', search: '', minCost: '', maxCost: '' })">
                             <td>${new Date(row[3] + 'Z').toLocaleString()}</td>
                             <td>${row[1]}</td>
                             <td class="error">${row[2]}</td>
