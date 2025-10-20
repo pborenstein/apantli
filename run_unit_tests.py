@@ -3,12 +3,25 @@
 
 import sys
 import os
+import subprocess
 
 # Add project to path
 sys.path.insert(0, os.path.dirname(__file__))
 
+# Run mypy type checking
+print("Running mypy type checker...")
+try:
+    result = subprocess.run(["mypy", "apantli/"], capture_output=True, text=True)
+    if result.returncode == 0:
+        print("✓ mypy: no type errors found")
+    else:
+        print(f"✗ mypy found issues:\n{result.stdout}")
+        sys.exit(1)
+except FileNotFoundError:
+    print("⚠️  mypy not installed, skipping type check")
+
 # Test imports
-print("Testing module imports...")
+print("\nTesting module imports...")
 try:
     from apantli.llm import infer_provider_from_model
     from apantli.errors import build_error_response

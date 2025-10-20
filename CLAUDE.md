@@ -83,11 +83,12 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - Database errors: Not caught (fail-fast for data consistency)
 - Config errors: Warning printed, continue with empty `MODEL_MAP`
 
-**Testing**: Comprehensive test suite with 59 test cases:
+**Testing**: Comprehensive test suite with 59 test cases plus mypy type checking:
 - Unit tests: `tests/test_config.py`, `test_database.py`, `test_llm.py`, `test_errors.py`, `test_utils.py`
 - Integration tests: `tests/integration/test_proxy.py`, `test_error_handling.py`
+- Type checking: `mypy apantli/` - static type analysis
 - Fast unit tests (<1 second) with no API key requirements
-- Run with: `pytest tests/ -v` or `python run_unit_tests.py`
+- Run with: `make all` (type check + tests), `python run_unit_tests.py`, or `pytest tests/ -v`
 See TESTING.md for complete procedures and validation strategies.
 
 **Security**: API keys in `.env` and stored in database logs for debugging. Dashboard unauthenticated (local use only). Database contains full conversation history and API keys - protect file permissions. Default `0.0.0.0` binding - use `--host 127.0.0.1` for localhost-only.

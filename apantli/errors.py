@@ -1,6 +1,6 @@
 """Error handling utilities for OpenAI-compatible error responses."""
 
-from typing import Tuple
+from typing import Optional, Tuple
 from litellm.exceptions import (
     RateLimitError,
     InternalServerError,
@@ -44,7 +44,7 @@ def get_error_details(exception: Exception) -> Tuple[int, str, str]:
   return 500, "api_error", "internal_error"
 
 
-def build_error_response(error_type: str, message: str, code: str = None) -> dict:
+def build_error_response(error_type: str, message: str, code: Optional[str] = None) -> dict:
   """Build OpenAI-compatible error response.
 
   Args:

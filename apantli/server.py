@@ -480,10 +480,10 @@ async def models(request: Request):
 
 
 @app.get("/requests")
-async def requests(request: Request, hours: int = None, start_date: str = None, end_date: str = None,
-                  timezone_offset: int = None, offset: int = 0, limit: int = 50,
-                  provider: str = None, model: str = None,
-                  min_cost: float = None, max_cost: float = None, search: str = None):
+async def requests(request: Request, hours: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None,
+                  timezone_offset: Optional[int] = None, offset: int = 0, limit: int = 50,
+                  provider: Optional[str] = None, model: Optional[str] = None,
+                  min_cost: Optional[float] = None, max_cost: Optional[float] = None, search: Optional[str] = None):
     """Get recent requests with full details, optionally filtered by time range and attributes.
 
     Parameters:
@@ -521,7 +521,7 @@ async def requests(request: Request, hours: int = None, start_date: str = None, 
 
 
 @app.get("/stats")
-async def stats(request: Request, hours: int = None, start_date: str = None, end_date: str = None, timezone_offset: int = None):
+async def stats(request: Request, hours: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None, timezone_offset: Optional[int] = None):
     """Get usage statistics, optionally filtered by time range.
 
     Parameters:
@@ -547,7 +547,7 @@ async def clear_errors(request: Request):
 
 
 @app.get("/stats/daily")
-async def stats_daily(request: Request, start_date: str = None, end_date: str = None, timezone_offset: int = None):
+async def stats_daily(request: Request, start_date: Optional[str] = None, end_date: Optional[str] = None, timezone_offset: Optional[int] = None):
     """Get daily aggregated statistics with provider breakdown.
 
     Parameters:
@@ -584,7 +584,7 @@ async def stats_daily(request: Request, start_date: str = None, end_date: str = 
 
 
 @app.get("/stats/hourly")
-async def stats_hourly(request: Request, date: str, timezone_offset: int = None):
+async def stats_hourly(request: Request, date: str, timezone_offset: Optional[int] = None):
     """Get hourly aggregated statistics for a single day with provider breakdown.
 
     Parameters:
@@ -768,7 +768,7 @@ def main():
             try:
                 hostname = socket.gethostname()
                 for info in socket.getaddrinfo(hostname, None):
-                    ip = info[4][0]
+                    ip = str(info[4][0])  # Convert to string for consistent handling
                     if ':' not in ip and ip != '127.0.0.1':
                         url = f"http://{ip}:{args.port}/"
                         if url not in addresses:

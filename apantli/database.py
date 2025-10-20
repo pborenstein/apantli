@@ -75,7 +75,7 @@ class Database:
         WHERE error IS NULL
       """)
 
-  async def log_request(self, model: str, provider: str, response: dict,
+  async def log_request(self, model: str, provider: str, response: Optional[dict],
                        duration_ms: int, request_data: dict,
                        error: Optional[str] = None):
     """Log a request to SQLite."""
@@ -124,7 +124,7 @@ class Database:
     async with self._get_connection() as conn:
       # Build attribute filters
       where_conditions = []
-      params = []
+      params: list = []
 
       if filters.provider:
         where_conditions.append("provider = ?")

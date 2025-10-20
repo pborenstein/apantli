@@ -19,7 +19,7 @@ LOG_INDENT = " " * 28
 
 # Deprecated: MODEL_MAP is no longer automatically populated
 # Use Config class directly instead
-MODEL_MAP = {}
+MODEL_MAP: Dict[str, dict] = {}
 
 
 class ConfigError(Exception):
@@ -139,17 +139,17 @@ class Config:
 
           models[model_name] = model_config
 
-        except ValidationError as e:
+        except ValidationError as exc:
           # Format validation errors nicely
-          for error in e.errors():
+          for error in exc.errors():
             field = error['loc'][0] if error['loc'] else 'unknown'
             message = error['msg']
             errors.append(f"Model '{model_name}': {field} - {message}")
 
       if errors:
         print(f"⚠️  Configuration validation errors:")
-        for error in errors:
-          print(f"  - {error}")
+        for error_msg in errors:
+          print(f"  - {error_msg}")
         if not models:
           print("   No valid models found in configuration")
 
