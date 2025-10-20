@@ -198,8 +198,8 @@ class Database:
         "total_tokens": total_tokens,
         "total_cost": total_cost,
         "avg_cost": avg_cost,
-        "offset": offset,
-        "limit": limit
+        "offset": filters.offset,
+        "limit": filters.limit
       }
 
   async def get_stats(self, time_filter: str = ""):
