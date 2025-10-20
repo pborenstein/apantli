@@ -34,27 +34,23 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - Validation: API key format (`os.environ/VAR_NAME`), environment variable existence warnings
 - Type-safe: Strong typing with Pydantic, early error detection
 - Reload support: Can reload config without restart
-- Backward compatible: `MODEL_MAP` global still available for legacy code
 - Parameter precedence: Config provides defaults, client values (except null) override config
 
 **Database (database.py)**:
 - Async operations: aiosqlite for non-blocking I/O
-- Database class: Encapsulates DB logging with async methods
+- Database class: Encapsulates all database operations with async methods
 - Connection management: Context managers (`_get_connection()`)
-- Methods: `init()`, `log_request()`
-- Global instance: Module-level functions (`init_db()`, `log_request()`) use global `_db` instance for backward compatibility
+- Core methods: `init()`, `log_request()`, `get_requests()`, `get_stats()`, `get_daily_stats()`, `get_hourly_stats()`
 - Cost calculation: Uses litellm.completion_cost() during log_request()
-- Statistics queries: Implemented directly in server.py using raw SQL
+- Statistics queries: Encapsulated in Database class methods
 - Performance: Non-blocking async, ~1-5ms per operation
 
-**Global State Patterns**:
-- Trade-off: Uses mutable globals (`MODEL_MAP`, `DB_PATH`, `_db`) for simplicity and backward compatibility
-- `config.py`: Global `MODEL_MAP` dict populated by `load_config()`, accessed via module reference in server.py
-- `database.py`: Global `_db` instance initialized by `init_db()`, reused by `log_request()`
-- `server.py`: Mutates module globals at startup (e.g., `apantli.database.DB_PATH = args.db`)
-- Benefits: Simple API, minimal boilerplate, easy CLI argument integration
-- Downsides: Makes testing harder (must manage global state), hidden dependencies between modules
-- Acceptable for a lightweight local proxy; consider dependency injection for larger projects
+**Application State**:
+- Config and Database instances stored in FastAPI's `app.state` for dependency injection
+- `app.state.config`: Config instance with all model configurations
+- `app.state.db`: Database instance for async database operations
+- `app.state.model_map`: Pre-computed dict of model parameters for fast lookups
+- Benefits: Clean dependency injection, testable, no hidden global state
 
 **LLM Integration (llm.py)**:
 - Provider inference: Pattern matching for `gpt-*`/`o1-*` → openai, `claude*` → anthropic, etc.
@@ -107,38 +103,49 @@ UI: `/` (GET) - Dashboard, `/static/*` - Alpine.js libs
 
 **Import Pattern** (server.py):
 ```python
-from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, load_config
-from apantli.database import DB_PATH, init_db, log_request
+from apantli.config import DEFAULT_TIMEOUT, DEFAULT_RETRIES, Config
+from apantli.database import Database, RequestFilter
 from apantli.errors import build_error_response
 from apantli.llm import infer_provider_from_model
 from apantli.utils import convert_local_date_to_utc_range
-
-# Import module for accessing globals (MODEL_MAP updated by load_config)
-import apantli.config
-import apantli.database
 ```
 
 **Config Usage**:
 ```python
-# Access MODEL_MAP via module reference (updated by load_config())
-if model in apantli.config.MODEL_MAP:
-    model_config = apantli.config.MODEL_MAP[model]
-
-# Or use Config class directly
+# Initialize config
 config = Config("config.yaml")
+
+# Get specific model configuration
 model_config = config.get_model("gpt-4")
-litellm_params = model_config.to_litellm_params()
+if model_config:
+    litellm_params = model_config.to_litellm_params()
+    api_key = model_config.get_api_key()
+
+# Get all models as dict (for caching in app.state)
+model_map = config.get_model_map({
+    'timeout': 120,
+    'num_retries': 3
+})
 ```
 
 **Database Usage**:
 ```python
-# Modern approach (direct Database class usage)
+# Initialize database
 db = Database("requests.db")
 await db.init()
+
+# Log a request
 await db.log_request(model, provider, response, duration_ms, request_data)
 
-# Legacy approach (module-level functions, uses global _db instance)
-from apantli.database import init_db, log_request
-await init_db()  # Initializes global _db
-await log_request(model, provider, response, duration_ms, request_data)
+# Query with filters
+filters = RequestFilter(
+    offset=0,
+    limit=50,
+    provider="openai",
+    model="gpt-4"
+)
+results = await db.get_requests(filters)
+
+# Get statistics
+stats = await db.get_stats(time_filter="")
 ```

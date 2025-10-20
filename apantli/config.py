@@ -17,10 +17,6 @@ DEFAULT_RETRIES = 3    # number of retry attempts
 #         11 chars + 9 chars + 8 chars = 28 chars
 LOG_INDENT = " " * 28
 
-# Deprecated: MODEL_MAP is no longer automatically populated
-# Use Config class directly instead
-MODEL_MAP: Dict[str, dict] = {}
-
 
 class ConfigError(Exception):
   """Configuration validation error."""
@@ -88,7 +84,7 @@ class ModelConfig(BaseModel):
   def to_litellm_params(self, defaults: Optional[Dict[str, Any]] = None) -> dict:
     """Convert to LiteLLM parameters with defaults.
 
-    Returns a dict compatible with the old MODEL_MAP format.
+    Returns a dict suitable for passing to litellm.completion().
     """
     if defaults is None:
       defaults = {}
@@ -178,7 +174,7 @@ class Config:
     return list(self.models.keys())
 
   def get_model_map(self, defaults: Optional[Dict[str, Any]] = None) -> Dict[str, dict]:
-    """Get model map compatible with legacy MODEL_MAP format.
+    """Get all models as a dict mapping names to litellm parameters.
 
     Args:
       defaults: Default values for timeout, num_retries, etc.

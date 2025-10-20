@@ -348,19 +348,6 @@ Returns the actual date range of data in the database.
 }
 ```
 
-### Backward Compatibility
-
-For legacy code, module-level functions are provided:
-
-```python
-from apantli.database import init_db, log_request
-
-await init_db()  # Initializes global _db instance
-await log_request(model, provider, response, duration_ms, request_data, error)
-```
-
-These use a global `_db` instance and the module-level `DB_PATH` variable.
-
 ## Command-Line Queries
 
 ### Quick Reference
