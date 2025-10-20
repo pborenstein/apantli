@@ -147,9 +147,18 @@ All timestamps are displayed in your browser's local timezone, automatically det
 
 ## Developer Notes
 
-**Tech Stack**: Single-page app in `templates/dashboard.html` using vanilla JavaScript + Alpine.js for reactivity. No build step required.
+**Tech Stack**: Single-page app using vanilla JavaScript + Alpine.js for reactivity. No build step required.
 
-**Customization**: For dashboard customization (adding tabs, themes, filters), edit `templates/dashboard.html`. See inline comments for guidance.
+**File Structure** (refactored 2025-10-18):
+- `templates/dashboard.html` (327 lines) - HTML structure and Alpine.js reactive data model
+- `apantli/static/css/dashboard.css` (1,087 lines) - All styles including theme variables
+- `apantli/static/js/dashboard.js` (1,705 lines) - All JavaScript logic and Alpine.js methods
+
+**Customization**:
+- **Adding UI elements**: Edit `templates/dashboard.html` for structure
+- **Styling changes**: Edit `apantli/static/css/dashboard.css` for colors, layout, themes
+- **Logic changes**: Edit `apantli/static/js/dashboard.js` for data fetching, filters, interactions
+- See inline comments in each file for guidance
 
 **Performance**: Dashboard uses indexed queries and client-side sorting for fast navigation. Performance characteristics:
 
