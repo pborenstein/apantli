@@ -22,7 +22,9 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - `config.yaml` - Model definitions, API key refs
 - `.env` - API keys (gitignored)
 - `requests.db` - SQLite (full request/response logs + costs)
-- `templates/dashboard.html` - Web UI (Alpine.js + vanilla JS)
+- `templates/dashboard.html` - Web UI structure (327 lines)
+- `apantli/static/css/dashboard.css` - Dashboard styles (1087 lines)
+- `apantli/static/js/dashboard.js` - Dashboard logic (1705 lines)
 - `tests/` - Unit and integration tests (59 test cases)
 
 ## Implementation Details
