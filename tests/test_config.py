@@ -4,7 +4,7 @@ import pytest
 import os
 from pydantic import ValidationError
 from apantli.config import (
-  load_config, MODEL_MAP, Config, ModelConfig, ConfigError,
+  Config, ModelConfig, ConfigError,
   DEFAULT_TIMEOUT, DEFAULT_RETRIES
 )
 
@@ -268,59 +268,43 @@ def test_config_invalid_timeout(temp_config_file, monkeypatch, capsys):
   assert 'test-model' not in config.models
 
 
-def test_config_updates_global_model_map(temp_config_file, sample_config_content, monkeypatch):
-  """Test that Config updates the global MODEL_MAP."""
-  import apantli.config
-
+def test_config_get_model_map(temp_config_file, sample_config_content, monkeypatch):
+  """Test getting model map from Config class."""
   monkeypatch.setenv('OPENAI_API_KEY', 'sk-test')
   monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-test')
-
-  # Clear MODEL_MAP
-  apantli.config.MODEL_MAP = {}
 
   with open(temp_config_file, 'w') as f:
     f.write(sample_config_content)
 
   config = Config(temp_config_file)
 
-  # MODEL_MAP should be updated
-  from apantli.config import MODEL_MAP
-  assert 'gpt-4' in MODEL_MAP
-  assert 'claude-3' in MODEL_MAP
-  assert MODEL_MAP['gpt-4']['model'] == 'openai/gpt-4'
+  # Get model map
+  model_map = config.get_model_map()
+  assert 'gpt-4' in model_map
+  assert 'claude-3' in model_map
+  assert model_map['gpt-4']['model'] == 'openai/gpt-4'
 
 
-def test_load_config_function(temp_config_file, sample_config_content, monkeypatch):
-  """Test the backward-compatible load_config() function."""
-  import apantli.config
-
+def test_config_get_model_map_with_defaults(temp_config_file, sample_config_content, monkeypatch):
+  """Test that get_model_map applies defaults correctly."""
   monkeypatch.setenv('OPENAI_API_KEY', 'sk-test')
   monkeypatch.setenv('ANTHROPIC_API_KEY', 'sk-test')
-
-  # Clear MODEL_MAP
-  apantli.config.MODEL_MAP = {}
 
   with open(temp_config_file, 'w') as f:
     f.write(sample_config_content)
 
-  # Change to temp directory so config.yaml is found
-  original_cwd = os.getcwd()
-  try:
-    os.chdir(os.path.dirname(temp_config_file))
-    # Rename to config.yaml
-    os.rename(
-      os.path.basename(temp_config_file),
-      'config.yaml'
-    )
+  config = Config(temp_config_file)
 
-    load_config()
+  # Get model map with defaults
+  model_map = config.get_model_map({'timeout': 120, 'num_retries': 3})
 
-    # MODEL_MAP should be updated
-    from apantli.config import MODEL_MAP
-    assert 'gpt-4' in MODEL_MAP
-    assert 'claude-3' in MODEL_MAP
-  finally:
-    os.chdir(original_cwd)
+  # gpt-4 doesn't specify timeout/retries, should get defaults
+  assert model_map['gpt-4']['timeout'] == 120
+  assert model_map['gpt-4']['num_retries'] == 3
+
+  # claude-3 specifies its own values, should keep them
+  assert model_map['claude-3']['timeout'] == 180
+  assert model_map['claude-3']['num_retries'] == 5
 
 
 def test_config_defaults():

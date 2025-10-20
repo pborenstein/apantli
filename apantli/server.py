@@ -34,14 +34,11 @@ import uvicorn
 from dotenv import load_dotenv
 
 # Import from local modules
-from apantli.config import LOG_INDENT, load_config
-from apantli.database import Database
+from apantli.config import LOG_INDENT, Config
+from apantli.database import Database, RequestFilter
 from apantli.errors import build_error_response, get_error_details
 from apantli.llm import infer_provider_from_model
 from apantli.utils import convert_local_date_to_utc_range, build_time_filter, build_date_expr, build_hour_expr
-
-# Import modules themselves for accessing globals
-import apantli.config
 
 # Load environment variables
 load_dotenv()
@@ -53,13 +50,19 @@ templates = Jinja2Templates(directory="templates")
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Initialize database and load config on startup."""
-    load_config()
-
     # Get config values from app.state if set by main(), otherwise use defaults
+    config_path = getattr(app.state, 'config_path', 'config.yaml')
     db_path = getattr(app.state, 'db_path', 'requests.db')
     app.state.timeout = getattr(app.state, 'timeout', 120)
     app.state.retries = getattr(app.state, 'retries', 3)
-    app.state.model_map = apantli.config.MODEL_MAP
+
+    # Load configuration
+    config = Config(config_path)
+    app.state.config = config
+    app.state.model_map = config.get_model_map({
+        'timeout': app.state.timeout,
+        'num_retries': app.state.retries
+    })
 
     # Initialize database
     db = Database(db_path)
@@ -217,16 +220,16 @@ async def execute_streaming_request(
 
                 try:
                     yield f"data: {json.dumps(chunk_dict)}\n\n"
-                except (BrokenPipeError, ConnectionError, ConnectionResetError) as e:
+                except (BrokenPipeError, ConnectionError, ConnectionResetError) as exc:
                     if not socket_error_logged:
-                        logging.info(f"Client disconnected during streaming: {type(e).__name__}")
+                        logging.info(f"Client disconnected during streaming: {type(exc).__name__}")
                         socket_error_logged = True
                     return  # Client disconnected
 
-        except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError) as e:
+        except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError) as exc:
             # Provider error during streaming - send error event
-            stream_error = f"{type(e).__name__}: {str(e)}"
-            error_event = build_error_response("stream_error", str(e), type(e).__name__.lower())
+            stream_error = f"{type(exc).__name__}: {str(exc)}"
+            error_event = build_error_response("stream_error", str(exc), type(exc).__name__.lower())
             try:
                 yield f"data: {json.dumps(error_event)}\n\n"
             except (BrokenPipeError, ConnectionError, ConnectionResetError):
@@ -234,10 +237,10 @@ async def execute_streaming_request(
                     logging.info("Client disconnected before error could be sent")
                     socket_error_logged = True
 
-        except Exception as e:
+        except Exception as exc:
             # Unexpected error during streaming
-            stream_error = f"UnexpectedStreamError: {str(e)}"
-            error_event = build_error_response("stream_error", str(e), "internal_error")
+            stream_error = f"UnexpectedStreamError: {str(exc)}"
+            error_event = build_error_response("stream_error", str(exc), "internal_error")
             try:
                 yield f"data: {json.dumps(error_event)}\n\n"
             except (BrokenPipeError, ConnectionError, ConnectionResetError):
@@ -267,8 +270,8 @@ async def execute_streaming_request(
                     total_tokens = usage.get('total_tokens', 0)
                     cost = calculate_cost(full_response)
                     print(f"{LOG_INDENT}✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f} [streaming]")
-            except Exception as e:
-                logging.error(f"Error logging streaming request to database: {e}")
+            except Exception as exc:
+                logging.error(f"Error logging streaming request to database: {exc}")
 
     return StreamingResponse(generate(), media_type="text/event-stream")
 
@@ -407,22 +410,22 @@ async def chat_completions(request: Request):
         else:
             return await execute_request(response, model, request_data, request_data_for_logging, start_time, db)
 
-    except HTTPException as e:
+    except HTTPException as exc:
         # Model not found - log and return error
         duration_ms = int((time.time() - start_time) * 1000)
-        await db.log_request(model, "unknown", None, duration_ms, request_data, error=f"UnknownModel: {e.detail}")
+        await db.log_request(model, "unknown", None, duration_ms, request_data, error=f"UnknownModel: {exc.detail}")
         print(f"{LOG_INDENT}✗ LLM Response: {model} (unknown) | {duration_ms}ms | Error: UnknownModel")
-        error_response = build_error_response("invalid_request_error", e.detail, "model_not_found")
-        return JSONResponse(content=error_response, status_code=e.status_code)
+        error_response = build_error_response("invalid_request_error", exc.detail, "model_not_found")
+        return JSONResponse(content=error_response, status_code=exc.status_code)
 
     except (RateLimitError, AuthenticationError, PermissionDeniedError, NotFoundError,
-            Timeout, InternalServerError, ServiceUnavailableError, APIConnectionError) as e:
-        return await handle_llm_error(e, start_time, request_data, request_data_for_logging, db)
+            Timeout, InternalServerError, ServiceUnavailableError, APIConnectionError) as exc:
+        return await handle_llm_error(exc, start_time, request_data, request_data_for_logging, db)
 
-    except Exception as e:
+    except Exception as exc:
         # Catch-all for unexpected errors
-        logging.exception(f"Unexpected error in chat completions: {e}")
-        return await handle_llm_error(e, start_time, request_data, request_data_for_logging, db)
+        logging.exception(f"Unexpected error in chat completions: {exc}")
+        return await handle_llm_error(exc, start_time, request_data, request_data_for_logging, db)
 
 
 @app.get("/health")
@@ -462,7 +465,7 @@ async def models(request: Request):
                     input_cost = input_cost_per_token * 1000000
                 if output_cost_per_token:
                     output_cost = output_cost_per_token * 1000000
-        except Exception as e:
+        except Exception as exc:
             pass
 
         model_list.append({
@@ -504,7 +507,7 @@ async def requests(request: Request, hours: int = None, start_date: str = None, 
 
     # Use Database instance from app state
     db = request.app.state.db
-    return await db.get_requests(
+    filters = RequestFilter(
         time_filter=time_filter,
         offset=offset,
         limit=limit,
@@ -514,6 +517,7 @@ async def requests(request: Request, hours: int = None, start_date: str = None, 
         max_cost=max_cost,
         search=search
     )
+    return await db.get_requests(filters)
 
 
 @app.get("/stats")
@@ -697,6 +701,7 @@ def main():
     litellm.set_verbose = False
 
     # Store config values in app.state for lifespan to access
+    app.state.config_path = args.config
     app.state.db_path = args.db
     app.state.timeout = args.timeout
     app.state.retries = args.retries
@@ -758,7 +763,7 @@ def main():
                             url = f"http://{ip}:{args.port}/"
                             if url not in addresses:
                                 addresses.append(url)
-        except Exception as e:
+        except Exception as exc:
             # Fallback to hostname lookup
             try:
                 hostname = socket.gethostname()

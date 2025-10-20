@@ -2,11 +2,25 @@
 
 import aiosqlite
 import json
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 from contextlib import asynccontextmanager
 
 import litellm
+
+
+@dataclass
+class RequestFilter:
+  """Filter parameters for database request queries."""
+  time_filter: str = ""
+  offset: int = 0
+  limit: int = 50
+  provider: Optional[str] = None
+  model: Optional[str] = None
+  min_cost: Optional[float] = None
+  max_cost: Optional[float] = None
+  search: Optional[str] = None
 
 
 class Database:
@@ -98,55 +112,45 @@ class Database:
         error
       ))
 
-  async def get_requests(self, time_filter: str = "", offset: int = 0, limit: int = 50,
-                        provider: Optional[str] = None, model: Optional[str] = None,
-                        min_cost: Optional[float] = None, max_cost: Optional[float] = None,
-                        search: Optional[str] = None):
+  async def get_requests(self, filters: RequestFilter):
     """Get requests with filtering and pagination.
 
     Args:
-      time_filter: SQL WHERE clause fragment from build_time_filter()
-      offset: Number of records to skip
-      limit: Maximum number of records to return
-      provider: Filter by provider name
-      model: Filter by model name
-      min_cost: Minimum cost threshold
-      max_cost: Maximum cost threshold
-      search: Search in model name or request/response content
+      filters: RequestFilter dataclass with filter parameters
 
     Returns:
       Dict with requests array, total count, aggregates, and pagination info
     """
     async with self._get_connection() as conn:
       # Build attribute filters
-      filters = []
+      where_conditions = []
       params = []
 
-      if provider:
-        filters.append("provider = ?")
-        params.append(provider)
+      if filters.provider:
+        where_conditions.append("provider = ?")
+        params.append(filters.provider)
 
-      if model:
-        filters.append("model = ?")
-        params.append(model)
+      if filters.model:
+        where_conditions.append("model = ?")
+        params.append(filters.model)
 
-      if min_cost is not None:
-        filters.append("cost >= ?")
-        params.append(min_cost)
+      if filters.min_cost is not None:
+        where_conditions.append("cost >= ?")
+        params.append(filters.min_cost)
 
-      if max_cost is not None:
-        filters.append("cost <= ?")
-        params.append(max_cost)
+      if filters.max_cost is not None:
+        where_conditions.append("cost <= ?")
+        params.append(filters.max_cost)
 
-      if search:
-        filters.append("(model LIKE ? OR request_data LIKE ? OR response_data LIKE ?)")
-        search_param = f"%{search}%"
+      if filters.search:
+        where_conditions.append("(model LIKE ? OR request_data LIKE ? OR response_data LIKE ?)")
+        search_param = f"%{filters.search}%"
         params.extend([search_param, search_param, search_param])
 
       # Combine filters
-      filter_clause = time_filter
-      if filters:
-        filter_clause += " AND " + " AND ".join(filters)
+      filter_clause = filters.time_filter
+      if where_conditions:
+        filter_clause += " AND " + " AND ".join(where_conditions)
 
       # Get aggregate stats for ALL matching requests
       cursor = await conn.execute(f"""
@@ -170,7 +174,7 @@ class Database:
         FROM requests
         WHERE error IS NULL {filter_clause}
         ORDER BY timestamp DESC
-        LIMIT {limit} OFFSET {offset}
+        LIMIT {filters.limit} OFFSET {filters.offset}
       """, params)
       rows = await cursor.fetchall()
 

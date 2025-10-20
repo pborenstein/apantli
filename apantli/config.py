@@ -17,7 +17,8 @@ DEFAULT_RETRIES = 3    # number of retry attempts
 #         11 chars + 9 chars + 8 chars = 28 chars
 LOG_INDENT = " " * 28
 
-# Model mapping from config.yaml (for backward compatibility)
+# Deprecated: MODEL_MAP is no longer automatically populated
+# Use Config class directly instead
 MODEL_MAP = {}
 
 
@@ -113,8 +114,6 @@ class Config:
 
   def reload(self):
     """Load or reload configuration from file."""
-    global MODEL_MAP
-
     try:
       with open(self.config_path, 'r') as f:
         config_data = yaml.safe_load(f)
@@ -152,34 +151,23 @@ class Config:
         for error in errors:
           print(f"  - {error}")
         if not models:
-          raise ConfigError("No valid models found in configuration")
+          print("   No valid models found in configuration")
 
       self.models = models
 
-      # Update global MODEL_MAP for backward compatibility
-      MODEL_MAP = {
-        name: config.to_litellm_params()
-        for name, config in models.items()
-      }
-
-      print(f"{LOG_INDENT}✓ Loaded {len(self.models)} model(s) from {self.config_path}")
+      if models:
+        print(f"{LOG_INDENT}✓ Loaded {len(self.models)} model(s) from {self.config_path}")
 
     except FileNotFoundError:
       print(f"⚠️  Config file not found: {self.config_path}")
       print("   Server will start with no models configured")
       self.models = {}
-      MODEL_MAP = {}
-    except yaml.YAMLError as e:
-      print(f"⚠️  Invalid YAML in config file: {e}")
+    except yaml.YAMLError as exc:
+      print(f"⚠️  Invalid YAML in config file: {exc}")
       self.models = {}
-      MODEL_MAP = {}
-    except ConfigError:
-      # Re-raise config errors
-      raise
-    except Exception as e:
-      print(f"⚠️  Could not load config: {e}")
+    except Exception as exc:
+      print(f"⚠️  Could not load config: {exc}")
       self.models = {}
-      MODEL_MAP = {}
 
   def get_model(self, model_name: str) -> Optional[ModelConfig]:
     """Get model configuration by name."""
@@ -189,25 +177,16 @@ class Config:
     """List all configured model names."""
     return list(self.models.keys())
 
+  def get_model_map(self, defaults: Optional[Dict[str, Any]] = None) -> Dict[str, dict]:
+    """Get model map compatible with legacy MODEL_MAP format.
 
-# Global config instance for backward compatibility
-_config: Optional[Config] = None
+    Args:
+      defaults: Default values for timeout, num_retries, etc.
 
-
-def load_config(config_path: str = "config.yaml"):
-  """Load model configuration from config.yaml (backward compatible).
-
-  This function maintains the global MODEL_MAP for existing code.
-  """
-  global _config, MODEL_MAP
-
-  try:
-    _config = Config(config_path)
-    # MODEL_MAP is already updated by Config.reload()
-  except ConfigError:
-    # Config errors are already printed by Config class
-    MODEL_MAP = {}
-  except Exception as e:
-    print(f"Warning: Could not load config.yaml: {e}")
-    print("Models will need to be specified with provider prefix (e.g., 'openai/gpt-4')")
-    MODEL_MAP = {}
+    Returns:
+      Dict mapping model names to litellm_params dicts
+    """
+    return {
+      name: model.to_litellm_params(defaults)
+      for name, model in self.models.items()
+    }
