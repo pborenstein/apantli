@@ -130,25 +130,39 @@ User visits http://localhost:4000/
    ↓
 GET / → Returns HTML with embedded JavaScript
    ↓
-Browser loads → Calls refresh()
+Browser loads → Alpine.js initializes
+   ↓
+Read URL hash (#stats, #requests, etc.) → Set currentTab
+   ↓
+Load initial tab data via onTabChange()
    ↓
 fetch('/stats') → Query database for aggregated statistics
    ↓
 Render metrics, tables, charts
    ↓
-User switches to "Models" tab
+User clicks "Models" tab
+   ↓
+Alpine sets currentTab = 'models'
+   ↓
+Watcher updates URL hash (#models) via pushState
    ↓
 fetch('/models') → Read MODEL_MAP + LiteLLM pricing
    ↓
 Display model list with costs
    ↓
-User switches to "Requests" tab
+User clicks model row → filterRequests() sets filters + currentTab = 'requests'
    ↓
-fetch('/requests') → SELECT recent requests with JSON data
+URL hash updates to #requests (creates history entry)
    ↓
-Render expandable table rows
+fetch('/requests') → SELECT filtered requests with JSON data
    ↓
-User clicks row → toggleDetail() → Show full request/response JSON
+Render paginated table with filters applied
+   ↓
+User clicks browser back button
+   ↓
+popstate event fires → Read URL hash (#models)
+   ↓
+Alpine updates currentTab = 'models' → Returns to Models tab
 ```
 
 ## Core Components Detail
@@ -264,8 +278,17 @@ For complete schema details, indexes, maintenance procedures, and troubleshootin
 - `dateFilter`: Global date range filter (persisted in localStorage)
 - `requestFilters`: Provider, model, cost range, search text (persisted)
 - `currentPage`, `itemsPerPage`, `totalItems`: Pagination state
-- `currentTab`: Active tab selection
+- `currentTab`: Active tab selection (synced with URL hash for browser history)
 - Watchers automatically trigger data reloads when filters change
+
+**Browser History Integration**:
+
+- URL hash reflects current tab (#stats, #requests, #calendar, #models)
+- `$watch('currentTab')` updates hash via `window.history.pushState()`
+- `popstate` event listener syncs hash changes back to Alpine state
+- Initial tab read from hash on page load (overrides localStorage)
+- Each tab navigation creates browser history entry
+- Back/forward buttons navigate through tab history
 
 **Key Functions**:
 

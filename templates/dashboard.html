@@ -124,7 +124,22 @@
 }" x-init="
     // Set initial theme
     document.documentElement.setAttribute('data-theme', theme);
-    $watch('currentTab', value => onTabChange(value));
+
+    // Initialize tab from URL hash if present
+    const initialHash = window.location.hash.slice(1);
+    if (initialHash && ['stats', 'calendar', 'models', 'requests'].includes(initialHash)) {
+        currentTab = initialHash;
+    }
+
+    // Watch currentTab and update URL hash (for browser history)
+    $watch('currentTab', value => {
+        onTabChange(value);
+        // Update hash without triggering hashchange event (prevents loop)
+        if (window.location.hash.slice(1) !== value) {
+            window.history.pushState(null, '', '#' + value);
+        }
+    });
+
     $watch('theme', value => {
         // Reload calendar when theme changes to update colors
         if (currentTab === 'calendar') {

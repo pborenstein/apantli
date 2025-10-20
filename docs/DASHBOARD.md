@@ -72,6 +72,29 @@ Detailed request history with server-side filtering and pagination. Uses the sam
 
 **Request Parameters Display**: When viewing request details, a compact parameter line shows the key parameters used for that request: temperature, max_tokens, timeout, num_retries, and top_p. Only non-null values are displayed, making it easy to see which parameters were explicitly set or inherited from config defaults.
 
+## Browser Navigation
+
+The dashboard supports browser history navigation, allowing you to use back/forward buttons to navigate between tabs.
+
+**Features**:
+
+- Browser back/forward buttons work across tab switches
+- Each tab change creates a history entry
+- URL reflects current tab using hash fragments (`#stats`, `#requests`, `#calendar`, `#models`)
+- Direct linking supported - share URLs to specific tabs
+
+**Examples**:
+
+- View Stats → click model row → switches to Requests → click back button → returns to Stats
+- Share `http://localhost:4000/#calendar` to open directly to Calendar tab
+- Keyboard shortcuts (Cmd+[ / Cmd+] on Mac, Alt+← / Alt+→ on Windows/Linux) navigate tab history
+
+**Implementation**:
+
+- Tab state synchronized with URL hash
+- Navigation preserves filter selections (date range, request filters)
+- Works seamlessly with clickable table rows that navigate to Requests tab
+
 ## Theme Toggle
 
 Click the theme button in the header to switch between light and dark mode. Theme preference is saved automatically.
@@ -153,6 +176,12 @@ All timestamps are displayed in your browser's local timezone, automatically det
 - `templates/dashboard.html` (327 lines) - HTML structure and Alpine.js reactive data model
 - `apantli/static/css/dashboard.css` (1,087 lines) - All styles including theme variables
 - `apantli/static/js/dashboard.js` (1,705 lines) - All JavaScript logic and Alpine.js methods
+
+**Browser History** (added 2025-10-20):
+- URL hash synchronized with current tab via Alpine.js watcher
+- `popstate` event listener handles browser navigation
+- Hash takes precedence over localStorage for initial tab selection
+- Direct linking supported (e.g., `/#calendar`)
 
 **Customization**:
 - **Adding UI elements**: Edit `templates/dashboard.html` for structure

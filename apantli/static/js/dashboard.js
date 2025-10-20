@@ -1714,3 +1714,15 @@
             const initialTab = localStorage.getItem('_x_currentTab')?.replace(/['"]/g, '') || 'stats';
             onTabChange(initialTab);
         });
+
+        // Handle browser back/forward navigation
+        window.addEventListener('popstate', () => {
+            if (!alpineData) return;
+            const hash = window.location.hash.slice(1);
+            if (hash && ['stats', 'calendar', 'models', 'requests'].includes(hash)) {
+                alpineData.currentTab = hash;
+            } else if (!hash) {
+                // No hash means navigate to default (stats)
+                alpineData.currentTab = 'stats';
+            }
+        });
