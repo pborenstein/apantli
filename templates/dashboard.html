@@ -148,12 +148,18 @@
     });
     $watch('dateFilter', value => {
         refreshStats();
-        currentPage = 1; // Reset to first page when date filter changes
-        loadRequests();
+        if (currentPage === 1) {
+            loadRequests(); // Already on page 1, manually trigger reload
+        } else {
+            currentPage = 1; // Will trigger loadRequests via currentPage watcher
+        }
     }, { deep: true });
     $watch('requestFilters', value => {
-        currentPage = 1; // Reset to page 1 when filters change
-        loadRequests();
+        if (currentPage === 1) {
+            loadRequests(); // Already on page 1, manually trigger reload
+        } else {
+            currentPage = 1; // Will trigger loadRequests via currentPage watcher
+        }
     }, { deep: true });
     $watch('currentPage', value => loadRequests());
 ">
