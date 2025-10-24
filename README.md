@@ -8,7 +8,7 @@ Lightweight local LLM proxy with SQLite cost tracking. Routes requests to multip
 1. **Clone the repository**:
 
    ```bash
-   git clone <repository-url>
+   git clone git@github.com:pborenstein/apantli.git
    cd apantli
    ```
 
