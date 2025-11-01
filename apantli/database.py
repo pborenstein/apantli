@@ -14,6 +14,7 @@ import litellm
 class RequestFilter:
   """Filter parameters for database request queries."""
   time_filter: str = ""
+  time_params: list = None
   offset: int = 0
   limit: int = 50
   provider: Optional[str] = None
@@ -21,6 +22,11 @@ class RequestFilter:
   min_cost: Optional[float] = None
   max_cost: Optional[float] = None
   search: Optional[str] = None
+
+  def __post_init__(self):
+    """Initialize mutable defaults."""
+    if self.time_params is None:
+      self.time_params = []
 
 
 class Database:
@@ -124,7 +130,7 @@ class Database:
     async with self._get_connection() as conn:
       # Build attribute filters
       where_conditions = []
-      params: list = []
+      params: list = list(filters.time_params)  # Start with time filter params
 
       if filters.provider:
         where_conditions.append("provider = ?")
@@ -202,15 +208,19 @@ class Database:
         "limit": filters.limit
       }
 
-  async def get_stats(self, time_filter: str = ""):
+  async def get_stats(self, time_filter: str = "", time_params: list = None):
     """Get usage statistics with optional time filtering.
 
     Args:
       time_filter: SQL WHERE clause fragment from build_time_filter()
+      time_params: Parameters for time filter placeholders
 
     Returns:
       Dict with totals, by_model, by_provider, performance, and recent_errors
     """
+    if time_params is None:
+      time_params = []
+
     async with self._get_connection() as conn:
       # Total stats
       cursor = await conn.execute(f"""
@@ -222,7 +232,7 @@ class Database:
           AVG(duration_ms) as avg_duration_ms
         FROM requests
         WHERE error IS NULL {time_filter}
-      """)
+      """, time_params)
       totals = await cursor.fetchone()
 
       # By model (include provider for segmented visualization)
@@ -237,7 +247,7 @@ class Database:
         WHERE error IS NULL {time_filter}
         GROUP BY model, provider
         ORDER BY cost DESC
-      """)
+      """, time_params)
       by_model = await cursor.fetchall()
 
       # By provider
@@ -251,7 +261,7 @@ class Database:
         WHERE error IS NULL {time_filter}
         GROUP BY provider
         ORDER BY cost DESC
-      """)
+      """, time_params)
       by_provider = await cursor.fetchall()
 
       # Model performance metrics
@@ -271,7 +281,7 @@ class Database:
           {time_filter}
         GROUP BY model
         ORDER BY avg_tokens_per_sec DESC
-      """)
+      """, time_params)
       performance = await cursor.fetchall()
 
       # Recent errors
@@ -281,7 +291,7 @@ class Database:
         WHERE error IS NOT NULL {time_filter}
         ORDER BY timestamp DESC
         LIMIT 10
-      """)
+      """, time_params)
       errors = await cursor.fetchall()
 
       return {
@@ -318,7 +328,7 @@ class Database:
         ]
       }
 
-  async def get_daily_stats(self, start_date: str, end_date: str, where_filter: str, date_expr: str):
+  async def get_daily_stats(self, start_date: str, end_date: str, where_filter: str, date_expr: str, where_params: list = None):
     """Get daily aggregated statistics with model breakdown.
 
     Args:
@@ -326,10 +336,14 @@ class Database:
       end_date: ISO date for default calculations (YYYY-MM-DD)
       where_filter: SQL WHERE clause (without WHERE keyword)
       date_expr: SQL expression for grouping by date with timezone
+      where_params: Parameters for where_filter placeholders
 
     Returns:
       Dict with daily array, total_days, total_cost, total_requests
     """
+    if where_params is None:
+      where_params = []
+
     async with self._get_connection() as conn:
       cursor = await conn.execute(f"""
         SELECT
@@ -344,7 +358,7 @@ class Database:
           AND {where_filter}
         GROUP BY {date_expr}, provider, model
         ORDER BY date DESC
-      """)
+      """, where_params)
       rows = await cursor.fetchall()
 
       # Group by date
@@ -387,16 +401,20 @@ class Database:
         'total_requests': total_requests
       }
 
-  async def get_hourly_stats(self, where_filter: str, hour_expr: str):
+  async def get_hourly_stats(self, where_filter: str, hour_expr: str, where_params: list = None):
     """Get hourly aggregated statistics for a single day.
 
     Args:
       where_filter: SQL WHERE clause (without WHERE keyword)
       hour_expr: SQL expression for grouping by hour with timezone
+      where_params: Parameters for where_filter placeholders
 
     Returns:
       Dict with hourly array, total_cost, total_requests
     """
+    if where_params is None:
+      where_params = []
+
     async with self._get_connection() as conn:
       cursor = await conn.execute(f"""
         SELECT
@@ -411,7 +429,7 @@ class Database:
           AND {where_filter}
         GROUP BY {hour_expr}, provider, model
         ORDER BY hour ASC
-      """)
+      """, where_params)
       rows = await cursor.fetchall()
 
       # Group by hour

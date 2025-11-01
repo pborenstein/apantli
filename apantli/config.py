@@ -1,6 +1,7 @@
 """Configuration management for model routing."""
 
 import os
+import logging
 import warnings
 from typing import Dict, Optional, Any
 from pydantic import BaseModel, Field, field_validator, ValidationError
@@ -143,26 +144,26 @@ class Config:
             errors.append(f"Model '{model_name}': {field} - {message}")
 
       if errors:
-        print(f"⚠️  Configuration validation errors:")
+        logging.warning("Configuration validation errors:")
         for error_msg in errors:
-          print(f"  - {error_msg}")
+          logging.warning(f"  - {error_msg}")
         if not models:
-          print("   No valid models found in configuration")
+          logging.warning("No valid models found in configuration")
 
       self.models = models
 
       if models:
-        print(f"{LOG_INDENT}✓ Loaded {len(self.models)} model(s) from {self.config_path}")
+        logging.info(f"{LOG_INDENT}✓ Loaded {len(self.models)} model(s) from {self.config_path}")
 
     except FileNotFoundError:
-      print(f"⚠️  Config file not found: {self.config_path}")
-      print("   Server will start with no models configured")
+      logging.warning(f"Config file not found: {self.config_path}")
+      logging.warning("Server will start with no models configured")
       self.models = {}
     except yaml.YAMLError as exc:
-      print(f"⚠️  Invalid YAML in config file: {exc}")
+      logging.warning(f"Invalid YAML in config file: {exc}")
       self.models = {}
     except Exception as exc:
-      print(f"⚠️  Could not load config: {exc}")
+      logging.warning(f"Could not load config: {exc}")
       self.models = {}
 
   def get_model(self, model_name: str) -> Optional[ModelConfig]:

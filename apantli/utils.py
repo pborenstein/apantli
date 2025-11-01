@@ -27,7 +27,7 @@ def convert_local_date_to_utc_range(date_str: str, timezone_offset_minutes: int)
 def build_time_filter(hours: Optional[int] = None,
                      start_date: Optional[str] = None,
                      end_date: Optional[str] = None,
-                     timezone_offset: Optional[int] = None) -> str:
+                     timezone_offset: Optional[int] = None) -> tuple[str, list]:
   """Build SQL time filter clause with timezone handling.
 
   Args:
@@ -37,38 +37,39 @@ def build_time_filter(hours: Optional[int] = None,
     timezone_offset: Browser timezone offset in minutes from UTC
 
   Returns:
-    SQL WHERE clause fragment (e.g., "AND timestamp >= '...'") or empty string
+    Tuple of (SQL WHERE clause fragment, list of parameters)
+    e.g., ("AND timestamp >= ?", ["2025-10-01T00:00:00"]) or ("", [])
   """
   if hours:
-    return f"AND datetime(timestamp) > datetime('now', '-{hours} hours')"
+    return (f"AND datetime(timestamp) > datetime('now', ?)", [f'-{hours} hours'])
 
   if start_date and end_date:
     if timezone_offset is not None:
       # Convert local date range to UTC timestamps for efficient indexed queries
       start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
       _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
-      return f"AND timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
+      return ("AND timestamp >= ? AND timestamp < ?", [start_utc, end_utc])
     else:
       # No timezone conversion needed
       end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
-      return f"AND timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
+      return ("AND timestamp >= ? AND timestamp < ?", [f"{start_date}T00:00:00", f"{end_dt.date()}T00:00:00"])
 
   if start_date:
     if timezone_offset is not None:
       start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
-      return f"AND timestamp >= '{start_utc}'"
+      return ("AND timestamp >= ?", [start_utc])
     else:
-      return f"AND timestamp >= '{start_date}T00:00:00'"
+      return ("AND timestamp >= ?", [f"{start_date}T00:00:00"])
 
   if end_date:
     if timezone_offset is not None:
       _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
-      return f"AND timestamp < '{end_utc}'"
+      return ("AND timestamp < ?", [end_utc])
     else:
       end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
-      return f"AND timestamp < '{end_dt.date()}T00:00:00'"
+      return ("AND timestamp < ?", [f"{end_dt.date()}T00:00:00"])
 
-  return ""
+  return ("", [])
 
 
 def build_timezone_modifier(timezone_offset: int) -> str:

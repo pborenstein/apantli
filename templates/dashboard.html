@@ -1,3 +1,27 @@
+{# Macro for date filter UI component #}
+{% macro date_filter() %}
+<div class="date-filter">
+    <div class="filter-buttons">
+        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'all') }" @click="setQuickFilter(dateFilter, 'all')">All Time</button>
+        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'today') }" @click="setQuickFilter(dateFilter, 'today')">Today</button>
+        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'yesterday') }" @click="setQuickFilter(dateFilter, 'yesterday')">Yesterday</button>
+        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-week') }" @click="setQuickFilter(dateFilter, 'this-week')">This Week</button>
+        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-month') }" @click="setQuickFilter(dateFilter, 'this-month')">This Month</button>
+        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'last-30-days') }" @click="setQuickFilter(dateFilter, 'last-30-days')">Last 30 Days</button>
+    </div>
+
+    <div class="filter-custom">
+        <input type="date" x-model="dateFilter.startDate">
+        <span>to</span>
+        <input type="date" x-model="dateFilter.endDate">
+        <button @click="dateFilter = { startDate: '', endDate: '' }" style="margin-left: 10px; padding: 4px 8px; border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text); cursor: pointer;">Clear Filter</button>
+    </div>
+    <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: 8px;" x-show="dateFilter.startDate || dateFilter.endDate">
+        Active filter: <span x-text="dateFilter.startDate || '(none)'"></span> to <span x-text="dateFilter.endDate || '(none)'"></span>
+    </div>
+</div>
+{% endmacro %}
+
 <!DOCTYPE html>
 <html>
 <head>
@@ -182,26 +206,7 @@
     </nav>
 
     <div id="stats-tab" x-show="currentTab === 'stats'">
-        <div class="date-filter">
-            <div class="filter-buttons">
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'all') }" @click="setQuickFilter(dateFilter, 'all')">All Time</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'today') }" @click="setQuickFilter(dateFilter, 'today')">Today</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'yesterday') }" @click="setQuickFilter(dateFilter, 'yesterday')">Yesterday</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-week') }" @click="setQuickFilter(dateFilter, 'this-week')">This Week</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-month') }" @click="setQuickFilter(dateFilter, 'this-month')">This Month</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'last-30-days') }" @click="setQuickFilter(dateFilter, 'last-30-days')">Last 30 Days</button>
-            </div>
-
-            <div class="filter-custom">
-                <input type="date" x-model="dateFilter.startDate">
-                <span>to</span>
-                <input type="date" x-model="dateFilter.endDate">
-                <button @click="dateFilter = { startDate: '', endDate: '' }" style="margin-left: 10px; padding: 4px 8px; border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text); cursor: pointer;">Clear Filter</button>
-            </div>
-            <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: 8px;" x-show="dateFilter.startDate || dateFilter.endDate">
-                Active filter: <span x-text="dateFilter.startDate || '(none)'"></span> to <span x-text="dateFilter.endDate || '(none)'"></span>
-            </div>
-        </div>
+        {{ date_filter() }}
 
         <div id="totals"></div>
 
@@ -246,26 +251,7 @@
     </div>
 
     <div id="requests-tab" x-show="currentTab === 'requests'">
-        <div class="date-filter">
-            <div class="filter-buttons">
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'all') }" @click="setQuickFilter(dateFilter, 'all')">All Time</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'today') }" @click="setQuickFilter(dateFilter, 'today')">Today</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'yesterday') }" @click="setQuickFilter(dateFilter, 'yesterday')">Yesterday</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-week') }" @click="setQuickFilter(dateFilter, 'this-week')">This Week</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-month') }" @click="setQuickFilter(dateFilter, 'this-month')">This Month</button>
-                <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'last-30-days') }" @click="setQuickFilter(dateFilter, 'last-30-days')">Last 30 Days</button>
-            </div>
-
-            <div class="filter-custom">
-                <input type="date" x-model="dateFilter.startDate">
-                <span>to</span>
-                <input type="date" x-model="dateFilter.endDate">
-                <button @click="dateFilter = { startDate: '', endDate: '' }" style="margin-left: 10px; padding: 4px 8px; border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text); cursor: pointer;">Clear Filter</button>
-            </div>
-            <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: 8px;" x-show="dateFilter.startDate || dateFilter.endDate">
-                Active filter: <span x-text="dateFilter.startDate || '(none)'"></span> to <span x-text="dateFilter.endDate || '(none)'"></span>
-            </div>
-        </div>
+        {{ date_filter() }}
 
         <div class="request-filters">
             <div class="filter-row">

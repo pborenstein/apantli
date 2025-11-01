@@ -7,6 +7,7 @@ Compatible with OpenAI API format, uses LiteLLM SDK for provider routing.
 import os
 import socket
 import json
+import time
 import argparse
 import logging
 from datetime import datetime, timedelta
@@ -156,7 +157,8 @@ def calculate_cost(response) -> float:
     """Calculate cost for a completion response, returning 0.0 on error."""
     try:
         return litellm.completion_cost(completion_response=response)
-    except:
+    except Exception as e:
+        logging.debug(f"Failed to calculate cost: {e}")
         return 0.0
 
 
@@ -181,8 +183,6 @@ async def execute_streaming_request(
     Returns:
         StreamingResponse with SSE format
     """
-    import time
-
     # Extract provider before creating generator (from remapped litellm model name)
     litellm_model = request_data.get('model', '')
     provider = infer_provider_from_model(litellm_model)
@@ -297,8 +297,6 @@ async def execute_request(
     Returns:
         JSONResponse with completion data
     """
-    import time
-
     # Convert to dict for logging and response
     if hasattr(response, 'model_dump'):
         response_dict = response.model_dump()
@@ -335,8 +333,6 @@ async def execute_request(
 async def handle_llm_error(e: Exception, start_time: float, request_data: dict,
                           request_data_for_logging: dict, db: Database) -> JSONResponse:
     """Handle LLM API errors with consistent logging and response formatting."""
-    import time
-
     duration_ms = int((time.time() - start_time) * 1000)
     model_name = request_data.get('model', 'unknown')
     provider = infer_provider_from_model(model_name)
@@ -371,8 +367,6 @@ async def handle_llm_error(e: Exception, start_time: float, request_data: dict,
 @app.post("/chat/completions")
 async def chat_completions(request: Request):
     """OpenAI-compatible chat completions endpoint."""
-    import time
-
     db = request.app.state.db
     start_time = time.time()
     request_data = await request.json()
@@ -503,12 +497,13 @@ async def requests(request: Request, hours: Optional[int] = None, start_date: Op
     limit = min(limit, 200)
 
     # Build time filter using efficient timestamp comparisons
-    time_filter = build_time_filter(hours, start_date, end_date, timezone_offset)
+    time_filter, time_params = build_time_filter(hours, start_date, end_date, timezone_offset)
 
     # Use Database instance from app state
     db = request.app.state.db
     filters = RequestFilter(
         time_filter=time_filter,
+        time_params=time_params,
         offset=offset,
         limit=limit,
         provider=provider,
@@ -531,11 +526,11 @@ async def stats(request: Request, hours: Optional[int] = None, start_date: Optio
     - timezone_offset: Timezone offset in minutes from UTC (e.g., -480 for PST)
     """
     # Build time filter using efficient timestamp comparisons
-    time_filter = build_time_filter(hours, start_date, end_date, timezone_offset)
+    time_filter, time_params = build_time_filter(hours, start_date, end_date, timezone_offset)
 
     # Use Database instance from app state
     db = request.app.state.db
-    return await db.get_stats(time_filter=time_filter)
+    return await db.get_stats(time_filter=time_filter, time_params=time_params)
 
 
 @app.delete("/errors")
@@ -569,18 +564,20 @@ async def stats_daily(request: Request, start_date: Optional[str] = None, end_da
         # Convert local date range to UTC timestamps for efficient WHERE clause
         start_utc, _ = convert_local_date_to_utc_range(start_date, timezone_offset)
         _, end_utc = convert_local_date_to_utc_range(end_date, timezone_offset)
-        where_filter = f"timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
+        where_filter = "timestamp >= ? AND timestamp < ?"
+        where_params = [start_utc, end_utc]
     else:
         # No timezone conversion needed
         end_dt = datetime.fromisoformat(end_date) + timedelta(days=1)
-        where_filter = f"timestamp >= '{start_date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
+        where_filter = "timestamp >= ? AND timestamp < ?"
+        where_params = [f"{start_date}T00:00:00", f"{end_dt.date()}T00:00:00"]
 
     # Build date expression for GROUP BY
     date_expr = build_date_expr(timezone_offset)
 
     # Use Database instance from app state
     db = request.app.state.db
-    return await db.get_daily_stats(start_date, end_date, where_filter, date_expr)
+    return await db.get_daily_stats(start_date, end_date, where_filter, date_expr, where_params)
 
 
 @app.get("/stats/hourly")
@@ -596,18 +593,20 @@ async def stats_hourly(request: Request, date: str, timezone_offset: Optional[in
     if timezone_offset is not None:
         # Convert local date range to UTC timestamps for efficient WHERE clause
         start_utc, end_utc = convert_local_date_to_utc_range(date, timezone_offset)
-        where_filter = f"timestamp >= '{start_utc}' AND timestamp < '{end_utc}'"
+        where_filter = "timestamp >= ? AND timestamp < ?"
+        where_params = [start_utc, end_utc]
     else:
         # No timezone conversion needed
         end_dt = datetime.fromisoformat(date) + timedelta(days=1)
-        where_filter = f"timestamp >= '{date}T00:00:00' AND timestamp < '{end_dt.date()}T00:00:00'"
+        where_filter = "timestamp >= ? AND timestamp < ?"
+        where_params = [f"{date}T00:00:00", f"{end_dt.date()}T00:00:00"]
 
     # Build hour expression for GROUP BY
     hour_expr = build_hour_expr(timezone_offset)
 
     # Use Database instance from app state
     db = request.app.state.db
-    result = await db.get_hourly_stats(where_filter, hour_expr)
+    result = await db.get_hourly_stats(where_filter, hour_expr, where_params)
 
     # Ensure all 24 hours are present (fill missing hours with zeros)
     hourly_dict = {h['hour']: h for h in result['hourly']}
