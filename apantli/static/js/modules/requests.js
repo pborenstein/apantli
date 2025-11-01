@@ -267,7 +267,7 @@ export async function loadRequests(alpineData) {
     // Store original objects and convert to array format for sorting
     state.requestsObjects = data.requests
     state.requestsData = data.requests.map(r => [
-      new Date(r.timestamp).getTime(), // For sorting by time
+      new Date(r.timestamp.endsWith('Z') || r.timestamp.includes('+') ? r.timestamp : r.timestamp + 'Z').getTime(), // For sorting by time
       r.model,
       r.total_tokens,
       r.cost,
@@ -373,7 +373,7 @@ function renderRequestsTable(data, sortState) {
     mainRow.className = 'request-row'
     mainRow.onclick = () => window.toggleDetail(requestId)
     mainRow.innerHTML = `
-      <td>${escapeHtml(new Date(timestamp).toLocaleString())}</td>
+      <td>${escapeHtml(new Date(timestamp.endsWith('Z') || timestamp.includes('+') ? timestamp : timestamp + 'Z').toLocaleString())}</td>
       <td>${escapeHtml(row[1])}</td>
       <td>${row[2].toLocaleString()}</td>
       <td>$${row[3].toFixed(4)}</td>
