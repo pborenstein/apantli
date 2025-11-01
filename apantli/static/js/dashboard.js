@@ -466,7 +466,7 @@
                 // Store original objects and convert to array format for sorting
                 requestsObjects = data.requests;
                 requestsData = data.requests.map(r => [
-                    new Date(r.timestamp + 'Z').getTime(), // For sorting by time
+                    new Date(r.timestamp).getTime(), // For sorting by time
                     r.model,
                     r.total_tokens,
                     r.cost,
@@ -569,7 +569,7 @@
                 mainRow.className = 'request-row';
                 mainRow.onclick = () => toggleDetail(requestId);
                 mainRow.innerHTML = `
-                    <td>${escapeHtml(new Date(timestamp + 'Z').toLocaleString())}</td>
+                    <td>${escapeHtml(new Date(timestamp).toLocaleString())}</td>
                     <td>${escapeHtml(row[1])}</td>
                     <td>${row[2].toLocaleString()}</td>
                     <td>$${row[3].toFixed(4)}</td>
@@ -1295,7 +1295,7 @@
             renderByProviderTable(applySortIfNeeded('by-provider', byProviderData), tableSortState['by-provider']);
 
             // Errors - convert to sortable format
-            errorsData = data.recent_errors.map(e => [new Date(e.timestamp + 'Z').getTime(), e.model, e.error, e.timestamp]);
+            errorsData = data.recent_errors.map(e => [new Date(e.timestamp).getTime(), e.model, e.error, e.timestamp]);
             if (!tableSortState['errors']) {
                 tableSortState['errors'] = { column: null, direction: null, originalData: [...errorsData] };
             } else {
@@ -1528,7 +1528,7 @@
                 <tbody>
                     ${data.map(row => `
                         <tr class="clickable-row" onclick="filterRequests({ model: '${escapeHtml(row[1])}', provider: '', search: '', minCost: '', maxCost: '' })">
-                            <td>${new Date(row[3] + 'Z').toLocaleString()}</td>
+                            <td>${new Date(row[3]).toLocaleString()}</td>
                             <td>${row[1]}</td>
                             <td class="error">${row[2]}</td>
                         </tr>

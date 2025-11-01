@@ -132,7 +132,7 @@ export async function refreshStats(alpineData, renderProviderTrends) {
   renderByProviderTable(applySortIfNeeded('by-provider', state.byProviderData), state.tableSortState['by-provider'])
 
   // Errors - convert to sortable format
-  state.errorsData = data.recent_errors.map(e => [new Date(e.timestamp + 'Z').getTime(), e.model, e.error, e.timestamp])
+  state.errorsData = data.recent_errors.map(e => [new Date(e.timestamp).getTime(), e.model, e.error, e.timestamp])
   if (!state.tableSortState['errors']) {
     state.tableSortState['errors'] = { column: null, direction: null, originalData: [...state.errorsData] }
   } else {
@@ -373,7 +373,7 @@ function renderErrorsTable(data, sortState) {
     <tbody>
       ${data.map(row => `
         <tr class="clickable-row" onclick="window.filterRequests({ model: '${escapeHtml(row[1])}', provider: '', search: '', minCost: '', maxCost: '' })">
-          <td>${new Date(row[3] + 'Z').toLocaleString()}</td>
+          <td>${new Date(row[3]).toLocaleString()}</td>
           <td>${row[1]}</td>
           <td class="error">${row[2]}</td>
         </tr>
