@@ -14,7 +14,7 @@ import litellm
 class RequestFilter:
   """Filter parameters for database request queries."""
   time_filter: str = ""
-  time_params: list = None
+  time_params: Optional[list] = None
   offset: int = 0
   limit: int = 50
   provider: Optional[str] = None
@@ -130,7 +130,7 @@ class Database:
     async with self._get_connection() as conn:
       # Build attribute filters
       where_conditions = []
-      params: list = list(filters.time_params)  # Start with time filter params
+      params: list = list(filters.time_params or [])  # Start with time filter params
 
       if filters.provider:
         where_conditions.append("provider = ?")
@@ -208,7 +208,7 @@ class Database:
         "limit": filters.limit
       }
 
-  async def get_stats(self, time_filter: str = "", time_params: list = None):
+  async def get_stats(self, time_filter: str = "", time_params: Optional[list] = None):
     """Get usage statistics with optional time filtering.
 
     Args:
@@ -328,7 +328,7 @@ class Database:
         ]
       }
 
-  async def get_daily_stats(self, start_date: str, end_date: str, where_filter: str, date_expr: str, where_params: list = None):
+  async def get_daily_stats(self, start_date: str, end_date: str, where_filter: str, date_expr: str, where_params: Optional[list] = None):
     """Get daily aggregated statistics with model breakdown.
 
     Args:
@@ -401,7 +401,7 @@ class Database:
         'total_requests': total_requests
       }
 
-  async def get_hourly_stats(self, where_filter: str, hour_expr: str, where_params: list = None):
+  async def get_hourly_stats(self, where_filter: str, hour_expr: str, where_params: Optional[list] = None):
     """Get hourly aggregated statistics for a single day.
 
     Args:
