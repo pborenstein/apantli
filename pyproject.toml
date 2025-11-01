@@ -1,9 +1,9 @@
 [project]
 name = "apantli"
-version = "0.1.0"
+version = "0.2.0"
 description = "Lightweight LLM proxy with SQLite cost tracking"
 readme = "README.md"
-license = {text = "MIT"}
+license = {text = "Apache-2.0"}
 authors = [
     {name = "Philip Borenstein", email = "pborenstein@gmail.com"}
 ]
@@ -12,7 +12,7 @@ keywords = ["llm", "proxy", "litellm", "openai", "anthropic", "cost-tracking", "
 classifiers = [
     "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
+    "License :: OSI Approved :: Apache Software License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.13",
     "Topic :: Software Development :: Libraries :: Python Modules",
