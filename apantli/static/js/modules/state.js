@@ -5,8 +5,14 @@ export const state = {
   detailViewMode: {}, // Track view mode per request: 'conversation' or 'json'
   tableSortState: {}, // { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
   modelsData: [],
+  requestsData: [],
   requestsObjects: [],
-  hiddenProviders: new Set()
+  serverAggregates: { total: 0, total_tokens: 0, total_cost: 0, avg_cost: 0 },
+  byModelData: [],
+  byProviderData: [],
+  errorsData: [],
+  hiddenProviders: new Set(),
+  currentMonth: new Date()
 }
 
 export function resetState() {
@@ -14,6 +20,12 @@ export function resetState() {
   state.detailViewMode = {}
   state.tableSortState = {}
   state.modelsData = []
+  state.requestsData = []
   state.requestsObjects = []
+  state.serverAggregates = { total: 0, total_tokens: 0, total_cost: 0, avg_cost: 0 }
+  state.byModelData = []
+  state.byProviderData = []
+  state.errorsData = []
   state.hiddenProviders.clear()
+  state.currentMonth = new Date()
 }
