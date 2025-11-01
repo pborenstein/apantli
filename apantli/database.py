@@ -105,7 +105,7 @@ class Database:
          cost, duration_ms, request_data, response_data, error)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       """, (
-        datetime.now(UTC).isoformat(),
+        datetime.now(UTC).isoformat().replace('+00:00', 'Z'),
         model,
         provider,
         prompt_tokens,

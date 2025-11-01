@@ -153,7 +153,7 @@ async def test_log_request_api_key_redaction(temp_db, sample_response, sample_re
 
 @pytest.mark.asyncio
 async def test_log_request_timestamp_format(temp_db, sample_response, sample_request_data):
-  """Test that timestamps are in ISO format."""
+  """Test that timestamps are in ISO format and JavaScript-compatible."""
   db = Database(temp_db)
   await db.init()
 
@@ -171,8 +171,14 @@ async def test_log_request_timestamp_format(temp_db, sample_response, sample_req
       row = await cursor.fetchone()
 
     # Should be parseable as ISO datetime
-    timestamp = datetime.fromisoformat(row[0])
+    timestamp_str = row[0]
+    timestamp = datetime.fromisoformat(timestamp_str)
     assert isinstance(timestamp, datetime)
+
+    # Should use 'Z' suffix for UTC, not '+00:00' (for JavaScript compatibility)
+    # Dashboard.js appends 'Z', so we can't have '+00:00' in the timestamp
+    assert timestamp_str.endswith('Z'), f"Timestamp should end with 'Z' for JS compatibility, got: {timestamp_str}"
+    assert '+00:00' not in timestamp_str, f"Timestamp should not contain '+00:00', got: {timestamp_str}"
 
 
 @pytest.mark.asyncio
