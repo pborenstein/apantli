@@ -199,18 +199,17 @@ def test_config_list_models(temp_config_file, sample_config_content, monkeypatch
   assert len(models) == 2
 
 
-def test_config_missing_file(temp_config_file, capsys):
+def test_config_missing_file(temp_config_file, caplog):
   """Test loading config when file doesn't exist."""
   # Use a file path that doesn't exist
   config = Config(temp_config_file + '.nonexistent')
 
   # Should not raise, just warn
-  captured = capsys.readouterr()
-  assert "Config file not found" in captured.out
+  assert "Config file not found" in caplog.text
   assert len(config.models) == 0
 
 
-def test_config_invalid_yaml(temp_config_file, capsys):
+def test_config_invalid_yaml(temp_config_file, caplog):
   """Test loading config with invalid YAML."""
   # Write invalid YAML
   with open(temp_config_file, 'w') as f:
@@ -219,12 +218,11 @@ def test_config_invalid_yaml(temp_config_file, capsys):
   config = Config(temp_config_file)
 
   # Should not raise, just warn
-  captured = capsys.readouterr()
-  assert "Invalid YAML" in captured.out
+  assert "Invalid YAML" in caplog.text
   assert len(config.models) == 0
 
 
-def test_config_missing_model_field(temp_config_file, monkeypatch, capsys):
+def test_config_missing_model_field(temp_config_file, monkeypatch, caplog):
   """Test config with missing required model field."""
   monkeypatch.setenv('TEST_KEY', 'sk-test')
 
@@ -240,13 +238,12 @@ def test_config_missing_model_field(temp_config_file, monkeypatch, capsys):
   config = Config(temp_config_file)
 
   # Should warn about validation error
-  captured = capsys.readouterr()
-  assert "validation errors" in captured.out.lower()
+  assert "validation errors" in caplog.text.lower()
   # Model should not be loaded
   assert 'test-model' not in config.models
 
 
-def test_config_invalid_timeout(temp_config_file, monkeypatch, capsys):
+def test_config_invalid_timeout(temp_config_file, monkeypatch, caplog):
   """Test config with invalid timeout value."""
   monkeypatch.setenv('TEST_KEY', 'sk-test')
 
@@ -263,8 +260,7 @@ def test_config_invalid_timeout(temp_config_file, monkeypatch, capsys):
   config = Config(temp_config_file)
 
   # Should warn about validation error
-  captured = capsys.readouterr()
-  assert "validation errors" in captured.out.lower()
+  assert "validation errors" in caplog.text.lower()
   assert 'test-model' not in config.models
 
 
