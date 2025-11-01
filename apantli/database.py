@@ -3,7 +3,7 @@
 import aiosqlite
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, UTC
 from typing import Optional
 from contextlib import asynccontextmanager
 
@@ -105,7 +105,7 @@ class Database:
          cost, duration_ms, request_data, response_data, error)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       """, (
-        datetime.utcnow().isoformat(),
+        datetime.now(UTC).isoformat(),
         model,
         provider,
         prompt_tokens,
