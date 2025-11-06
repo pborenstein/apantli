@@ -462,13 +462,23 @@ async def models(request: Request):
         except Exception as exc:
             pass
 
-        model_list.append({
+        model_info = {
             'name': model_name,
             'litellm_model': litellm_params['model'],
             'provider': litellm_params['model'].split('/')[0] if '/' in litellm_params['model'] else 'unknown',
             'input_cost_per_million': round(input_cost, 2) if input_cost else None,
             'output_cost_per_million': round(output_cost, 2) if output_cost else None
-        })
+        }
+
+        # Include predefined parameters if they exist in config
+        if 'temperature' in litellm_params:
+            model_info['temperature'] = litellm_params['temperature']
+        if 'top_p' in litellm_params:
+            model_info['top_p'] = litellm_params['top_p']
+        if 'max_tokens' in litellm_params:
+            model_info['max_tokens'] = litellm_params['max_tokens']
+
+        model_list.append(model_info)
 
     return {'models': model_list}
 
@@ -642,6 +652,23 @@ async def stats_date_range(request: Request):
 async def dashboard(request: Request):
     """Simple HTML dashboard."""
     response = templates.TemplateResponse("dashboard.html", {"request": request})
+    # Prevent browser caching of the HTML to avoid stale UI bugs
+    response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
+
+
+@app.get("/compare")
+async def compare_page(request: Request):
+    """Chat comparison interface for testing multiple models side-by-side."""
+    response = templates.TemplateResponse(
+        "compare.html",
+        {
+            "request": request,
+            "models": list(request.app.state.model_map.keys())
+        }
+    )
     # Prevent browser caching of the HTML to avoid stale UI bugs
     response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
     response.headers["Pragma"] = "no-cache"
