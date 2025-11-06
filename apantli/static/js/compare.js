@@ -249,6 +249,7 @@ function compareApp() {
         const decoder = new TextDecoder()
         let buffer = ''
         let assistantMessage = ''
+        let usage = null
 
         while (true) {
           const { done, value } = await reader.read()
@@ -279,6 +280,11 @@ function compareApp() {
                   assistantMessage += content
                   slot.streamingContent = assistantMessage
                 }
+
+                // Capture usage information if present
+                if (chunk.usage) {
+                  usage = chunk.usage
+                }
               } catch (parseErr) {
                 console.error('Failed to parse chunk:', parseErr, data)
               }
@@ -286,11 +292,16 @@ function compareApp() {
           }
         }
 
-        // Add complete assistant message to history
+        // Add complete assistant message to history with usage info
         if (assistantMessage) {
           slot.messages.push({
             role: 'assistant',
-            content: assistantMessage
+            content: assistantMessage,
+            tokens: usage ? {
+              prompt: usage.prompt_tokens || 0,
+              completion: usage.completion_tokens || 0,
+              total: usage.total_tokens || 0
+            } : null
           })
         }
 

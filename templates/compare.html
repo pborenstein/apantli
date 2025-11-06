@@ -7,12 +7,12 @@
     <link rel="manifest" href="/static/site.webmanifest">
     <script>
         // Version marker to help debug caching issues
-        window.APANTLI_VERSION = '2025-11-04-007';
+        window.APANTLI_VERSION = '2025-11-05-002';
     </script>
     <script defer src="/static/alpine-persist.min.js"></script>
     <script defer src="/static/alpine.min.js"></script>
     <link rel="stylesheet" href="/static/css/dashboard.css">
-    <link rel="stylesheet" href="/static/css/compare.css">
+    <link rel="stylesheet" href="/static/css/compare.css?v=20251105-2">
 </head>
 <body x-data="compareApp()" x-init="init()" :data-theme="theme">
     <header class="header">
@@ -77,8 +77,8 @@
 
                                 <div class="form-group">
                                     <div class="param-header">
-                                        <label>
-                                            Temperature: <span x-text="slot.temperature.toFixed(1)"></span>
+                                        <label title="Controls randomness: higher values (>1) = more creative/random, lower values (<1) = more focused/deterministic">
+                                            Temperature
                                         </label>
                                         <button
                                             type="button"
@@ -89,18 +89,19 @@
                                         </button>
                                     </div>
                                     <input
-                                        type="range"
+                                        type="number"
                                         min="0"
                                         max="2"
                                         step="0.1"
                                         x-model.number="slot.temperature"
-                                        @input="saveState()">
+                                        @input="saveState()"
+                                        title="Controls randomness: higher values (>1) = more creative/random, lower values (<1) = more focused/deterministic">
                                 </div>
 
                                 <div class="form-group">
                                     <div class="param-header">
-                                        <label>
-                                            Top P: <span x-text="slot.top_p.toFixed(2)"></span>
+                                        <label title="Controls diversity via nucleus sampling: lower values (<0.9) = more focused, higher values (>0.9) = more variety">
+                                            Top P
                                         </label>
                                         <button
                                             type="button"
@@ -111,12 +112,13 @@
                                         </button>
                                     </div>
                                     <input
-                                        type="range"
+                                        type="number"
                                         min="0"
                                         max="1"
-                                        step="0.05"
+                                        step="0.01"
                                         x-model.number="slot.top_p"
-                                        @input="saveState()">
+                                        @input="saveState()"
+                                        title="Controls diversity via nucleus sampling: lower values (<0.9) = more focused, higher values (>0.9) = more variety">
                                 </div>
 
                                 <div class="form-group">
@@ -179,6 +181,7 @@
                                 <div class="message" :class="`message-${msg.role}`">
                                     <div class="message-role" x-text="msg.role.toUpperCase()"></div>
                                     <div class="message-content" x-text="msg.content"></div>
+                                    <div class="message-meta" x-show="msg.tokens" x-text="msg.tokens ? `${msg.tokens.prompt}→${msg.tokens.completion} tokens (${msg.tokens.total} total)` : ''"></div>
                                 </div>
                             </template>
 
@@ -209,6 +212,6 @@
         </svg>
     </footer>
 
-    <script src="/static/js/compare.js?v=20251104-7"></script>
+    <script src="/static/js/compare.js?v=20251105-2"></script>
 </body>
 </html>

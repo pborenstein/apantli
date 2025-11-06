@@ -159,21 +159,22 @@ body {
 
 .form-group {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--spacing-xs);
 }
 
 .param-header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
   gap: var(--spacing-xs);
+  flex: 1;
 }
 
 .form-group label {
   font-size: 0.75rem;
   color: var(--color-text-secondary);
-  flex: 1;
+  white-space: nowrap;
 }
 
 .btn-reset {
@@ -195,7 +196,16 @@ body {
   border-color: var(--color-primary);
 }
 
-.form-group select,
+.form-group select {
+  padding: 4px 6px;
+  border: 1px solid var(--color-border);
+  background: var(--color-background);
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 0.8rem;
+  border-radius: 4px;
+}
+
 .form-group input[type="number"] {
   padding: 4px 6px;
   border: 1px solid var(--color-border);
@@ -204,6 +214,7 @@ body {
   font-family: var(--font-mono);
   font-size: 0.8rem;
   border-radius: 4px;
+  width: 80px;
 }
 
 .form-group input[type="range"] {
@@ -307,6 +318,13 @@ body {
   word-wrap: break-word;
   line-height: 1.4;
   font-size: 0.85rem;
+}
+
+.message-meta {
+  font-size: 0.65rem;
+  color: var(--color-text-secondary);
+  margin-top: 4px;
+  font-family: var(--font-mono);
 }
 
 /* Input Panel */
