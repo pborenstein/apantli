@@ -1,4 +1,4 @@
-// Compare interface for testing multiple models side-by-side
+// Playground interface for testing multiple models side-by-side
 
 function compareApp() {
   return {
@@ -61,7 +61,7 @@ function compareApp() {
       await this.loadModels()
       this.loadState()
       this.validateAndInitializeSlots()
-      console.log('Compare app initialized')
+      console.log('Playground app initialized')
     },
 
     // Validate slots and initialize empty ones with defaults
@@ -339,6 +339,41 @@ function compareApp() {
           slot.streamingContent = ''
         })
         this.saveState()
+      }
+    },
+
+    // Export all conversations to clipboard as markdown
+    async exportAll() {
+      const markdown = this.slots
+        .filter(slot => slot.enabled && slot.messages.length > 0)
+        .map((slot, index) => {
+          const slotLabel = String.fromCharCode(65 + index)
+          const model = slot.conversationModel || slot.model
+          const header = `# Slot ${slotLabel}: ${model}\n\n**Parameters:** temp=${slot.temperature}, top_p=${slot.top_p}, max_tokens=${slot.max_tokens}\n\n---\n\n`
+
+          const conversation = slot.messages.map(msg => {
+            let text = `## ${msg.role.toUpperCase()}\n\n${msg.content}`
+            if (msg.tokens) {
+              text += `\n\n*${msg.tokens.prompt}→${msg.tokens.completion} tokens (${msg.tokens.total} total)*`
+            }
+            return text
+          }).join('\n\n---\n\n')
+
+          return header + conversation
+        })
+        .join('\n\n\n')
+
+      if (!markdown) {
+        alert('No conversations to export')
+        return
+      }
+
+      try {
+        await navigator.clipboard.writeText(markdown)
+        alert('Conversations copied to clipboard!')
+      } catch (err) {
+        console.error('Failed to copy to clipboard:', err)
+        alert('Failed to copy to clipboard. See console for details.')
       }
     },
 

@@ -1,13 +1,13 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>apantli ≈ compare</title>
+    <title>apantli ≈ playground</title>
     <link rel="icon" href="/static/favicon.ico" sizes="32x32">
     <link rel="apple-touch-icon" href="/static/apple-touch-icon.png">
     <link rel="manifest" href="/static/site.webmanifest">
     <script>
         // Version marker to help debug caching issues
-        window.APANTLI_VERSION = '2025-11-05-002';
+        window.APANTLI_VERSION = '2025-11-05-003';
     </script>
     <script defer src="/static/alpine-persist.min.js"></script>
     <script defer src="/static/alpine.min.js"></script>
@@ -19,7 +19,7 @@
         <div class="header-content">
             <h1 class="header-title">
                 <img src="/static/apantli-glyph.png" alt="apantli" class="header-glyph">
-                apantli ≈ compare
+                apantli ≈ playground
             </h1>
             <div class="header-actions">
                 <a href="/" class="btn btn-secondary">Dashboard</a>
@@ -146,6 +146,7 @@
             </div>
 
             <div class="panel-actions">
+                <button class="btn btn-secondary btn-small" @click="exportAll()">Export All</button>
                 <button class="btn btn-secondary btn-small" @click="newConversation()">New Conversation</button>
             </div>
             </details>
@@ -212,6 +213,6 @@
         </svg>
     </footer>
 
-    <script src="/static/js/compare.js?v=20251105-2"></script>
+    <script src="/static/js/compare.js?v=20251105-3"></script>
 </body>
 </html>
