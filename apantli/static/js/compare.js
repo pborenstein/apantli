@@ -222,7 +222,10 @@ function compareApp() {
         temperature: parseFloat(slot.temperature),
         top_p: parseFloat(slot.top_p),
         max_tokens: parseInt(slot.max_tokens),
-        stream: true
+        stream: true,
+        stream_options: {
+          include_usage: true  // Request usage info in streaming response
+        }
       }
 
       slot.streaming = true
