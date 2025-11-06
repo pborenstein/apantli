@@ -29,6 +29,15 @@ dependencies = [
     "aiosqlite",
 ]
 
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "mypy",
+    "types-PyYAML",
+    "types-netifaces",
+]
+
 [project.urls]
 Homepage = "https://github.com/pborenstein/apantli"
 Repository = "https://github.com/pborenstein/apantli"
