@@ -10,8 +10,8 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 
 **Request Flow**: Client → FastAPI (server.py) → Config lookup → API key resolution → LiteLLM SDK → Provider → Response + cost calc → Async DB log → Client
 
-**Module Structure** (1,482 lines total, down from 1,074 lines in single file):
-- `apantli/server.py` (1069 lines) - FastAPI app, HTTP routes, request orchestration
+**Module Structure** (~1,500 lines core + ~2,800 lines UI):
+- `apantli/server.py` (~1,100 lines) - FastAPI app, HTTP routes, request orchestration
 - `apantli/config.py` (213 lines) - Configuration with Pydantic validation
 - `apantli/database.py` (119 lines) - Async database operations with aiosqlite
 - `apantli/llm.py` (27 lines) - Provider inference
@@ -22,9 +22,12 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - `config.yaml` - Model definitions, API key refs
 - `.env` - API keys (gitignored)
 - `requests.db` - SQLite (full request/response logs + costs)
-- `templates/dashboard.html` - Web UI structure (327 lines)
-- `apantli/static/css/dashboard.css` - Dashboard styles (1087 lines)
-- `apantli/static/js/dashboard.js` - Dashboard logic (1705 lines)
+- `templates/dashboard.html` (327 lines) - Dashboard UI structure
+- `templates/compare.html` (218 lines) - Playground UI structure
+- `apantli/static/css/dashboard.css` (1,087 lines) - Dashboard styles
+- `apantli/static/css/compare.css` (427 lines) - Playground styles
+- `apantli/static/js/dashboard.js` (1,705 lines) - Dashboard logic
+- `apantli/static/js/compare.js` (426 lines) - Playground logic
 - `tests/` - Unit and integration tests (59 test cases)
 
 ## Implementation Details
@@ -66,7 +69,20 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 - Timezone conversion: `convert_local_date_to_utc_range()` for dashboard date filtering
 - Browser timezone handling: Converts local dates to UTC for SQL queries
 
-**Dashboard**: Jinja2 template at `/`, Alpine.js for reactivity, 4 tabs (Stats, Calendar, Models, Requests), 5-second auto-refresh on Stats tab. Request details show parameter values (temperature, max_tokens, timeout, num_retries, top_p).
+**Dashboard**: Jinja2 template at `/`, Alpine.js for reactivity, 4 tabs (Stats, Calendar, Models, Requests), 5-second auto-refresh on Stats tab. Request details show parameter values (temperature, max_tokens, timeout, num_retries, top_p). Navigation link to Playground in header.
+
+**Playground**: Side-by-side model comparison interface at `/compare`. Frontend-only implementation (no backend changes beyond serving template). Key features:
+- 3 independent slots for model comparison
+- Each slot: enable/disable, model selection, parameter controls (temperature, top_p, max_tokens)
+- Parallel streaming requests to `/v1/chat/completions`
+- Independent conversation history per slot (locked to original model)
+- Token usage display (prompt→completion tokens)
+- localStorage persistence (conversations survive reload)
+- Export all conversations to markdown
+- Model-specific parameter defaults from config.yaml
+- Reset buttons (↺) restore model defaults
+- Warning indicators when model changed mid-conversation
+See PLAYGROUND.md for detailed architecture and usage.
 
 **Error Handling**: Comprehensive implementation with configurable timeouts/retries. See ERROR_HANDLING.md for design decisions.
 - Timeout: `--timeout` CLI arg (default 120s), per-model override via `timeout` in litellm_params
@@ -96,8 +112,8 @@ All routes defined in `apantli/server.py`. See API.md for full reference.
 Primary: `/v1/chat/completions`, `/chat/completions` (POST) - OpenAI-compatible proxy (streaming supported)
 Health: `/health` (GET) - Returns `{"status": "ok"}`
 Stats: `/stats` (GET, includes performance metrics), `/stats/daily`, `/stats/date-range`
-Data: `/models`, `/requests` (GET), `/errors` (DELETE)
-UI: `/` (GET) - Dashboard, `/static/*` - Alpine.js libs
+Data: `/models` (GET, includes default parameters), `/requests` (GET), `/errors` (DELETE)
+UI: `/` (GET) - Dashboard, `/compare` (GET) - Playground, `/static/*` - Alpine.js libs and assets
 
 ## Key Code Patterns
 

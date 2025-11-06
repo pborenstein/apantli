@@ -106,6 +106,20 @@ Open http://localhost:4000/ for real-time monitoring with four tabs:
 |:------|:---------|:-------|:---------|
 | Usage statistics with date filtering, cost breakdowns, provider trends, model efficiency, and recent errors <br> [Stats tab screenshot](docs/stats-tab.png) | Monthly view of daily spending patterns with heatmap coloring showing cost intensity per day | Configured models with pricing information in sortable columns | Paginated request history (50 per page) with advanced server-side filtering. Apply global date filters (Today, Yesterday, This Week, This Month, Last 30 Days, Custom range), provider dropdown (openai, anthropic, etc.), model dropdown (exact match), cost range (min/max thresholds), and text search (searches model name and request/response content). All filters combine with AND logic. Summary shows accurate totals for ALL filtered results, and filter state persists across page reloads <br> [Requests tab screenshot](docs/requests-tab.png) |
 
+### Playground
+
+Interactive model comparison at http://localhost:4000/compare - test up to 3 models side-by-side with independent parameters:
+
+- **Side-by-side comparison**: Enable up to 3 slots, each with its own model and parameters (temperature, top_p, max_tokens)
+- **Parallel streaming**: Send one prompt to multiple models simultaneously, see responses develop in real-time
+- **Conversation threading**: Each slot maintains independent conversation history with context preservation
+- **Token tracking**: View prompt→completion token usage for each response
+- **Export conversations**: Copy all conversations to markdown with one click
+- **Parameter defaults**: Model-specific defaults from config.yaml with reset buttons
+- **State persistence**: Conversations and settings saved in browser localStorage
+
+Perfect for prompt engineering, model evaluation, and parameter tuning. See [docs/PLAYGROUND.md](docs/PLAYGROUND.md) for detailed usage and architecture.
+
 
 ### Client Integration
 
@@ -127,6 +141,7 @@ See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#client-integration) for Obsidi
 | `/requests` | GET | Paginated request history with server-side filtering (provider, model, cost, search) |
 | `/errors` | DELETE | Clear all error records |
 | `/` | GET | Web dashboard |
+| `/compare` | GET | Playground (side-by-side model comparison interface) |
 
 See [docs/API.md](docs/API.md) for complete endpoint documentation.
 
@@ -138,6 +153,7 @@ See [docs/API.md](docs/API.md) for complete endpoint documentation.
 | Multi-provider | OpenAI, Anthropic, and other LiteLLM-compatible providers |
 | Cost tracking | Automatic calculation and storage of per-request costs |
 | Web dashboard | Real-time statistics with time-range filtering and error management |
+| Playground | Side-by-side model comparison with independent parameters and conversation threading |
 | Advanced filtering | Server-side request filtering by provider, model, cost range, and text search |
 | Pagination | Navigate through all requests with configurable page size (up to 200 per page) |
 | SQLite storage | Lightweight database with full request/response logging and indexed queries |
@@ -319,8 +335,10 @@ For detailed documentation on specific topics:
 | [docs/API.md](docs/API.md) | HTTP endpoint reference | Developers & Integration users |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System design and technical implementation | Developers |
 | [docs/CONFIGURATION.md](docs/CONFIGURATION.md) | Model setup and environment configuration | Users & Developers |
+| [docs/DASHBOARD.md](docs/DASHBOARD.md) | Dashboard features, tabs, filtering, and browser navigation | Users |
 | [docs/DATABASE.md](docs/DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [docs/ERROR_HANDLING.md](docs/ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
+| [docs/PLAYGROUND.md](docs/PLAYGROUND.md) | Interactive model comparison interface architecture and usage | Users & Developers |
 | [docs/TESTING.md](docs/TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 
