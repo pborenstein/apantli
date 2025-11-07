@@ -41,12 +41,26 @@
     currentTab: $persist('stats'),
     theme: $persist('light'),
     selectedFont: $persist('system'),
+    fontSize: $persist('normal'),
+    fontWeight: $persist('normal'),
     fontOptions: [
         { id: 'system', name: 'System Default', mono: 'SF Mono, Monaco, Cascadia Code, Roboto Mono, monospace', sans: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' },
         { id: 'ibm-plex', name: 'IBM Plex', mono: 'IBM Plex Mono, monospace', sans: 'IBM Plex Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap' },
         { id: 'jetbrains', name: 'JetBrains Mono + Inter', mono: 'JetBrains Mono, monospace', sans: 'Inter, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap' },
         { id: 'fira', name: 'Fira Code + Fira Sans', mono: 'Fira Code, monospace', sans: 'Fira Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600&display=swap' },
         { id: 'source', name: 'Source Code Pro + Source Sans', mono: 'Source Code Pro, monospace', sans: 'Source Sans 3, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&family=Source+Sans+3:wght@400;500;600&display=swap' }
+    ],
+    fontSizeOptions: [
+        { id: 'compact', name: 'Compact', size: '13px' },
+        { id: 'normal', name: 'Normal', size: '15px' },
+        { id: 'large', name: 'Large', size: '17px' },
+        { id: 'extra-large', name: 'Extra Large', size: '19px' }
+    ],
+    fontWeightOptions: [
+        { id: 'light', name: 'Light', weight: '300' },
+        { id: 'normal', name: 'Normal', weight: '400' },
+        { id: 'medium', name: 'Medium', weight: '500' },
+        { id: 'semibold', name: 'Semibold', weight: '600' }
     ],
     dateFilter: $persist({
         startDate: '',
@@ -88,9 +102,25 @@
         document.documentElement.style.setProperty('--font-system', font.sans);
     },
 
+    changeFontSize(sizeId) {
+        this.fontSize = sizeId;
+        const sizeOption = this.fontSizeOptions.find(s => s.id === sizeId);
+        if (!sizeOption) return;
+        document.documentElement.style.setProperty('--font-size-base', sizeOption.size);
+    },
+
+    changeFontWeight(weightId) {
+        this.fontWeight = weightId;
+        const weightOption = this.fontWeightOptions.find(w => w.id === weightId);
+        if (!weightOption) return;
+        document.documentElement.style.setProperty('--font-weight-base', weightOption.weight);
+    },
+
     initFont() {
-        // Apply saved font on page load
+        // Apply saved font preferences on page load
         this.changeFont(this.selectedFont);
+        this.changeFontSize(this.fontSize);
+        this.changeFontWeight(this.fontWeight);
     },
 
     formatDate(date) {
@@ -229,6 +259,24 @@
                 aria-label="Select font family">
                 <template x-for="font in fontOptions" :key="font.id">
                     <option :value="font.id" x-text="font.name"></option>
+                </template>
+            </select>
+            <select
+                x-model="fontSize"
+                @change="changeFontSize(fontSize)"
+                style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
+                aria-label="Select font size">
+                <template x-for="size in fontSizeOptions" :key="size.id">
+                    <option :value="size.id" x-text="size.name"></option>
+                </template>
+            </select>
+            <select
+                x-model="fontWeight"
+                @change="changeFontWeight(fontWeight)"
+                style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
+                aria-label="Select font weight">
+                <template x-for="weight in fontWeightOptions" :key="weight.id">
+                    <option :value="weight.id" x-text="weight.name"></option>
                 </template>
             </select>
             <a href="/compare" style="padding: 8px 16px; text-decoration: none; color: var(--color-text); border: 1px solid var(--color-border); border-radius: 4px; font-size: 0.9rem;">Playground</a>
