@@ -204,8 +204,17 @@
         debug += 'Set --font-weight-base to ' + weightOption.weight + '<br>';
     }
 
-    const debugEl = document.getElementById('debug-info');
-    if (debugEl) debugEl.innerHTML = debug;
+    // Check what the body element actually has
+    setTimeout(() => {
+        const bodyStyle = getComputedStyle(document.body);
+        debug += '<br><strong>Body computed style:</strong><br>';
+        debug += 'font-size: ' + bodyStyle.fontSize + '<br>';
+        debug += 'font-weight: ' + bodyStyle.fontWeight + '<br>';
+        debug += 'font-family: ' + bodyStyle.fontFamily.substring(0, 30) + '...<br>';
+
+        const debugEl = document.getElementById('debug-info');
+        if (debugEl) debugEl.innerHTML = debug;
+    }, 100);
 
     // Initialize tab from URL hash if present
     const initialHash = window.location.hash.slice(1);
@@ -279,7 +288,7 @@
     }, { deep: true });
     $watch('currentPage', value => loadRequests());
 ">
-    <div id="debug-info" style="position: fixed; top: 0; right: 0; background: yellow; padding: 10px; font-size: 11px; z-index: 9999; max-width: 300px; word-wrap: break-word;"></div>
+    <div id="debug-info" style="position: fixed; top: 0; right: 0; background: yellow; color: black; padding: 10px; font-size: 11px; z-index: 9999; max-width: 300px; word-wrap: break-word;"></div>
 
     <h1>
         <span>apantli<img src="/static/apantli-glyph.png" alt="~" class="apantli-glyph">dashboard</span>
