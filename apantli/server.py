@@ -30,6 +30,7 @@ from litellm.exceptions import (
     Timeout,
     PermissionDeniedError,
     NotFoundError,
+    BadRequestError,
 )
 import uvicorn
 from dotenv import load_dotenv
@@ -168,7 +169,8 @@ async def execute_streaming_request(
     request_data: dict,
     request_data_for_logging: dict,
     start_time: float,
-    db: Database
+    db: Database,
+    request: Request
 ) -> StreamingResponse:
     """Execute and stream LiteLLM response with logging.
 
@@ -179,6 +181,7 @@ async def execute_streaming_request(
         request_data_for_logging: Copy of request data for logging
         start_time: Request start time
         db: Database instance
+        request: FastAPI Request object for disconnect detection
 
     Returns:
         StreamingResponse with SSE format
@@ -202,6 +205,13 @@ async def execute_streaming_request(
 
         try:
             for chunk in response:
+                # Check if client has disconnected before processing
+                if await request.is_disconnected():
+                    if not socket_error_logged:
+                        logging.info("Client disconnected during streaming")
+                        socket_error_logged = True
+                    return
+
                 chunk_dict = chunk.model_dump() if hasattr(chunk, 'model_dump') else dict(chunk)
 
                 # Accumulate content
@@ -218,42 +228,35 @@ async def execute_streaming_request(
                 if 'usage' in chunk_dict:
                     full_response['usage'] = chunk_dict['usage']
 
-                try:
-                    yield f"data: {json.dumps(chunk_dict)}\n\n"
-                except (BrokenPipeError, ConnectionError, ConnectionResetError) as exc:
-                    if not socket_error_logged:
-                        logging.info(f"Client disconnected during streaming: {type(exc).__name__}")
-                        socket_error_logged = True
-                    return  # Client disconnected
+                yield f"data: {json.dumps(chunk_dict)}\n\n"
+
+        except (BrokenPipeError, ConnectionError, ConnectionResetError) as exc:
+            # Client disconnected - stop streaming
+            if not socket_error_logged:
+                logging.info(f"Client disconnected during streaming: {type(exc).__name__}")
+                socket_error_logged = True
+            return
 
         except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError) as exc:
             # Provider error during streaming - send error event
             stream_error = f"{type(exc).__name__}: {str(exc)}"
             error_event = build_error_response("stream_error", str(exc), type(exc).__name__.lower())
-            try:
+            # Only try to send error if client is still connected
+            if not await request.is_disconnected():
                 yield f"data: {json.dumps(error_event)}\n\n"
-            except (BrokenPipeError, ConnectionError, ConnectionResetError):
-                if not socket_error_logged:
-                    logging.info("Client disconnected before error could be sent")
-                    socket_error_logged = True
 
         except Exception as exc:
             # Unexpected error during streaming
             stream_error = f"UnexpectedStreamError: {str(exc)}"
             error_event = build_error_response("stream_error", str(exc), "internal_error")
-            try:
+            # Only try to send error if client is still connected
+            if not await request.is_disconnected():
                 yield f"data: {json.dumps(error_event)}\n\n"
-            except (BrokenPipeError, ConnectionError, ConnectionResetError):
-                if not socket_error_logged:
-                    logging.info("Client disconnected before error could be sent")
-                    socket_error_logged = True
 
         finally:
-            # Always send [DONE] and log to database
-            try:
+            # Send [DONE] only if client is still connected
+            if not await request.is_disconnected():
                 yield "data: [DONE]\n\n"
-            except (BrokenPipeError, ConnectionError, ConnectionResetError):
-                pass  # Client gone, can't send [DONE]
 
             # Log to database
             try:
@@ -400,7 +403,7 @@ async def chat_completions(request: Request):
 
         # Route to appropriate handler based on streaming mode
         if is_streaming:
-            return await execute_streaming_request(response, model, request_data, request_data_for_logging, start_time, db)
+            return await execute_streaming_request(response, model, request_data, request_data_for_logging, start_time, db, request)
         else:
             return await execute_request(response, model, request_data, request_data_for_logging, start_time, db)
 
@@ -413,7 +416,8 @@ async def chat_completions(request: Request):
         return JSONResponse(content=error_response, status_code=exc.status_code)
 
     except (RateLimitError, AuthenticationError, PermissionDeniedError, NotFoundError,
-            Timeout, InternalServerError, ServiceUnavailableError, APIConnectionError) as exc:
+            Timeout, InternalServerError, ServiceUnavailableError, APIConnectionError,
+            BadRequestError) as exc:
         return await handle_llm_error(exc, start_time, request_data, request_data_for_logging, db)
 
     except Exception as exc:
@@ -723,6 +727,7 @@ def main():
     args = parser.parse_args()
 
     # Suppress LiteLLM's verbose logging and feedback messages
+    os.environ['LITELLM_LOG'] = 'ERROR'
     litellm.suppress_debug_info = True
     litellm.set_verbose = False
 

@@ -10,12 +10,14 @@ from litellm.exceptions import (
     Timeout,
     PermissionDeniedError,
     NotFoundError,
+    BadRequestError,
 )
 
 
 # Error mapping for LLM API exceptions
 # Maps exception type to (HTTP status code, error_type, error_code)
 ERROR_MAP = {
+    BadRequestError: (400, "invalid_request_error", "bad_request"),
     RateLimitError: (429, "rate_limit_error", "rate_limit_exceeded"),
     AuthenticationError: (401, "authentication_error", "invalid_api_key"),
     PermissionDeniedError: (403, "permission_denied", "permission_denied"),

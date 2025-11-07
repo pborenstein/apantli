@@ -216,12 +216,17 @@ function compareApp() {
 
       // Prepare request with conversation history
       // Use conversationModel to ensure we keep using the same model throughout
+      // Clamp parameters to valid ranges to prevent provider errors
+      const temperature = Math.max(0, Math.min(2, parseFloat(slot.temperature) || 0.7))
+      const topP = Math.max(0, Math.min(1, parseFloat(slot.top_p) || 1.0))
+      const maxTokens = Math.max(1, parseInt(slot.max_tokens) || 2000)
+
       const requestBody = {
         model: slot.conversationModel,
         messages: slot.messages,
-        temperature: parseFloat(slot.temperature),
-        top_p: parseFloat(slot.top_p),
-        max_tokens: parseInt(slot.max_tokens),
+        temperature: temperature,
+        top_p: topP,
+        max_tokens: maxTokens,
         stream: true,
         stream_options: {
           include_usage: true  // Request usage info in streaming response
