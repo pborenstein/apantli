@@ -561,10 +561,18 @@ Hello! It's nice to meet you.
 
 **Token Information**:
 
-- Shows prompt→completion tokens (total)
-- Example: `10→25 tokens (35 total)`
+- Displayed inline with role label at top of each message
+- Format: `19→428 tokens` on first line, `(447 total)` on second line
+- Example layout:
+  ```
+  ASSISTANT
+  19→428 tokens
+  (447 total)
+  Message text starts here...
+  ```
 - Only displayed if provider returns usage data
 - Helps compare efficiency across models
+- Compact 85px-wide section keeps message text at full width
 
 **Persistence**:
 
