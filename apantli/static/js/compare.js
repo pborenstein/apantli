@@ -13,13 +13,14 @@ function compareApp() {
 
     // Model slots (3 slots for comparison)
     // Note: model will be set after loading from server
+    // Parameters default to empty strings - only sent to server if user sets them
     slots: [
       {
         enabled: true,
         model: '',
-        temperature: 0.7,
-        top_p: 1.0,
-        max_tokens: 2000,
+        temperature: '',
+        top_p: '',
+        max_tokens: '',
         messages: [],
         conversationModel: null,  // Tracks which model is actually being used
         streaming: false,
@@ -28,9 +29,9 @@ function compareApp() {
       {
         enabled: true,
         model: '',
-        temperature: 0.7,
-        top_p: 1.0,
-        max_tokens: 2000,
+        temperature: '',
+        top_p: '',
+        max_tokens: '',
         messages: [],
         conversationModel: null,
         streaming: false,
@@ -39,9 +40,9 @@ function compareApp() {
       {
         enabled: false,
         model: '',
-        temperature: 0.7,
-        top_p: 1.0,
-        max_tokens: 2000,
+        temperature: '',
+        top_p: '',
+        max_tokens: '',
         messages: [],
         conversationModel: null,
         streaming: false,
@@ -78,10 +79,8 @@ function compareApp() {
           const modelIndex = Math.min(index, this.availableModels.length - 1)
           slot.model = this.availableModels[modelIndex]
 
-          // Apply defaults for this model
-          slot.temperature = this.getDefaultValue(index, 'temperature')
-          slot.top_p = this.getDefaultValue(index, 'top_p')
-          slot.max_tokens = this.getDefaultValue(index, 'max_tokens')
+          // Apply model defaults (config-only, no hardcoded defaults)
+          this.applyModelDefaults(index)
         }
 
         // Clear conversationModel if it doesn't exist in available models
@@ -128,43 +127,33 @@ function compareApp() {
       }
     },
 
-    // Get default value for a parameter based on model config
-    getDefaultValue(slotIndex, paramName) {
-      const slot = this.slots[slotIndex]
-      const modelConfig = this.modelConfigs[slot.model]
-
-      // Define base defaults
-      const baseDefaults = {
-        temperature: 0.7,
-        top_p: 1.0,
-        max_tokens: 2000
-      }
-
-      // Return config override if exists, otherwise base default
-      if (modelConfig && modelConfig[paramName] !== undefined) {
-        return modelConfig[paramName]
-      }
-      return baseDefaults[paramName]
-    },
-
-    // Reset a specific parameter to its default
+    // Reset a specific parameter to empty (no default)
     resetParameter(slotIndex, paramName) {
       const slot = this.slots[slotIndex]
-      const defaultValue = this.getDefaultValue(slotIndex, paramName)
 
-      // Directly set the value (Alpine.js handles reactivity)
-      slot[paramName] = defaultValue
+      // Clear to empty string - parameter won't be sent to server
+      slot[paramName] = ''
       this.saveState()
     },
 
     // Apply model defaults when a model is selected
+    // Only applies defaults from config.yaml, not hardcoded defaults
     applyModelDefaults(slotIndex) {
       const slot = this.slots[slotIndex]
+      const modelConfig = this.modelConfigs[slot.model]
 
-      // Apply defaults for each parameter
-      slot.temperature = this.getDefaultValue(slotIndex, 'temperature')
-      slot.top_p = this.getDefaultValue(slotIndex, 'top_p')
-      slot.max_tokens = this.getDefaultValue(slotIndex, 'max_tokens')
+      // Only apply parameters that are explicitly defined in config
+      // Leave others empty (will not be sent to server)
+      if (modelConfig) {
+        slot.temperature = modelConfig.temperature !== undefined ? modelConfig.temperature : ''
+        slot.top_p = modelConfig.top_p !== undefined ? modelConfig.top_p : ''
+        slot.max_tokens = modelConfig.max_tokens !== undefined ? modelConfig.max_tokens : ''
+      } else {
+        // No config found, clear all parameters
+        slot.temperature = ''
+        slot.top_p = ''
+        slot.max_tokens = ''
+      }
 
       this.saveState()
     },
@@ -216,20 +205,35 @@ function compareApp() {
 
       // Prepare request with conversation history
       // Use conversationModel to ensure we keep using the same model throughout
-      // Clamp parameters to valid ranges to prevent provider errors
-      const temperature = Math.max(0, Math.min(2, parseFloat(slot.temperature) || 0.7))
-      const topP = Math.max(0, Math.min(1, parseFloat(slot.top_p) || 1.0))
-      const maxTokens = Math.max(1, parseInt(slot.max_tokens) || 2000)
-
       const requestBody = {
         model: slot.conversationModel,
         messages: slot.messages,
-        temperature: temperature,
-        top_p: topP,
-        max_tokens: maxTokens,
         stream: true,
         stream_options: {
           include_usage: true  // Request usage info in streaming response
+        }
+      }
+
+      // Only include parameters if they have been explicitly set
+      // This avoids sending incompatible parameter combinations to providers
+      if (slot.temperature !== '') {
+        const temperature = parseFloat(slot.temperature)
+        if (!isNaN(temperature)) {
+          requestBody.temperature = Math.max(0, Math.min(2, temperature))
+        }
+      }
+
+      if (slot.top_p !== '') {
+        const topP = parseFloat(slot.top_p)
+        if (!isNaN(topP)) {
+          requestBody.top_p = Math.max(0, Math.min(1, topP))
+        }
+      }
+
+      if (slot.max_tokens !== '') {
+        const maxTokens = parseInt(slot.max_tokens)
+        if (!isNaN(maxTokens)) {
+          requestBody.max_tokens = Math.max(1, maxTokens)
         }
       }
 

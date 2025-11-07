@@ -1,7 +1,7 @@
 """Unit tests for error response formatting."""
 
 import pytest
-from apantli.errors import build_error_response
+from apantli.errors import build_error_response, extract_error_message
 
 
 def test_build_error_response_basic():
@@ -77,3 +77,83 @@ def test_build_error_response_special_characters():
   response = build_error_response("api_error", special_message)
 
   assert response["error"]["message"] == special_message
+
+
+def test_extract_error_message_anthropic_format():
+  """Test extracting error from Anthropic-style JSON embedded in exception."""
+  error_str = 'litellm.BadRequestError: AnthropicException - b\'{"type":"error","error":{"type":"invalid_request_error","message":"temperature: range: 0..1"},"request_id":"req_123"}\''
+
+  class MockException(Exception):
+    pass
+
+  exc = MockException(error_str)
+  result = extract_error_message(exc)
+
+  assert result == "temperature: range: 0..1"
+
+
+def test_extract_error_message_anthropic_complex():
+  """Test extracting complex Anthropic error message with special characters."""
+  error_str = 'litellm.BadRequestError: AnthropicException - b\'{"type":"error","error":{"type":"invalid_request_error","message":"`temperature` and `top_p` cannot both be specified for this model. Please use only one."},"request_id":"req_456"}\''
+
+  class MockException(Exception):
+    pass
+
+  exc = MockException(error_str)
+  result = extract_error_message(exc)
+
+  assert result == "`temperature` and `top_p` cannot both be specified for this model. Please use only one."
+
+
+def test_extract_error_message_simple_string():
+  """Test extracting error from simple string exception."""
+  error_str = "Simple error message"
+
+  class MockException(Exception):
+    pass
+
+  exc = MockException(error_str)
+  result = extract_error_message(exc)
+
+  assert result == "Simple error message"
+
+
+def test_extract_error_message_openai_format():
+  """Test extracting error from OpenAI-style JSON exception."""
+  error_str = '{"error": {"message": "Invalid request", "type": "invalid_request_error"}}'
+
+  class MockException(Exception):
+    pass
+
+  exc = MockException(error_str)
+  result = extract_error_message(exc)
+
+  assert result == "Invalid request"
+
+
+def test_extract_error_message_litellm_prefix():
+  """Test extracting error with LiteLLM prefix but no JSON."""
+  error_str = "litellm.RateLimitError: OpenAIException - Rate limit exceeded"
+
+  class MockException(Exception):
+    pass
+
+  exc = MockException(error_str)
+  result = extract_error_message(exc)
+
+  # Should extract the part after the dash
+  assert "Rate limit exceeded" in result
+
+
+def test_extract_error_message_fallback():
+  """Test fallback for unrecognized error format."""
+  error_str = "Some random error format that doesn't match any pattern"
+
+  class MockException(Exception):
+    pass
+
+  exc = MockException(error_str)
+  result = extract_error_message(exc)
+
+  # Should return original message when no pattern matches
+  assert result == error_str

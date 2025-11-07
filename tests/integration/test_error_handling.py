@@ -396,6 +396,120 @@ def test_error_response_format() -> bool:
         return False
 
 
+def test_parameter_filtering_sonnet() -> bool:
+    """Test: Sonnet 4.5 with both temperature and top_p (should auto-filter top_p)."""
+    print_test("Parameter Filtering - Sonnet 4.5")
+    print_info("Sending both temperature AND top_p to claude-sonnet-4-5")
+    print_info("Server should auto-filter top_p to avoid Anthropic error")
+
+    payload = {
+        "model": "claude-sonnet-4-5",
+        "messages": [{"role": "user", "content": "Say 'test successful' and nothing else."}],
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 10
+    }
+
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/chat/completions",
+            json=payload,
+            timeout=TIMEOUT
+        )
+
+        print_info(f"Status Code: {response.status_code}")
+
+        if response.status_code == 200:
+            result = response.json()
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            print_success(f"Request succeeded (top_p was filtered): {content}")
+            return True
+        else:
+            print_error(f"Request failed with status {response.status_code}")
+            print_result(response.json())
+            return False
+
+    except Exception as e:
+        print_error(f"Exception: {e}")
+        return False
+
+
+def test_parameter_filtering_haiku() -> bool:
+    """Test: Haiku 3.5 with both temperature and top_p (should allow both)."""
+    print_test("Parameter Filtering - Haiku 3.5")
+    print_info("Sending both temperature AND top_p to claude-haiku-3.5")
+    print_info("Server should allow both (older model constraint)")
+
+    payload = {
+        "model": "claude-haiku-3.5",
+        "messages": [{"role": "user", "content": "Say 'test successful' and nothing else."}],
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 10
+    }
+
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/chat/completions",
+            json=payload,
+            timeout=TIMEOUT
+        )
+
+        print_info(f"Status Code: {response.status_code}")
+
+        if response.status_code == 200:
+            result = response.json()
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            print_success(f"Request succeeded (both params allowed): {content}")
+            return True
+        else:
+            print_error(f"Request failed with status {response.status_code}")
+            print_result(response.json())
+            return False
+
+    except Exception as e:
+        print_error(f"Exception: {e}")
+        return False
+
+
+def test_parameter_filtering_openai() -> bool:
+    """Test: OpenAI model with both temperature and top_p (should allow both)."""
+    print_test("Parameter Filtering - OpenAI GPT")
+    print_info("Sending both temperature AND top_p to gpt-4.1-mini")
+    print_info("Server should allow both (OpenAI supports both)")
+
+    payload = {
+        "model": "gpt-4.1-mini",
+        "messages": [{"role": "user", "content": "Say 'test successful' and nothing else."}],
+        "temperature": 0.7,
+        "top_p": 0.9,
+        "max_tokens": 10
+    }
+
+    try:
+        response = requests.post(
+            f"{BASE_URL}/v1/chat/completions",
+            json=payload,
+            timeout=TIMEOUT
+        )
+
+        print_info(f"Status Code: {response.status_code}")
+
+        if response.status_code == 200:
+            result = response.json()
+            content = result.get("choices", [{}])[0].get("message", {}).get("content", "")
+            print_success(f"Request succeeded (both params allowed): {content}")
+            return True
+        else:
+            print_error(f"Request failed with status {response.status_code}")
+            print_result(response.json())
+            return False
+
+    except Exception as e:
+        print_error(f"Exception: {e}")
+        return False
+
+
 def main():
     """Run all tests."""
     print(f"{Colors.BOLD}Apantli Error Handling Test Suite{Colors.RESET}")
@@ -419,6 +533,9 @@ def main():
         ("Normal Streaming", test_streaming_normal),
         ("Streaming Disconnect", test_streaming_disconnect),
         ("Error Response Format", test_error_response_format),
+        ("Parameter Filtering - Sonnet 4.5", test_parameter_filtering_sonnet),
+        ("Parameter Filtering - Haiku 3.5", test_parameter_filtering_haiku),
+        ("Parameter Filtering - OpenAI", test_parameter_filtering_openai),
     ]
 
     results = {}

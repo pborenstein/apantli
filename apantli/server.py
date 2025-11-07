@@ -38,7 +38,7 @@ from dotenv import load_dotenv
 # Import from local modules
 from apantli.config import LOG_INDENT, Config
 from apantli.database import Database, RequestFilter
-from apantli.errors import build_error_response, get_error_details
+from apantli.errors import build_error_response, get_error_details, extract_error_message
 from apantli.llm import infer_provider_from_model
 from apantli.utils import convert_local_date_to_utc_range, build_time_filter, build_date_expr, build_hour_expr
 
@@ -154,6 +154,51 @@ def resolve_model_config(model: str, request_data: dict, model_map: dict,
     return request_data
 
 
+# Models that reject temperature + top_p being specified together
+# This is a constraint introduced in late 2025 for newest Anthropic models
+ANTHROPIC_STRICT_MODELS = [
+    'claude-sonnet-4-5-20250929',
+    'claude-opus-4',  # Prefix match for all Opus 4.x versions
+]
+
+
+def filter_parameters_for_model(request_data: dict) -> dict:
+    """Filter request parameters based on model-specific constraints.
+
+    Some models (e.g., Claude Sonnet 4.5-20250929) reject having both
+    temperature and top_p specified together. This function removes
+    incompatible parameters before sending to LiteLLM.
+
+    Args:
+        request_data: Request data dict with 'model' and parameters
+
+    Returns:
+        Filtered request_data dict
+    """
+    litellm_model = request_data.get('model', '')
+
+    # Check if this is an Anthropic model with strict parameter constraints
+    is_strict_model = any(
+        strict_model in litellm_model
+        for strict_model in ANTHROPIC_STRICT_MODELS
+    )
+
+    if is_strict_model:
+        # If both temperature and top_p are present, remove top_p
+        # (Anthropic recommends using temperature over top_p)
+        has_temperature = 'temperature' in request_data and request_data['temperature'] is not None
+        has_top_p = 'top_p' in request_data and request_data['top_p'] is not None
+
+        if has_temperature and has_top_p:
+            removed_value = request_data.pop('top_p')
+            logging.info(f"Removed top_p={removed_value} for {litellm_model} (model constraint: cannot specify both temperature and top_p)")
+
+    # Remove None/null values from request_data to avoid sending them to provider
+    request_data = {k: v for k, v in request_data.items() if v is not None}
+
+    return request_data
+
+
 def calculate_cost(response) -> float:
     """Calculate cost for a completion response, returning 0.0 on error."""
     try:
@@ -237,18 +282,20 @@ async def execute_streaming_request(
                 socket_error_logged = True
             return
 
-        except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError) as exc:
-            # Provider error during streaming - send error event
-            stream_error = f"{type(exc).__name__}: {str(exc)}"
-            error_event = build_error_response("stream_error", str(exc), type(exc).__name__.lower())
+        except (RateLimitError, InternalServerError, ServiceUnavailableError, Timeout, APIConnectionError, BadRequestError) as exc:
+            # Provider error during streaming - send error event with clean message
+            clean_msg = extract_error_message(exc)
+            stream_error = f"{type(exc).__name__}: {clean_msg}"
+            error_event = build_error_response("stream_error", clean_msg, type(exc).__name__.lower())
             # Only try to send error if client is still connected
             if not await request.is_disconnected():
                 yield f"data: {json.dumps(error_event)}\n\n"
 
         except Exception as exc:
             # Unexpected error during streaming
-            stream_error = f"UnexpectedStreamError: {str(exc)}"
-            error_event = build_error_response("stream_error", str(exc), "internal_error")
+            clean_msg = extract_error_message(exc)
+            stream_error = f"UnexpectedStreamError: {clean_msg}"
+            error_event = build_error_response("stream_error", clean_msg, "internal_error")
             # Only try to send error if client is still connected
             if not await request.is_disconnected():
                 yield f"data: {json.dumps(error_event)}\n\n"
@@ -343,26 +390,29 @@ async def handle_llm_error(e: Exception, start_time: float, request_data: dict,
     # Get error details from error mapping
     status_code, error_type, error_code = get_error_details(e)
 
+    # Extract clean error message for logging and response
+    clean_error_msg = extract_error_message(e)
+
     # Special handling for provider errors
     error_name = type(e).__name__
     if isinstance(e, (InternalServerError, ServiceUnavailableError)):
         error_name = "ProviderError"
 
-    # Log to database
+    # Log to database with clean error message
     await db.log_request(
         model_name,
         provider,
         None,
         duration_ms,
         request_data_for_logging,
-        error=f"{error_name}: {str(e)}"
+        error=f"{error_name}: {clean_error_msg}"
     )
 
-    # Console log
-    print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: {error_name}")
+    # Console log with clean error message
+    print(f"{LOG_INDENT}✗ LLM Response: {model_name} ({provider}) | {duration_ms}ms | Error: {error_name}: {clean_error_msg}")
 
-    # Build and return error response
-    error_response = build_error_response(error_type, str(e), error_code)
+    # Build and return error response with clean message
+    error_response = build_error_response(error_type, clean_error_msg, error_code)
     return JSONResponse(content=error_response, status_code=status_code)
 
 
@@ -389,6 +439,9 @@ async def chat_completions(request: Request):
             request.app.state.timeout,
             request.app.state.retries
         )
+
+        # Filter parameters based on model-specific constraints
+        request_data = filter_parameters_for_model(request_data)
 
         # Create logging copy with final request_data (includes API key and all params)
         request_data_for_logging = request_data.copy()
