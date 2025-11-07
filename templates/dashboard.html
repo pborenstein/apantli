@@ -83,46 +83,6 @@
         document.documentElement.setAttribute('data-theme', this.theme);
     },
 
-    changeFont(fontId) {
-        this.selectedFont = fontId;
-        const font = this.fontOptions.find(f => f.id === fontId);
-        if (!font) return;
-
-        // Load font from CDN if needed
-        if (font.cdnUrl && !document.getElementById('font-' + fontId)) {
-            const link = document.createElement('link');
-            link.id = 'font-' + fontId;
-            link.rel = 'stylesheet';
-            link.href = font.cdnUrl;
-            document.head.appendChild(link);
-        }
-
-        // Apply font to CSS variables
-        document.documentElement.style.setProperty('--font-mono', font.mono);
-        document.documentElement.style.setProperty('--font-system', font.sans);
-    },
-
-    changeFontSize(sizeId) {
-        this.fontSize = sizeId;
-        const sizeOption = this.fontSizeOptions.find(s => s.id === sizeId);
-        if (!sizeOption) return;
-        document.documentElement.style.setProperty('--font-size-base', sizeOption.size);
-    },
-
-    changeFontWeight(weightId) {
-        this.fontWeight = weightId;
-        const weightOption = this.fontWeightOptions.find(w => w.id === weightId);
-        if (!weightOption) return;
-        document.documentElement.style.setProperty('--font-weight-base', weightOption.weight);
-    },
-
-    initFont() {
-        // Apply saved font preferences on page load
-        this.changeFont(this.selectedFont);
-        this.changeFontSize(this.fontSize);
-        this.changeFontWeight(this.fontWeight);
-    },
-
     formatDate(date) {
         const year = date.getFullYear();
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -232,6 +192,40 @@
             loadCalendar();
         }
     });
+
+    // Watch font settings and apply when they change (including on initial load from $persist)
+    $watch('selectedFont', value => {
+        const font = fontOptions.find(f => f.id === value);
+        if (!font) return;
+
+        // Load font from CDN if needed
+        if (font.cdnUrl && !document.getElementById('font-' + value)) {
+            const link = document.createElement('link');
+            link.id = 'font-' + value;
+            link.rel = 'stylesheet';
+            link.href = font.cdnUrl;
+            document.head.appendChild(link);
+        }
+
+        // Apply font to CSS variables
+        document.documentElement.style.setProperty('--font-mono', font.mono);
+        document.documentElement.style.setProperty('--font-system', font.sans);
+    });
+
+    $watch('fontSize', value => {
+        const sizeOption = fontSizeOptions.find(s => s.id === value);
+        if (sizeOption) {
+            document.documentElement.style.setProperty('--font-size-base', sizeOption.size);
+        }
+    });
+
+    $watch('fontWeight', value => {
+        const weightOption = fontWeightOptions.find(w => w.id === value);
+        if (weightOption) {
+            document.documentElement.style.setProperty('--font-weight-base', weightOption.weight);
+        }
+    });
+
     $watch('dateFilter', value => {
         refreshStats();
         if (currentPage === 1) {
@@ -248,13 +242,12 @@
         }
     }, { deep: true });
     $watch('currentPage', value => loadRequests());
-" x-init="initFont()">
+">
     <h1>
         <span>apantli<img src="/static/apantli-glyph.png" alt="~" class="apantli-glyph">dashboard</span>
         <div style="display: flex; gap: 10px; align-items: center;">
             <select
                 x-model="selectedFont"
-                @change="changeFont(selectedFont)"
                 style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
                 aria-label="Select font family">
                 <template x-for="font in fontOptions" :key="font.id">
@@ -263,7 +256,6 @@
             </select>
             <select
                 x-model="fontSize"
-                @change="changeFontSize(fontSize)"
                 style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
                 aria-label="Select font size">
                 <template x-for="size in fontSizeOptions" :key="size.id">
@@ -272,7 +264,6 @@
             </select>
             <select
                 x-model="fontWeight"
-                @change="changeFontWeight(fontWeight)"
                 style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
                 aria-label="Select font weight">
                 <template x-for="weight in fontWeightOptions" :key="weight.id">
