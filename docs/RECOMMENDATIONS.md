@@ -52,6 +52,8 @@ apantli/
 
 #### 2. Hardcoded Playground Slot Limit
 
+**Status:** ⏸️ **DEFERRED** - Not needed currently, will revisit when requirement emerges
+
 **Locations:**
 - `apantli/static/js/compare.js:14-51` - Slot array definitions
 - `apantli/static/css/compare.css:127-133` - Grid layout
@@ -414,6 +416,8 @@ const fontOptions = [
 
 #### 14. Dark Mode Toggle
 
+**Status:** ⏸️ **DEFERRED** - Dark mode already works, toggle UI not needed yet
+
 **Current State:**
 - Dark mode theme exists in CSS
 - No UI control to switch themes
@@ -583,19 +587,19 @@ document.addEventListener('keydown', (e) => {
 
 ## Prioritized Action Plan
 
-### Phase 1: Immediate Wins (8 hours total)
+### Phase 1: Immediate Wins (4 hours total)
 
 **User-Requested Features:**
-1. Font customization system (2h)
-2. Dynamic playground slots with add/remove (4h)
-3. Dark mode toggle (0.5h)
+1. Font customization system (2h) ✅ **IN PROGRESS**
+2. ~~Dynamic playground slots with add/remove (4h)~~ - DEFERRED
+3. ~~Dark mode toggle (0.5h)~~ - DEFERRED
 
 **Quick Performance Improvements:**
 4. Stats query caching (1h)
 5. Parameter presets (1h)
 
 **Deliverables:**
-- All user-requested features complete
+- Font customization feature complete
 - Measurable performance improvement
 - Better user experience
 
