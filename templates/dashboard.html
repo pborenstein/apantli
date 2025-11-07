@@ -321,10 +321,11 @@
         </div>
     </header>
 
-    <div id="error-banner" class="error-banner" role="alert"></div>
-    <div id="chart-tooltip" class="chart-tooltip"></div>
+    <main class="dashboard-main">
+        <div id="error-banner" class="error-banner" role="alert"></div>
+        <div id="chart-tooltip" class="chart-tooltip"></div>
 
-    <nav>
+        <nav>
         <a href="#" :class="{ 'active': currentTab === 'stats' }" @click.prevent="currentTab = 'stats'">Stats</a>
         <a href="#" :class="{ 'active': currentTab === 'calendar' }" @click.prevent="currentTab = 'calendar'">Calendar</a>
         <a href="#" :class="{ 'active': currentTab === 'models' }" @click.prevent="currentTab = 'models'">Models</a>
@@ -440,6 +441,7 @@
             <span style="margin-left: 20px">Showing <span x-text="Math.min(itemsPerPage, totalItems - (currentPage - 1) * itemsPerPage)"></span> of <span x-text="totalItems"></span> requests</span>
         </div>
     </div>
+    </main>
 
     <footer style="text-align: center; padding: 2rem 1rem; margin-top: 3rem; border-top: 1px solid var(--border-color); font-size: 0.7rem; color: var(--text-secondary);">
         <a href="https://apantli.app" style="color: var(--text-primary); text-decoration: none;">apantli</a>
