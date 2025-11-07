@@ -40,6 +40,31 @@
 <body x-data="{
     currentTab: $persist('stats'),
     theme: $persist('light'),
+    selectedFont: $persist('system'),
+    fontSize: $persist('normal'),
+    fontWeight: $persist('normal'),
+    fontOptions: [
+        { id: 'system', name: 'System Default', mono: 'SF Mono, Monaco, Cascadia Code, Roboto Mono, monospace', sans: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' },
+        { id: 'roboto-mono', name: 'Roboto Mono (Thin)', mono: 'Roboto Mono, monospace', sans: 'Roboto, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@200;300;400;500&family=Roboto:wght@300;400;500&display=swap' },
+        { id: 'inconsolata', name: 'Inconsolata (Light)', mono: 'Inconsolata, monospace', sans: 'Inter, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Inconsolata:wght@200;300;400;500&family=Inter:wght@300;400;500&display=swap' },
+        { id: 'ibm-plex', name: 'IBM Plex', mono: 'IBM Plex Mono, monospace', sans: 'IBM Plex Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap' },
+        { id: 'jetbrains', name: 'JetBrains Mono', mono: 'JetBrains Mono, monospace', sans: 'Inter, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap' },
+        { id: 'fira', name: 'Fira Code', mono: 'Fira Code, monospace', sans: 'Fira Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=Fira+Sans:wght@300;400;500;600&display=swap' },
+        { id: 'source', name: 'Source Code Pro', mono: 'Source Code Pro, monospace', sans: 'Source Sans 3, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;500;600&display=swap' }
+    ],
+    fontSizeOptions: [
+        { id: 'compact', name: 'Compact', size: '13px' },
+        { id: 'normal', name: 'Normal', size: '15px' },
+        { id: 'large', name: 'Large', size: '17px' },
+        { id: 'extra-large', name: 'Extra Large', size: '19px' }
+    ],
+    fontWeightOptions: [
+        { id: 'extra-light', name: 'Extra Light', weight: '200' },
+        { id: 'light', name: 'Light', weight: '300' },
+        { id: 'normal', name: 'Normal', weight: '400' },
+        { id: 'medium', name: 'Medium', weight: '500' },
+        { id: 'semibold', name: 'Semibold', weight: '600' }
+    ],
     dateFilter: $persist({
         startDate: '',
         endDate: ''
@@ -149,6 +174,51 @@
     // Set initial theme
     document.documentElement.setAttribute('data-theme', theme);
 
+    // Apply persisted font settings on page load
+    let debug = 'selectedFont: ' + selectedFont + '<br>fontSize: ' + fontSize + '<br>fontWeight: ' + fontWeight + '<br><br>';
+
+    const font = fontOptions.find(f => f.id === selectedFont);
+    debug += 'font found: ' + (font ? font.name : 'NO') + '<br>';
+    if (font) {
+        if (font.cdnUrl && !document.getElementById('font-' + selectedFont)) {
+            const link = document.createElement('link');
+            link.id = 'font-' + selectedFont;
+            link.rel = 'stylesheet';
+            link.href = font.cdnUrl;
+            document.head.appendChild(link);
+            debug += 'CDN loaded<br>';
+        }
+        document.documentElement.style.setProperty('--font-mono', font.mono);
+        document.documentElement.style.setProperty('--font-system', font.sans);
+        debug += 'Set --font-mono<br>';
+    }
+
+    const sizeOption = fontSizeOptions.find(s => s.id === fontSize);
+    debug += 'size found: ' + (sizeOption ? sizeOption.size : 'NO') + '<br>';
+    if (sizeOption) {
+        document.documentElement.style.setProperty('--font-size-base', sizeOption.size);
+        debug += 'Set --font-size-base to ' + sizeOption.size + '<br>';
+    }
+
+    const weightOption = fontWeightOptions.find(w => w.id === fontWeight);
+    debug += 'weight found: ' + (weightOption ? weightOption.weight : 'NO') + '<br>';
+    if (weightOption) {
+        document.documentElement.style.setProperty('--font-weight-base', weightOption.weight);
+        debug += 'Set --font-weight-base to ' + weightOption.weight + '<br>';
+    }
+
+    // Check what the body element actually has
+    setTimeout(() => {
+        const bodyStyle = getComputedStyle(document.body);
+        debug += '<br><strong>Body computed style:</strong><br>';
+        debug += 'font-size: ' + bodyStyle.fontSize + '<br>';
+        debug += 'font-weight: ' + bodyStyle.fontWeight + '<br>';
+        debug += 'font-family: ' + bodyStyle.fontFamily.substring(0, 30) + '...<br>';
+
+        const debugEl = document.getElementById('debug-info');
+        if (debugEl) debugEl.innerHTML = debug;
+    }, 100);
+
     // Initialize tab from URL hash if present
     const initialHash = window.location.hash.slice(1);
     if (initialHash && ['stats', 'calendar', 'models', 'requests'].includes(initialHash)) {
@@ -170,6 +240,40 @@
             loadCalendar();
         }
     });
+
+    // Watch font settings and apply when they change (including on initial load from $persist)
+    $watch('selectedFont', value => {
+        const font = fontOptions.find(f => f.id === value);
+        if (!font) return;
+
+        // Load font from CDN if needed
+        if (font.cdnUrl && !document.getElementById('font-' + value)) {
+            const link = document.createElement('link');
+            link.id = 'font-' + value;
+            link.rel = 'stylesheet';
+            link.href = font.cdnUrl;
+            document.head.appendChild(link);
+        }
+
+        // Apply font to CSS variables
+        document.documentElement.style.setProperty('--font-mono', font.mono);
+        document.documentElement.style.setProperty('--font-system', font.sans);
+    });
+
+    $watch('fontSize', value => {
+        const sizeOption = fontSizeOptions.find(s => s.id === value);
+        if (sizeOption) {
+            document.documentElement.style.setProperty('--font-size-base', sizeOption.size);
+        }
+    });
+
+    $watch('fontWeight', value => {
+        const weightOption = fontWeightOptions.find(w => w.id === value);
+        if (weightOption) {
+            document.documentElement.style.setProperty('--font-weight-base', weightOption.weight);
+        }
+    });
+
     $watch('dateFilter', value => {
         refreshStats();
         if (currentPage === 1) {
@@ -187,21 +291,41 @@
     }, { deep: true });
     $watch('currentPage', value => loadRequests());
 ">
-    <h1>
-        <span>apantli<img src="/static/apantli-glyph.png" alt="~" class="apantli-glyph">dashboard</span>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <a href="/compare" style="padding: 8px 16px; text-decoration: none; color: var(--color-text); border: 1px solid var(--color-border); border-radius: 4px; font-size: 0.9rem;">Playground</a>
-            <button class="theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
-                <span x-show="theme === 'light'">Dark Mode</span>
-                <span x-show="theme === 'dark'">Light Mode</span>
-            </button>
+    <div id="debug-info" style="position: fixed; top: 0; right: 0; background: yellow; color: black; padding: 10px; font-size: 11px; z-index: 9999; max-width: 300px; word-wrap: break-word; display: none;"></div>
+
+    <header class="page-header">
+        <div class="header-content">
+            <h1 class="header-title">apantli ≈ dashboard</h1>
+            <div class="header-actions">
+                <select x-model="selectedFont" class="font-control" aria-label="Select font family">
+                    <template x-for="font in fontOptions" :key="font.id">
+                        <option :value="font.id" x-text="font.name" :selected="font.id === selectedFont"></option>
+                    </template>
+                </select>
+                <select x-model="fontSize" class="font-control" aria-label="Select font size">
+                    <template x-for="size in fontSizeOptions" :key="size.id">
+                        <option :value="size.id" x-text="size.name" :selected="size.id === fontSize"></option>
+                    </template>
+                </select>
+                <select x-model="fontWeight" class="font-control" aria-label="Select font weight">
+                    <template x-for="weight in fontWeightOptions" :key="weight.id">
+                        <option :value="weight.id" x-text="weight.name" :selected="weight.id === fontWeight"></option>
+                    </template>
+                </select>
+                <a href="/compare" class="btn btn-link">Playground</a>
+                <button class="btn btn-link theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
+                    <span x-show="theme === 'light'">Dark</span>
+                    <span x-show="theme === 'dark'">Light</span>
+                </button>
+            </div>
         </div>
-    </h1>
+    </header>
 
-    <div id="error-banner" class="error-banner" role="alert"></div>
-    <div id="chart-tooltip" class="chart-tooltip"></div>
+    <main class="dashboard-main">
+        <div id="error-banner" class="error-banner" role="alert"></div>
+        <div id="chart-tooltip" class="chart-tooltip"></div>
 
-    <nav>
+        <nav>
         <a href="#" :class="{ 'active': currentTab === 'stats' }" @click.prevent="currentTab = 'stats'">Stats</a>
         <a href="#" :class="{ 'active': currentTab === 'calendar' }" @click.prevent="currentTab = 'calendar'">Calendar</a>
         <a href="#" :class="{ 'active': currentTab === 'models' }" @click.prevent="currentTab = 'models'">Models</a>
@@ -317,6 +441,7 @@
             <span style="margin-left: 20px">Showing <span x-text="Math.min(itemsPerPage, totalItems - (currentPage - 1) * itemsPerPage)"></span> of <span x-text="totalItems"></span> requests</span>
         </div>
     </div>
+    </main>
 
     <footer style="text-align: center; padding: 2rem 1rem; margin-top: 3rem; border-top: 1px solid var(--border-color); font-size: 0.7rem; color: var(--text-secondary);">
         <a href="https://apantli.app" style="color: var(--text-primary); text-decoration: none;">apantli</a>

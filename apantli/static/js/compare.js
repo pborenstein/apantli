@@ -5,6 +5,33 @@ function compareApp() {
     // Theme (synced with dashboard)
     theme: 'light',
 
+    // Font settings (synced with dashboard)
+    selectedFont: 'system',
+    fontSize: 'normal',
+    fontWeight: 'normal',
+    fontOptions: [
+      { id: 'system', name: 'System Default', mono: 'SF Mono, Monaco, Cascadia Code, Roboto Mono, monospace', sans: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' },
+      { id: 'roboto-mono', name: 'Roboto Mono (Thin)', mono: 'Roboto Mono, monospace', sans: 'Roboto, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@200;300;400;500&family=Roboto:wght@300;400;500&display=swap' },
+      { id: 'inconsolata', name: 'Inconsolata (Light)', mono: 'Inconsolata, monospace', sans: 'Inter, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Inconsolata:wght@200;300;400;500&family=Inter:wght@300;400;500&display=swap' },
+      { id: 'ibm-plex', name: 'IBM Plex', mono: 'IBM Plex Mono, monospace', sans: 'IBM Plex Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap' },
+      { id: 'jetbrains', name: 'JetBrains Mono', mono: 'JetBrains Mono, monospace', sans: 'Inter, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap' },
+      { id: 'fira', name: 'Fira Code', mono: 'Fira Code, monospace', sans: 'Fira Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=Fira+Sans:wght@300;400;500;600&display=swap' },
+      { id: 'source', name: 'Source Code Pro', mono: 'Source Code Pro, monospace', sans: 'Source Sans 3, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;500;600&display=swap' }
+    ],
+    fontSizeOptions: [
+      { id: 'compact', name: 'Compact', size: '13px' },
+      { id: 'normal', name: 'Normal', size: '15px' },
+      { id: 'large', name: 'Large', size: '17px' },
+      { id: 'extra-large', name: 'Extra Large', size: '19px' }
+    ],
+    fontWeightOptions: [
+      { id: 'extra-light', name: 'Extra Light', weight: '200' },
+      { id: 'light', name: 'Light', weight: '300' },
+      { id: 'normal', name: 'Normal', weight: '400' },
+      { id: 'medium', name: 'Medium', weight: '500' },
+      { id: 'semibold', name: 'Semibold', weight: '600' }
+    ],
+
     // Available models from server (array of names for dropdown)
     availableModels: [],
 
@@ -59,6 +86,7 @@ function compareApp() {
     // Initialize
     async init() {
       this.loadTheme()
+      this.loadFonts()
       await this.loadModels()
       this.loadState()
       this.validateAndInitializeSlots()
@@ -104,6 +132,83 @@ function compareApp() {
       }
     },
 
+    // Toggle theme (synced with dashboard)
+    toggleTheme() {
+      this.theme = this.theme === 'light' ? 'dark' : 'light'
+      localStorage.setItem('_x_theme', JSON.stringify(this.theme))
+      document.documentElement.setAttribute('data-theme', this.theme)
+    },
+
+    // Load fonts from localStorage (shared with dashboard)
+    loadFonts() {
+      try {
+        const storedFont = localStorage.getItem('_x_selectedFont')
+        const storedSize = localStorage.getItem('_x_fontSize')
+        const storedWeight = localStorage.getItem('_x_fontWeight')
+
+        if (storedFont) this.selectedFont = JSON.parse(storedFont)
+        if (storedSize) this.fontSize = JSON.parse(storedSize)
+        if (storedWeight) this.fontWeight = JSON.parse(storedWeight)
+
+        this.applyFont()
+        this.applyFontSize()
+        this.applyFontWeight()
+      } catch (err) {
+        console.error('Failed to load fonts:', err)
+      }
+    },
+
+    // Apply selected font
+    applyFont() {
+      const font = this.fontOptions.find(f => f.id === this.selectedFont)
+      if (!font) return
+
+      if (font.cdnUrl && !document.getElementById('font-' + this.selectedFont)) {
+        const link = document.createElement('link')
+        link.id = 'font-' + this.selectedFont
+        link.rel = 'stylesheet'
+        link.href = font.cdnUrl
+        document.head.appendChild(link)
+      }
+
+      document.documentElement.style.setProperty('--font-mono', font.mono)
+      document.documentElement.style.setProperty('--font-system', font.sans)
+    },
+
+    // Apply font size
+    applyFontSize() {
+      const sizeOption = this.fontSizeOptions.find(s => s.id === this.fontSize)
+      if (sizeOption) {
+        document.documentElement.style.setProperty('--font-size-base', sizeOption.size)
+      }
+    },
+
+    // Apply font weight
+    applyFontWeight() {
+      const weightOption = this.fontWeightOptions.find(w => w.id === this.fontWeight)
+      if (weightOption) {
+        document.documentElement.style.setProperty('--font-weight-base', weightOption.weight)
+      }
+    },
+
+    // Change font (called from UI)
+    changeFont() {
+      localStorage.setItem('_x_selectedFont', JSON.stringify(this.selectedFont))
+      this.applyFont()
+    },
+
+    // Change font size (called from UI)
+    changeFontSize() {
+      localStorage.setItem('_x_fontSize', JSON.stringify(this.fontSize))
+      this.applyFontSize()
+    },
+
+    // Change font weight (called from UI)
+    changeFontWeight() {
+      localStorage.setItem('_x_fontWeight', JSON.stringify(this.fontWeight))
+      this.applyFontWeight()
+    },
+
     // Load available models from server
     async loadModels() {
       try {
@@ -125,6 +230,19 @@ function compareApp() {
         this.availableModels = []
         this.modelConfigs = {}
       }
+    },
+
+    // Get default value for a parameter from model config
+    getDefaultValue(slotIndex, paramName) {
+      const slot = this.slots[slotIndex]
+      const modelConfig = this.modelConfigs[slot.model]
+
+      if (modelConfig && modelConfig[paramName] !== undefined) {
+        return modelConfig[paramName]
+      }
+
+      // Return 0 if not in config (reset button will clear to empty anyway)
+      return 0
     },
 
     // Reset a specific parameter to empty (no default)

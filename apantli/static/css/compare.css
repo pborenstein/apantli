@@ -5,14 +5,16 @@ body {
   margin: 0;
   padding: 0;
   max-width: 100%;
-  height: 100vh;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 /* Header */
 .header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   background: var(--color-background-secondary);
   border-bottom: 2px solid var(--color-border);
   padding: var(--spacing-sm) var(--spacing-md);
@@ -43,6 +45,32 @@ body {
 .header-actions {
   display: flex;
   gap: var(--spacing-sm);
+  align-items: center;
+}
+
+.font-control {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-background);
+  color: var(--color-text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.theme-toggle {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-background);
+  color: var(--color-text);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.theme-toggle:hover {
+  background: var(--color-hover);
 }
 
 /* Main content */
@@ -52,7 +80,6 @@ body {
   padding: var(--spacing-sm);
   display: flex;
   flex-direction: column;
-  overflow: hidden;
 }
 
 /* Buttons */
@@ -242,7 +269,6 @@ body {
   flex: 1;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
   margin-bottom: var(--spacing-sm);
 }
 
@@ -251,7 +277,6 @@ body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
   gap: var(--spacing-sm);
-  overflow: hidden;
 }
 
 .conversation-column {

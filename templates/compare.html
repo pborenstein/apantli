@@ -17,12 +17,28 @@
 <body x-data="compareApp()" x-init="init()" :data-theme="theme">
     <header class="header">
         <div class="header-content">
-            <h1 class="header-title">
-                <img src="/static/apantli-glyph.png" alt="apantli" class="header-glyph">
-                apantli ≈ playground
-            </h1>
+            <h1 class="header-title">apantli ≈ playground</h1>
             <div class="header-actions">
+                <select x-model="selectedFont" @change="changeFont()" class="font-control" aria-label="Select font family">
+                    <template x-for="font in fontOptions" :key="font.id">
+                        <option :value="font.id" x-text="font.name" :selected="font.id === selectedFont"></option>
+                    </template>
+                </select>
+                <select x-model="fontSize" @change="changeFontSize()" class="font-control" aria-label="Select font size">
+                    <template x-for="size in fontSizeOptions" :key="size.id">
+                        <option :value="size.id" x-text="size.name" :selected="size.id === fontSize"></option>
+                    </template>
+                </select>
+                <select x-model="fontWeight" @change="changeFontWeight()" class="font-control" aria-label="Select font weight">
+                    <template x-for="weight in fontWeightOptions" :key="weight.id">
+                        <option :value="weight.id" x-text="weight.name" :selected="weight.id === fontWeight"></option>
+                    </template>
+                </select>
                 <a href="/" class="btn btn-secondary">Dashboard</a>
+                <button class="btn btn-secondary theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
+                    <span x-show="theme === 'light'">Dark</span>
+                    <span x-show="theme === 'dark'">Light</span>
+                </button>
             </div>
         </div>
     </header>
@@ -168,8 +184,8 @@
                                 </span>
                             </div>
                             <div class="column-params" x-show="slot.enabled">
-                                <span x-text="`temp=${slot.temperature.toFixed(1)}`"></span>,
-                                <span x-text="`top_p=${slot.top_p.toFixed(2)}`"></span>
+                                <span x-text="`temp=${typeof slot.temperature === 'number' ? slot.temperature.toFixed(1) : slot.temperature || 'default'}`"></span>,
+                                <span x-text="`top_p=${typeof slot.top_p === 'number' ? slot.top_p.toFixed(2) : slot.top_p || 'default'}`"></span>
                             </div>
                         </div>
 
