@@ -22,6 +22,21 @@
                 apantli ≈ playground
             </h1>
             <div class="header-actions">
+                <select x-model="selectedFont" @change="changeFont()" class="font-control" aria-label="Select font family">
+                    <template x-for="font in fontOptions" :key="font.id">
+                        <option :value="font.id" x-text="font.name" :selected="font.id === selectedFont"></option>
+                    </template>
+                </select>
+                <select x-model="fontSize" @change="changeFontSize()" class="font-control" aria-label="Select font size">
+                    <template x-for="size in fontSizeOptions" :key="size.id">
+                        <option :value="size.id" x-text="size.name" :selected="size.id === fontSize"></option>
+                    </template>
+                </select>
+                <select x-model="fontWeight" @change="changeFontWeight()" class="font-control" aria-label="Select font weight">
+                    <template x-for="weight in fontWeightOptions" :key="weight.id">
+                        <option :value="weight.id" x-text="weight.name" :selected="weight.id === fontWeight"></option>
+                    </template>
+                </select>
                 <a href="/" class="btn btn-secondary">Dashboard</a>
             </div>
         </div>
