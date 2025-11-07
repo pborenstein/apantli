@@ -242,6 +242,30 @@
         }
     }, { deep: true });
     $watch('currentPage', value => loadRequests());
+" x-init="
+    // Apply persisted font settings on page load
+    const font = fontOptions.find(f => f.id === selectedFont);
+    if (font) {
+        if (font.cdnUrl && !document.getElementById('font-' + selectedFont)) {
+            const link = document.createElement('link');
+            link.id = 'font-' + selectedFont;
+            link.rel = 'stylesheet';
+            link.href = font.cdnUrl;
+            document.head.appendChild(link);
+        }
+        document.documentElement.style.setProperty('--font-mono', font.mono);
+        document.documentElement.style.setProperty('--font-system', font.sans);
+    }
+
+    const sizeOption = fontSizeOptions.find(s => s.id === fontSize);
+    if (sizeOption) {
+        document.documentElement.style.setProperty('--font-size-base', sizeOption.size);
+    }
+
+    const weightOption = fontWeightOptions.find(w => w.id === fontWeight);
+    if (weightOption) {
+        document.documentElement.style.setProperty('--font-weight-base', weightOption.weight);
+    }
 ">
     <h1>
         <span>apantli<img src="/static/apantli-glyph.png" alt="~" class="apantli-glyph">dashboard</span>
