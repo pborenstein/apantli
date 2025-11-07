@@ -40,6 +40,14 @@
 <body x-data="{
     currentTab: $persist('stats'),
     theme: $persist('light'),
+    selectedFont: $persist('system'),
+    fontOptions: [
+        { id: 'system', name: 'System Default', mono: 'SF Mono, Monaco, Cascadia Code, Roboto Mono, monospace', sans: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' },
+        { id: 'ibm-plex', name: 'IBM Plex', mono: 'IBM Plex Mono, monospace', sans: 'IBM Plex Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap' },
+        { id: 'jetbrains', name: 'JetBrains Mono + Inter', mono: 'JetBrains Mono, monospace', sans: 'Inter, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap' },
+        { id: 'fira', name: 'Fira Code + Fira Sans', mono: 'Fira Code, monospace', sans: 'Fira Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600&display=swap' },
+        { id: 'source', name: 'Source Code Pro + Source Sans', mono: 'Source Code Pro, monospace', sans: 'Source Sans 3, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&family=Source+Sans+3:wght@400;500;600&display=swap' }
+    ],
     dateFilter: $persist({
         startDate: '',
         endDate: ''
@@ -59,6 +67,30 @@
     toggleTheme() {
         this.theme = this.theme === 'light' ? 'dark' : 'light';
         document.documentElement.setAttribute('data-theme', this.theme);
+    },
+
+    changeFont(fontId) {
+        this.selectedFont = fontId;
+        const font = this.fontOptions.find(f => f.id === fontId);
+        if (!font) return;
+
+        // Load font from CDN if needed
+        if (font.cdnUrl && !document.getElementById('font-' + fontId)) {
+            const link = document.createElement('link');
+            link.id = 'font-' + fontId;
+            link.rel = 'stylesheet';
+            link.href = font.cdnUrl;
+            document.head.appendChild(link);
+        }
+
+        // Apply font to CSS variables
+        document.documentElement.style.setProperty('--font-mono', font.mono);
+        document.documentElement.style.setProperty('--font-system', font.sans);
+    },
+
+    initFont() {
+        // Apply saved font on page load
+        this.changeFont(this.selectedFont);
     },
 
     formatDate(date) {
@@ -186,10 +218,19 @@
         }
     }, { deep: true });
     $watch('currentPage', value => loadRequests());
-">
+" x-init="initFont()">
     <h1>
         <span>apantli<img src="/static/apantli-glyph.png" alt="~" class="apantli-glyph">dashboard</span>
         <div style="display: flex; gap: 10px; align-items: center;">
+            <select
+                x-model="selectedFont"
+                @change="changeFont(selectedFont)"
+                style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
+                aria-label="Select font family">
+                <template x-for="font in fontOptions" :key="font.id">
+                    <option :value="font.id" x-text="font.name"></option>
+                </template>
+            </select>
             <a href="/compare" style="padding: 8px 16px; text-decoration: none; color: var(--color-text); border: 1px solid var(--color-border); border-radius: 4px; font-size: 0.9rem;">Playground</a>
             <button class="theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
                 <span x-show="theme === 'light'">Dark Mode</span>
