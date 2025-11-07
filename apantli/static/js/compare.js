@@ -232,6 +232,19 @@ function compareApp() {
       }
     },
 
+    // Get default value for a parameter from model config
+    getDefaultValue(slotIndex, paramName) {
+      const slot = this.slots[slotIndex]
+      const modelConfig = this.modelConfigs[slot.model]
+
+      if (modelConfig && modelConfig[paramName] !== undefined) {
+        return modelConfig[paramName]
+      }
+
+      // Return 0 if not in config (reset button will clear to empty anyway)
+      return 0
+    },
+
     // Reset a specific parameter to empty (no default)
     resetParameter(slotIndex, paramName) {
       const slot = this.slots[slotIndex]

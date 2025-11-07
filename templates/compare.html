@@ -184,8 +184,8 @@
                                 </span>
                             </div>
                             <div class="column-params" x-show="slot.enabled">
-                                <span x-text="`temp=${slot.temperature.toFixed(1)}`"></span>,
-                                <span x-text="`top_p=${slot.top_p.toFixed(2)}`"></span>
+                                <span x-text="`temp=${typeof slot.temperature === 'number' ? slot.temperature.toFixed(1) : slot.temperature || 'default'}`"></span>,
+                                <span x-text="`top_p=${typeof slot.top_p === 'number' ? slot.top_p.toFixed(2) : slot.top_p || 'default'}`"></span>
                             </div>
                         </div>
 
