@@ -298,7 +298,7 @@
                 style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
                 aria-label="Select font family">
                 <template x-for="font in fontOptions" :key="font.id">
-                    <option :value="font.id" x-text="font.name"></option>
+                    <option :value="font.id" x-text="font.name" :selected="font.id === selectedFont"></option>
                 </template>
             </select>
             <select
@@ -306,7 +306,7 @@
                 style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
                 aria-label="Select font size">
                 <template x-for="size in fontSizeOptions" :key="size.id">
-                    <option :value="size.id" x-text="size.name"></option>
+                    <option :value="size.id" x-text="size.name" :selected="size.id === fontSize"></option>
                 </template>
             </select>
             <select
@@ -314,7 +314,7 @@
                 style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
                 aria-label="Select font weight">
                 <template x-for="weight in fontWeightOptions" :key="weight.id">
-                    <option :value="weight.id" x-text="weight.name"></option>
+                    <option :value="weight.id" x-text="weight.name" :selected="weight.id === fontWeight"></option>
                 </template>
             </select>
             <a href="/compare" style="padding: 8px 16px; text-decoration: none; color: var(--color-text); border: 1px solid var(--color-border); border-radius: 4px; font-size: 0.9rem;">Playground</a>
