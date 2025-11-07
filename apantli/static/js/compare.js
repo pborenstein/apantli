@@ -132,6 +132,13 @@ function compareApp() {
       }
     },
 
+    // Toggle theme (synced with dashboard)
+    toggleTheme() {
+      this.theme = this.theme === 'light' ? 'dark' : 'light'
+      localStorage.setItem('_x_theme', JSON.stringify(this.theme))
+      document.documentElement.setAttribute('data-theme', this.theme)
+    },
+
     // Load fonts from localStorage (shared with dashboard)
     loadFonts() {
       try {

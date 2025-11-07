@@ -58,6 +58,21 @@ body {
   cursor: pointer;
 }
 
+.theme-toggle {
+  padding: 4px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  background: var(--color-background);
+  color: var(--color-text);
+  cursor: pointer;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+}
+
+.theme-toggle:hover {
+  background: var(--color-hover);
+}
+
 /* Main content */
 .main-content {
   flex: 1;

@@ -66,24 +66,66 @@
             color: var(--color-text);
         }
 
-        h1 {
+        /* Page header */
+        .page-header {
             position: sticky;
             top: 0;
             z-index: 100;
-            background: var(--color-background);
-            border-bottom: 2px solid var(--color-text);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 10px 0;
+            background: var(--color-background-secondary);
+            border-bottom: 2px solid var(--color-border);
+            padding: var(--spacing-sm) 0;
             margin: 0 0 20px 0;
         }
 
-        .apantli-glyph {
-            height: 1.5em;
-            vertical-align: middle;
-            margin: 0 0.3em;
-            display: inline-block;
+        .page-header .header-content {
+            max-width: 1200px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .page-header .header-title {
+            margin: 0;
+            font-size: 1.2rem;
+            border: none;
+        }
+
+        .page-header .header-actions {
+            display: flex;
+            gap: var(--spacing-sm);
+            align-items: center;
+        }
+
+        .font-control {
+            padding: 4px 8px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            background: var(--color-background);
+            color: var(--color-text);
+            font-size: 0.85rem;
+            cursor: pointer;
+        }
+
+        .btn-link {
+            padding: 4px 8px;
+            border: 1px solid var(--color-border);
+            border-radius: 4px;
+            background: var(--color-background);
+            color: var(--color-text);
+            text-decoration: none;
+            font-size: 0.85rem;
+            cursor: pointer;
+            font-family: var(--font-mono);
+        }
+
+        .btn-link:hover {
+            background: var(--color-hover);
+        }
+
+        h1 {
+            margin-top: 30px;
+            border-bottom: 1px solid var(--color-border);
         }
 
         h2 {
@@ -356,14 +398,14 @@
 
         /* Theme toggle button */
         .theme-toggle {
-            background: var(--color-background-secondary);
+            padding: 4px 8px;
             border: 1px solid var(--color-border);
             border-radius: 4px;
-            padding: 8px 12px;
+            background: var(--color-background);
+            color: var(--color-text);
             cursor: pointer;
             font-family: var(--font-mono);
-            font-size: 14px;
-            color: var(--color-text);
+            font-size: 0.85rem;
         }
 
         .theme-toggle:hover {

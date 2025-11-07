@@ -17,10 +17,7 @@
 <body x-data="compareApp()" x-init="init()" :data-theme="theme">
     <header class="header">
         <div class="header-content">
-            <h1 class="header-title">
-                <img src="/static/apantli-glyph.png" alt="apantli" class="header-glyph">
-                apantli ≈ playground
-            </h1>
+            <h1 class="header-title">apantli ≈ playground</h1>
             <div class="header-actions">
                 <select x-model="selectedFont" @change="changeFont()" class="font-control" aria-label="Select font family">
                     <template x-for="font in fontOptions" :key="font.id">
@@ -38,6 +35,10 @@
                     </template>
                 </select>
                 <a href="/" class="btn btn-secondary">Dashboard</a>
+                <button class="btn btn-secondary theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
+                    <span x-show="theme === 'light'">Dark</span>
+                    <span x-show="theme === 'dark'">Light</span>
+                </button>
             </div>
         </div>
     </header>

@@ -293,40 +293,33 @@
 ">
     <div id="debug-info" style="position: fixed; top: 0; right: 0; background: yellow; color: black; padding: 10px; font-size: 11px; z-index: 9999; max-width: 300px; word-wrap: break-word; display: none;"></div>
 
-    <h1>
-        <span>apantli<img src="/static/apantli-glyph.png" alt="~" class="apantli-glyph">dashboard</span>
-        <div style="display: flex; gap: 10px; align-items: center;">
-            <select
-                x-model="selectedFont"
-                style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
-                aria-label="Select font family">
-                <template x-for="font in fontOptions" :key="font.id">
-                    <option :value="font.id" x-text="font.name" :selected="font.id === selectedFont"></option>
-                </template>
-            </select>
-            <select
-                x-model="fontSize"
-                style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
-                aria-label="Select font size">
-                <template x-for="size in fontSizeOptions" :key="size.id">
-                    <option :value="size.id" x-text="size.name" :selected="size.id === fontSize"></option>
-                </template>
-            </select>
-            <select
-                x-model="fontWeight"
-                style="padding: 8px 12px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-background); color: var(--color-text); font-size: 0.9rem; cursor: pointer;"
-                aria-label="Select font weight">
-                <template x-for="weight in fontWeightOptions" :key="weight.id">
-                    <option :value="weight.id" x-text="weight.name" :selected="weight.id === fontWeight"></option>
-                </template>
-            </select>
-            <a href="/compare" style="padding: 8px 16px; text-decoration: none; color: var(--color-text); border: 1px solid var(--color-border); border-radius: 4px; font-size: 0.9rem;">Playground</a>
-            <button class="theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
-                <span x-show="theme === 'light'">Dark Mode</span>
-                <span x-show="theme === 'dark'">Light Mode</span>
-            </button>
+    <header class="page-header">
+        <div class="header-content">
+            <h1 class="header-title">apantli ≈ dashboard</h1>
+            <div class="header-actions">
+                <select x-model="selectedFont" class="font-control" aria-label="Select font family">
+                    <template x-for="font in fontOptions" :key="font.id">
+                        <option :value="font.id" x-text="font.name" :selected="font.id === selectedFont"></option>
+                    </template>
+                </select>
+                <select x-model="fontSize" class="font-control" aria-label="Select font size">
+                    <template x-for="size in fontSizeOptions" :key="size.id">
+                        <option :value="size.id" x-text="size.name" :selected="size.id === fontSize"></option>
+                    </template>
+                </select>
+                <select x-model="fontWeight" class="font-control" aria-label="Select font weight">
+                    <template x-for="weight in fontWeightOptions" :key="weight.id">
+                        <option :value="weight.id" x-text="weight.name" :selected="weight.id === fontWeight"></option>
+                    </template>
+                </select>
+                <a href="/compare" class="btn btn-link">Playground</a>
+                <button class="btn btn-link theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
+                    <span x-show="theme === 'light'">Dark</span>
+                    <span x-show="theme === 'dark'">Light</span>
+                </button>
+            </div>
         </div>
-    </h1>
+    </header>
 
     <div id="error-banner" class="error-banner" role="alert"></div>
     <div id="chart-tooltip" class="chart-tooltip"></div>
