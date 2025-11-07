@@ -180,9 +180,11 @@
 
                             <template x-for="(msg, msgIndex) in slot.messages" :key="msgIndex">
                                 <div class="message" :class="`message-${msg.role}`">
-                                    <div class="message-role" x-text="msg.role.toUpperCase()"></div>
+                                    <div class="message-role">
+                                        <span x-text="msg.role.toUpperCase()"></span>
+                                        <span class="message-meta" x-show="msg.tokens" x-text="msg.tokens ? `${msg.tokens.prompt}→${msg.tokens.completion} tokens\n(${msg.tokens.total} total)` : ''"></span>
+                                    </div>
                                     <div class="message-content" x-text="msg.content"></div>
-                                    <div class="message-meta" x-show="msg.tokens" x-text="msg.tokens ? `${msg.tokens.prompt}→${msg.tokens.completion} tokens (${msg.tokens.total} total)` : ''"></div>
                                 </div>
                             </template>
 
