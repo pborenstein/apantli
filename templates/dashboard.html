@@ -172,7 +172,10 @@
     document.documentElement.setAttribute('data-theme', theme);
 
     // Apply persisted font settings on page load
+    let debug = 'selectedFont: ' + selectedFont + '<br>fontSize: ' + fontSize + '<br>fontWeight: ' + fontWeight + '<br><br>';
+
     const font = fontOptions.find(f => f.id === selectedFont);
+    debug += 'font found: ' + (font ? font.name : 'NO') + '<br>';
     if (font) {
         if (font.cdnUrl && !document.getElementById('font-' + selectedFont)) {
             const link = document.createElement('link');
@@ -180,20 +183,29 @@
             link.rel = 'stylesheet';
             link.href = font.cdnUrl;
             document.head.appendChild(link);
+            debug += 'CDN loaded<br>';
         }
         document.documentElement.style.setProperty('--font-mono', font.mono);
         document.documentElement.style.setProperty('--font-system', font.sans);
+        debug += 'Set --font-mono<br>';
     }
 
     const sizeOption = fontSizeOptions.find(s => s.id === fontSize);
+    debug += 'size found: ' + (sizeOption ? sizeOption.size : 'NO') + '<br>';
     if (sizeOption) {
         document.documentElement.style.setProperty('--font-size-base', sizeOption.size);
+        debug += 'Set --font-size-base to ' + sizeOption.size + '<br>';
     }
 
     const weightOption = fontWeightOptions.find(w => w.id === fontWeight);
+    debug += 'weight found: ' + (weightOption ? weightOption.weight : 'NO') + '<br>';
     if (weightOption) {
         document.documentElement.style.setProperty('--font-weight-base', weightOption.weight);
+        debug += 'Set --font-weight-base to ' + weightOption.weight + '<br>';
     }
+
+    const debugEl = document.getElementById('debug-info');
+    if (debugEl) debugEl.innerHTML = debug;
 
     // Initialize tab from URL hash if present
     const initialHash = window.location.hash.slice(1);
@@ -267,6 +279,8 @@
     }, { deep: true });
     $watch('currentPage', value => loadRequests());
 ">
+    <div id="debug-info" style="position: fixed; top: 0; right: 0; background: yellow; padding: 10px; font-size: 11px; z-index: 9999; max-width: 300px; word-wrap: break-word;"></div>
+
     <h1>
         <span>apantli<img src="/static/apantli-glyph.png" alt="~" class="apantli-glyph">dashboard</span>
         <div style="display: flex; gap: 10px; align-items: center;">
