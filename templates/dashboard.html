@@ -45,10 +45,12 @@
     fontWeight: $persist('normal'),
     fontOptions: [
         { id: 'system', name: 'System Default', mono: 'SF Mono, Monaco, Cascadia Code, Roboto Mono, monospace', sans: '-apple-system, BlinkMacSystemFont, Segoe UI, sans-serif' },
-        { id: 'ibm-plex', name: 'IBM Plex', mono: 'IBM Plex Mono, monospace', sans: 'IBM Plex Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap' },
-        { id: 'jetbrains', name: 'JetBrains Mono + Inter', mono: 'JetBrains Mono, monospace', sans: 'Inter, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap' },
-        { id: 'fira', name: 'Fira Code + Fira Sans', mono: 'Fira Code, monospace', sans: 'Fira Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500;600&family=Fira+Sans:wght@400;500;600&display=swap' },
-        { id: 'source', name: 'Source Code Pro + Source Sans', mono: 'Source Code Pro, monospace', sans: 'Source Sans 3, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@400;500;600&family=Source+Sans+3:wght@400;500;600&display=swap' }
+        { id: 'roboto-mono', name: 'Roboto Mono (Thin)', mono: 'Roboto Mono, monospace', sans: 'Roboto, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@200;300;400;500&family=Roboto:wght@300;400;500&display=swap' },
+        { id: 'inconsolata', name: 'Inconsolata (Light)', mono: 'Inconsolata, monospace', sans: 'Inter, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Inconsolata:wght@200;300;400;500&family=Inter:wght@300;400;500&display=swap' },
+        { id: 'ibm-plex', name: 'IBM Plex', mono: 'IBM Plex Mono, monospace', sans: 'IBM Plex Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@300;400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap' },
+        { id: 'jetbrains', name: 'JetBrains Mono', mono: 'JetBrains Mono, monospace', sans: 'Inter, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600&family=Inter:wght@300;400;500;600&display=swap' },
+        { id: 'fira', name: 'Fira Code', mono: 'Fira Code, monospace', sans: 'Fira Sans, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Fira+Code:wght@300;400;500;600&family=Fira+Sans:wght@300;400;500;600&display=swap' },
+        { id: 'source', name: 'Source Code Pro', mono: 'Source Code Pro, monospace', sans: 'Source Sans 3, sans-serif', cdnUrl: 'https://fonts.googleapis.com/css2?family=Source+Code+Pro:wght@300;400;500;600&family=Source+Sans+3:wght@300;400;500;600&display=swap' }
     ],
     fontSizeOptions: [
         { id: 'compact', name: 'Compact', size: '13px' },
@@ -57,6 +59,7 @@
         { id: 'extra-large', name: 'Extra Large', size: '19px' }
     ],
     fontWeightOptions: [
+        { id: 'extra-light', name: 'Extra Light', weight: '200' },
         { id: 'light', name: 'Light', weight: '300' },
         { id: 'normal', name: 'Normal', weight: '400' },
         { id: 'medium', name: 'Medium', weight: '500' },
@@ -288,7 +291,7 @@
     }, { deep: true });
     $watch('currentPage', value => loadRequests());
 ">
-    <div id="debug-info" style="position: fixed; top: 0; right: 0; background: yellow; color: black; padding: 10px; font-size: 11px; z-index: 9999; max-width: 300px; word-wrap: break-word;"></div>
+    <div id="debug-info" style="position: fixed; top: 0; right: 0; background: yellow; color: black; padding: 10px; font-size: 11px; z-index: 9999; max-width: 300px; word-wrap: break-word; display: none;"></div>
 
     <h1>
         <span>apantli<img src="/static/apantli-glyph.png" alt="~" class="apantli-glyph">dashboard</span>
