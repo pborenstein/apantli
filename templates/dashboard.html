@@ -40,6 +40,7 @@
 <body x-data="{
     currentTab: $persist('stats'),
     theme: $persist('light'),
+    showSettings: false,
     selectedFont: $persist('system'),
     fontSize: $persist('normal'),
     fontWeight: $persist('normal'),
@@ -294,8 +295,7 @@
     <!-- Settings Modal -->
     <div class="settings-modal"
          :class="{ 'active': showSettings }"
-         @click.self="showSettings = false"
-         x-data="{ showSettings: false }">
+         @click.self="showSettings = false">
         <div class="settings-content">
             <div class="settings-header">
                 <h2>Settings</h2>

@@ -5,6 +5,9 @@ function compareApp() {
     // Theme (synced with dashboard)
     theme: 'light',
 
+    // Settings modal state
+    showSettings: false,
+
     // Font settings (synced with dashboard)
     selectedFont: 'system',
     fontSize: 'normal',
