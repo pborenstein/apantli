@@ -248,19 +248,35 @@ Logs a completed request (successful or failed) to the database.
 
 ### Query Methods
 
-#### `async get_requests(time_filter="", offset=0, limit=50, provider=None, model=None, min_cost=None, max_cost=None, search=None)`
+#### `async get_requests(filters: RequestFilter)`
 
 Returns paginated request history with filtering and aggregates.
 
 **Parameters**:
-- `time_filter` (str): SQL WHERE clause fragment (from `build_time_filter()`)
-- `offset` (int): Number of records to skip (default: 0)
-- `limit` (int): Maximum records to return (default: 50)
-- `provider` (str, optional): Filter by provider name
-- `model` (str, optional): Filter by model name
-- `min_cost` (float, optional): Minimum cost threshold
-- `max_cost` (float, optional): Maximum cost threshold
-- `search` (str, optional): Search in model name or request/response content
+- `filters` (RequestFilter): Filter object containing:
+  - `time_filter` (str): SQL WHERE clause fragment (default: "")
+  - `time_params` (list, optional): Parameters for time filter placeholders
+  - `offset` (int): Number of records to skip (default: 0)
+  - `limit` (int): Maximum records to return (default: 50)
+  - `provider` (str, optional): Filter by provider name
+  - `model` (str, optional): Filter by model name
+  - `min_cost` (float, optional): Minimum cost threshold
+  - `max_cost` (float, optional): Maximum cost threshold
+  - `search` (str, optional): Search in model name or request/response content
+
+**Usage**:
+```python
+from apantli.database import Database, RequestFilter
+
+db = Database("requests.db")
+filters = RequestFilter(
+    offset=0,
+    limit=50,
+    provider="openai",
+    model="gpt-4.1-mini"
+)
+results = await db.get_requests(filters)
+```
 
 **Returns**:
 ```python
@@ -275,12 +291,13 @@ Returns paginated request history with filtering and aggregates.
 }
 ```
 
-#### `async get_stats(time_filter="")`
+#### `async get_stats(time_filter="", time_params=None)`
 
 Returns aggregated usage statistics with model/provider breakdown and performance metrics.
 
 **Parameters**:
-- `time_filter` (str): SQL WHERE clause fragment
+- `time_filter` (str): SQL WHERE clause fragment (default: "")
+- `time_params` (list, optional): Parameters for time filter placeholders
 
 **Returns**:
 ```python
@@ -293,7 +310,7 @@ Returns aggregated usage statistics with model/provider breakdown and performanc
 }
 ```
 
-#### `async get_daily_stats(start_date, end_date, where_filter, date_expr)`
+#### `async get_daily_stats(start_date, end_date, where_filter, date_expr, where_params=None)`
 
 Returns daily aggregated statistics with model breakdown.
 
@@ -302,6 +319,7 @@ Returns daily aggregated statistics with model breakdown.
 - `end_date` (str): ISO date (YYYY-MM-DD)
 - `where_filter` (str): SQL WHERE clause (without WHERE keyword)
 - `date_expr` (str): SQL expression for grouping by date with timezone
+- `where_params` (list, optional): Parameters for WHERE clause placeholders
 
 **Returns**:
 ```python
@@ -313,13 +331,14 @@ Returns daily aggregated statistics with model breakdown.
 }
 ```
 
-#### `async get_hourly_stats(where_filter, hour_expr)`
+#### `async get_hourly_stats(where_filter, hour_expr, where_params=None)`
 
 Returns hourly aggregated statistics for a single day.
 
 **Parameters**:
 - `where_filter` (str): SQL WHERE clause (without WHERE keyword)
 - `hour_expr` (str): SQL expression for grouping by hour with timezone
+- `where_params` (list, optional): Parameters for WHERE clause placeholders
 
 **Returns**:
 ```python
@@ -658,8 +677,9 @@ See [API.md](API.md) for full endpoint documentation.
 
 - `GET /stats` - Aggregated statistics
 - `GET /stats/daily` - Daily breakdown
+- `GET /stats/hourly` - Hourly breakdown for a single day
 - `GET /stats/date-range` - Available date range
-- `GET /requests` - Last 50 requests
+- `GET /requests` - Paginated requests with server-side filtering
 - `GET /models` - Model usage summary
 
 ### Modifying Data

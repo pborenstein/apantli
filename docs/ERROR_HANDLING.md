@@ -47,15 +47,32 @@ data: [DONE]\n\n
 
 ### Socket Error Handling
 
-**Decision**: Log once per request, suppress repeats
+**Decision**: Proactive disconnection detection + log once per request
 
 **Rationale**:
 - Client disconnections are normal (user closes browser, network hiccup)
 - Spamming logs with "socket.send() raised exception" is noise
-- Log first occurrence to diagnose patterns, suppress subsequent
+- Proactive detection stops processing immediately, saving resources
 - INFO level: expected behavior, not a server problem
 
-**Implementation**: Track socket error state per request in generator closure
+**Implementation**:
+
+1. **Proactive detection**: Check `await request.is_disconnected()` at start of each loop iteration
+   ```python
+   async def execute_streaming_request(..., request: Request):
+       for chunk in response:
+           if await request.is_disconnected():
+               logging.info("Client disconnected during streaming")
+               return
+   ```
+
+2. **Benefits**:
+   - Stops processing immediately when client disconnects
+   - `await` point enables event loop processing (Ctrl+C works)
+   - No console spam from socket.send() exceptions
+   - Saves resources by not processing unwanted responses
+
+3. **Exception handling**: Socket errors (BrokenPipeError, ConnectionError) caught and logged once per request
 
 ### HTTP Status Code Mapping
 
@@ -63,6 +80,7 @@ data: [DONE]\n\n
 
 | LiteLLM Exception | HTTP Status | Retry? | Notes |
 |:------------------|:------------|:-------|:------|
+| BadRequestError | 400 | No | Invalid request parameters (e.g., top_p > 1.0) |
 | RateLimitError | 429 | Yes (with Retry-After header) | Provider rate limit exceeded |
 | AuthenticationError | 401 | No | Invalid or missing API key |
 | PermissionDeniedError | 403 | No | API key lacks permissions |
@@ -116,6 +134,43 @@ data: [DONE]\n\n
 - Supports all LiteLLM features automatically
 - Clear separation: we handle routing/auth, LiteLLM handles everything else
 
+### LiteLLM Logging Suppression
+
+**Decision**: Suppress LiteLLM's verbose logging and feedback messages
+
+**Problem**: LiteLLM by default logs verbose debugging info and "Give Feedback / Get Help" messages to console, cluttering server output.
+
+**Implementation**:
+```python
+# Set before initializing LiteLLM
+os.environ['LITELLM_LOG'] = 'ERROR'
+litellm.suppress_debug_info = True
+litellm.set_verbose = False
+```
+
+**Rationale**:
+- Keeps server logs clean and focused on Apantli operations
+- Reduces noise during normal operation
+- ERROR level still shows critical LiteLLM issues
+- Can be overridden with `export LITELLM_LOG=DEBUG` for debugging
+
+### Client-Side Parameter Validation
+
+**Decision**: Validate and clamp parameters in Playground before sending requests
+
+**Problem**: Users can bypass HTML input constraints by typing directly, causing 400 errors for invalid values.
+
+**Implementation** (in compare.js):
+- `temperature`: clamped to [0, 2]
+- `top_p`: clamped to [0, 1]
+- `max_tokens`: clamped to [1, ∞)
+
+**Rationale**:
+- Prevents user errors before they reach the server
+- Better UX than server-side errors
+- Matches provider parameter constraints
+- HTML constraints alone are insufficient (can be bypassed)
+
 ## Implementation Progress
 
 ### Completed
@@ -144,6 +199,7 @@ data: [DONE]\n\n
 
 **Phase 3: Streaming Error Handling** ✅
 - Wrapped streaming loop in comprehensive try/except
+- **Proactive disconnection detection**: `await request.is_disconnected()` at start of each loop
 - Inner loop catches socket errors (`BrokenPipeError`, `ConnectionError`, `ConnectionResetError`)
 - Outer loop catches LiteLLM exceptions (rate limit, timeout, etc.)
 - Socket errors logged once per request (no spam)
@@ -151,6 +207,12 @@ data: [DONE]\n\n
 - Always sends `data: [DONE]\n\n` in finally block
 - Database logging always attempted with error context
 - Graceful handling when client disconnects before error can be sent
+- Enables Ctrl+C interrupts via `await` in loop
+
+**Phase 4: Additional Improvements** ✅
+- Added `BadRequestError` handling (400 status) for parameter validation errors
+- Suppressed LiteLLM verbose logging (`LITELLM_LOG='ERROR'`)
+- Client-side parameter validation in Playground (temperature, top_p, max_tokens)
 
 ### In Progress
 - Testing and validation
@@ -211,3 +273,26 @@ python test_error_handling.py
 1. **Timeout testing**: Start server with `apantli --timeout 5`, make request to slow model
 2. **Retry testing**: Trigger rate limit or overload (requires hitting actual limits)
 3. **Provider overload**: Wait for Anthropic 529 error in production use
+4. **Streaming disconnection**:
+   - Start server and open Playground at http://localhost:4000/compare
+   - Start a streaming request with a slow model
+   - Close browser tab or stop request mid-stream
+   - Server should log clean disconnection without spam
+   - Verify only one "Client disconnected" message appears in logs
+5. **Parameter validation**: In Playground, try entering invalid values (e.g., top_p: 1.5) and verify they're clamped before sending
+
+## References
+
+### FastAPI Streaming Disconnection Handling
+- [Understanding Client Disconnection in FastAPI](https://fastapiexpert.com/blog/2024/06/06/understanding-client-disconnection-in-fastapi/)
+- [FastAPI Discussion: Client Disconnection](https://github.com/fastapi/fastapi/discussions/7572)
+- [Uvicorn Issue: Client Disconnection](https://github.com/Kludex/uvicorn/issues/2271)
+
+### LiteLLM Logging Suppression
+- [LiteLLM Issue #4825: Logging Configuration](https://github.com/BerriAI/litellm/issues/4825)
+- [LiteLLM Issue #5942: Suppress Feedback Messages](https://github.com/BerriAI/litellm/issues/5942)
+- [LiteLLM Docs: Proxy Logging](https://docs.litellm.ai/docs/proxy/logging)
+
+### Related Documentation
+- [ARCHITECTURE.md](ARCHITECTURE.md) - Overall system design
+- [TESTING.md](TESTING.md) - Complete testing procedures
