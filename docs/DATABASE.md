@@ -677,8 +677,9 @@ See [API.md](API.md) for full endpoint documentation.
 
 - `GET /stats` - Aggregated statistics
 - `GET /stats/daily` - Daily breakdown
+- `GET /stats/hourly` - Hourly breakdown for a single day
 - `GET /stats/date-range` - Available date range
-- `GET /requests` - Last 50 requests
+- `GET /requests` - Paginated requests with server-side filtering
 - `GET /models` - Model usage summary
 
 ### Modifying Data
