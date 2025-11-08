@@ -8,6 +8,14 @@ body {
   min-height: 100vh;
   display: flex;
   flex-direction: column;
+  line-height: 1.6;
+  letter-spacing: 0.01em;
+}
+
+/* UI elements use sans-serif, data/code uses monospace */
+label, button, .btn, .header-title, .column-title {
+  font-family: var(--font-system);
+  letter-spacing: normal;
 }
 
 /* Header */
@@ -207,49 +215,64 @@ body {
 }
 
 .form-group label {
-  font-size: 0.75rem;
+  font-size: var(--font-size-sm);
   color: var(--color-text-secondary);
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .btn-reset {
-  padding: 2px 6px;
+  padding: var(--spacing-xs) var(--spacing-sm);
   border: 1px solid var(--color-border);
   background: var(--color-background);
   color: var(--color-text-secondary);
   cursor: pointer;
-  font-size: 0.9rem;
-  border-radius: 3px;
-  transition: all 0.2s ease;
+  font-size: var(--font-size-sm);
+  border-radius: 4px;
+  transition: all 0.15s ease;
   line-height: 1;
-  min-width: 20px;
+  min-width: 24px;
 }
 
 .btn-reset:hover {
   background: var(--color-hover);
   color: var(--color-primary);
   border-color: var(--color-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .form-group select {
-  padding: 4px 6px;
-  border: 1px solid var(--color-border);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1.5px solid var(--color-border);
   background: var(--color-background);
   color: var(--color-text);
-  font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   border-radius: 4px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-group select:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 
 .form-group input[type="number"] {
-  padding: 4px 6px;
-  border: 1px solid var(--color-border);
+  padding: var(--spacing-xs) var(--spacing-sm);
+  border: 1.5px solid var(--color-border);
   background: var(--color-background);
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 0.8rem;
+  font-size: var(--font-size-sm);
   border-radius: 4px;
   width: 80px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-group input[type="number"]:focus {
+  outline: none;
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--color-primary) 15%, transparent);
 }
 
 .form-group input[type="range"] {
@@ -346,10 +369,10 @@ body {
 .message-role {
   display: inline-block;
   width: 85px;
-  font-size: 0.65rem;
-  font-weight: bold;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
   color: var(--color-text-secondary);
-  margin-bottom: 4px;
+  margin-bottom: var(--spacing-xs);
   text-transform: uppercase;
   letter-spacing: 0.5px;
   line-height: 1.2;
@@ -359,13 +382,13 @@ body {
 .message-content {
   white-space: pre-wrap;
   word-wrap: break-word;
-  line-height: 1.4;
-  font-size: 0.85rem;
+  line-height: 1.7;
+  font-size: var(--font-size-sm);
 }
 
 .message-meta {
   display: block;
-  font-size: 0.6rem;
+  font-size: var(--font-size-xs);
   color: var(--color-text-secondary);
   font-family: var(--font-mono);
   font-weight: normal;
