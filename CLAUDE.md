@@ -10,25 +10,25 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 
 **Request Flow**: Client → FastAPI (server.py) → Config lookup → API key resolution → LiteLLM SDK → Provider → Response + cost calc → Async DB log → Client
 
-**Module Structure** (~1,500 lines core + ~2,800 lines UI):
-- `apantli/server.py` (~1,100 lines) - FastAPI app, HTTP routes, request orchestration
-- `apantli/config.py` (213 lines) - Configuration with Pydantic validation
-- `apantli/database.py` (119 lines) - Async database operations with aiosqlite
+**Module Structure** (~1,900 lines core + ~5,000 lines UI):
+- `apantli/server.py` (887 lines) - FastAPI app, HTTP routes, request orchestration
+- `apantli/config.py` (189 lines) - Configuration with Pydantic validation
+- `apantli/database.py` (506 lines) - Async database operations with aiosqlite
 - `apantli/llm.py` (27 lines) - Provider inference
-- `apantli/errors.py` (22 lines) - Error formatting
-- `apantli/utils.py` (23 lines) - Timezone utilities
+- `apantli/errors.py` (129 lines) - Error formatting
+- `apantli/utils.py` (117 lines) - Timezone utilities
 
 **Key Files**:
 - `config.yaml` - Model definitions, API key refs
 - `.env` - API keys (gitignored)
 - `requests.db` - SQLite (full request/response logs + costs)
-- `templates/dashboard.html` (327 lines) - Dashboard UI structure
-- `templates/compare.html` (218 lines) - Playground UI structure
-- `apantli/static/css/dashboard.css` (1,087 lines) - Dashboard styles
-- `apantli/static/css/compare.css` (427 lines) - Playground styles
-- `apantli/static/js/dashboard.js` (1,705 lines) - Dashboard logic
-- `apantli/static/js/compare.js` (426 lines) - Playground logic
-- `tests/` - Unit and integration tests (59 test cases)
+- `templates/dashboard.html` (502 lines) - Dashboard UI structure
+- `templates/compare.html` (258 lines) - Playground UI structure
+- `apantli/static/css/dashboard.css` (1,451 lines) - Dashboard styles
+- `apantli/static/css/compare.css` (482 lines) - Playground styles
+- `apantli/static/js/dashboard.js` (1,728 lines) - Dashboard logic
+- `apantli/static/js/compare.js` (556 lines) - Playground logic
+- `tests/` - Unit and integration tests (69 test cases)
 
 ## Implementation Details
 
@@ -95,7 +95,7 @@ See PLAYGROUND.md for detailed architecture and usage.
 - Database errors: Not caught (fail-fast for data consistency)
 - Config errors: Warning printed, continue with empty `MODEL_MAP`
 
-**Testing**: Comprehensive test suite with 59 test cases plus mypy type checking:
+**Testing**: Comprehensive test suite with 69 test cases plus mypy type checking:
 - Unit tests: `tests/test_config.py`, `test_database.py`, `test_llm.py`, `test_errors.py`, `test_utils.py`
 - Integration tests: `tests/integration/test_proxy.py`, `test_error_handling.py`
 - Type checking: `mypy apantli/` - static type analysis

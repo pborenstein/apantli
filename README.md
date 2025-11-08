@@ -203,7 +203,7 @@ Apantli uses a modular architecture with six focused modules:
 └──────────────┘
 ```
 
-The architecture follows modular design principles with single responsibility per module, async database operations for non-blocking I/O, Pydantic validation for type-safe configuration, and comprehensive unit test suite (59 test cases).
+The architecture follows modular design principles with single responsibility per module, async database operations for non-blocking I/O, Pydantic validation for type-safe configuration, and comprehensive unit test suite (69 test cases).
 
 ## Installation
 
@@ -211,7 +211,7 @@ The architecture follows modular design principles with single responsibility pe
 
 ```bash
 # Clone repository
-git clone <repository-url>
+git clone git@github.com:pborenstein/apantli.git
 cd apantli
 
 # Install dependencies
@@ -344,7 +344,7 @@ For detailed documentation on specific topics:
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+Apache License 2.0 - see [LICENSE](LICENSE) file for details.
 
 ## Name Origin
 
