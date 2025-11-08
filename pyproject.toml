@@ -1,6 +1,6 @@
 [project]
 name = "apantli"
-version = "0.3.3"
+version = "0.3.4"
 description = "Lightweight LLM proxy with SQLite cost tracking"
 readme = "README.md"
 license = {text = "Apache-2.0"}
