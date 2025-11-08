@@ -76,10 +76,12 @@ print(data["choices"][0]["message"]["content"])
 | `/models` | GET | List available models |
 | `/stats` | GET | Usage statistics |
 | `/stats/daily` | GET | Daily aggregated statistics with provider breakdown |
+| `/stats/hourly` | GET | Hourly statistics for single-day views |
 | `/stats/date-range` | GET | Get actual date range of data in database |
 | `/requests` | GET | Recent request history |
 | `/errors` | DELETE | Clear all error records |
 | `/` | GET | Web dashboard (HTML) |
+| `/compare` | GET | Playground interface (model comparison) |
 
 ## POST /v1/chat/completions
 
@@ -1043,6 +1045,118 @@ for day in data['daily']:
         print(f"  {provider['provider']}: ${provider['cost']:.4f}")
 ```
 
+## GET /stats/hourly
+
+Returns hourly aggregated statistics for a single day with provider breakdown. Used by the dashboard's calendar view when displaying hourly breakdown for single-day views.
+
+### Request
+
+```http
+GET /stats/hourly?date=2025-10-05&timezone_offset=-480 HTTP/1.1
+```
+
+### Query Parameters
+
+| Parameter | Type | Required | Description |
+|:----------|:-----|:---------|:------------|
+| `date` | string | Yes | ISO 8601 date (YYYY-MM-DD) |
+| `timezone_offset` | integer | No | Browser timezone offset in minutes from UTC (e.g., -480 for PST) |
+
+### Response Format
+
+```json
+{
+  "hourly": [
+    {
+      "hour": "00",
+      "requests": 12,
+      "cost": 0.0045,
+      "total_tokens": 2500,
+      "by_provider": [
+        {
+          "provider": "openai",
+          "requests": 8,
+          "cost": 0.0030
+        },
+        {
+          "provider": "anthropic",
+          "requests": 4,
+          "cost": 0.0015
+        }
+      ]
+    },
+    {
+      "hour": "01",
+      "requests": 0,
+      "cost": 0,
+      "total_tokens": 0,
+      "by_provider": []
+    }
+    // ... all 24 hours (00-23)
+  ]
+}
+```
+
+### Response Fields
+
+**Root object**:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `hourly` | array | Hourly statistics (always 24 hours, 00-23) |
+
+**Hourly object fields**:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `hour` | string | Hour of day (00-23) |
+| `requests` | integer | Requests during this hour |
+| `cost` | number | Total cost for this hour (USD) |
+| `total_tokens` | integer | Total tokens for this hour |
+| `by_provider` | array | Per-provider breakdown for this hour |
+
+**Provider object fields**:
+
+| Field | Type | Description |
+|:------|:-----|:------------|
+| `provider` | string | Provider name (openai, anthropic, etc.) |
+| `requests` | integer | Requests to this provider during this hour |
+| `cost` | number | Cost for this provider during this hour (USD) |
+
+### Usage
+
+```bash
+# Get hourly breakdown for October 5, 2025 (Pacific Time)
+curl "http://localhost:4000/stats/hourly?date=2025-10-05&timezone_offset=-480" | jq
+
+# Get hourly breakdown for today (no timezone conversion)
+curl "http://localhost:4000/stats/hourly?date=$(date +%Y-%m-%d)" | jq
+```
+
+```python
+import requests
+from datetime import datetime
+
+# Get hourly breakdown for a specific date with timezone
+date = "2025-10-05"
+timezone_offset = -480  # PST (UTC-8)
+
+response = requests.get(
+    "http://localhost:4000/stats/hourly",
+    params={
+        "date": date,
+        "timezone_offset": timezone_offset
+    }
+)
+
+data = response.json()
+for hour_data in data['hourly']:
+    if hour_data['requests'] > 0:
+        print(f"Hour {hour_data['hour']}: {hour_data['requests']} requests, ${hour_data['cost']:.4f}")
+        for provider in hour_data['by_provider']:
+            print(f"  {provider['provider']}: {provider['requests']} requests, ${provider['cost']:.4f}")
+```
+
 ## GET /stats/date-range
 
 Returns the actual date range of data available in the database. Useful for populating date pickers when "All Time" is selected.
@@ -1189,6 +1303,57 @@ http://localhost:4000/
 ### Auto-Refresh
 
 Stats tab auto-refreshes every 5 seconds. Models and Requests tabs load on-demand when clicked.
+
+## GET /compare
+
+Returns the Playground HTML interface for interactive side-by-side model comparison.
+
+### Request
+
+```http
+GET /compare HTTP/1.1
+```
+
+### Response
+
+HTML page with embedded JavaScript for the Playground interface. Open in browser at:
+
+```
+http://localhost:4000/compare
+```
+
+### Playground Features
+
+**Model Comparison Slots**:
+
+- Up to 3 independent comparison slots
+- Enable/disable individual slots
+- Each slot has its own model selection and parameters
+- Parallel streaming requests to compare responses in real-time
+
+**Parameter Controls**:
+
+- Temperature (0.0 - 2.0)
+- Top P (0.0 - 1.0)
+- Max Tokens (1 - 100000)
+- Reset buttons (↺) restore model-specific defaults from config.yaml
+
+**Conversation Management**:
+
+- Independent conversation history per slot
+- Conversation locked to original model (warnings shown if model changed)
+- Token usage display (prompt → completion tokens)
+- Export all conversations to markdown
+- Clear conversation history
+- New conversation button
+
+**Persistence**:
+
+- All conversations and settings saved in browser localStorage
+- State survives page reload
+- Conversations persist across sessions
+
+For detailed Playground architecture and usage, see [PLAYGROUND.md](PLAYGROUND.md).
 
 ## OpenAI SDK Compatibility
 

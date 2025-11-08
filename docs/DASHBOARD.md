@@ -95,9 +95,51 @@ The dashboard supports browser history navigation, allowing you to use back/forw
 - Navigation preserves filter selections (date range, request filters)
 - Works seamlessly with clickable table rows that navigate to Requests tab
 
-## Theme Toggle
+## Customization Controls
 
-Click the theme button in the header to switch between light and dark mode. Theme preference is saved automatically.
+The dashboard header includes customization controls for personalizing the interface appearance.
+
+### Theme Toggle
+
+Click the theme button in the header to switch between light and dark mode. Theme preference is saved in browser localStorage.
+
+### Font Customization
+
+Customize the dashboard typography using three font controls in the header:
+
+**Font Family**:
+- System Default (SF Mono, Consolas, etc.)
+- Menlo
+- Monaco
+- Courier New
+- Ubuntu Mono
+- Fira Code
+- Source Code Pro
+- JetBrains Mono
+- Cascadia Code
+- IBM Plex Mono
+
+**Font Size**:
+- Range: 10px to 24px
+- Default: 15px
+- Adjustable via dropdown or input field
+
+**Font Weight**:
+- 300 (Light)
+- 400 (Normal) - Default
+- 500 (Medium)
+- 600 (Semibold)
+- 700 (Bold)
+
+**Persistence**:
+- All font settings saved in browser localStorage
+- Settings persist across page reloads and sessions
+- Independent of theme setting (fonts apply to both light and dark modes)
+
+**Use Cases**:
+- Increase font size for better readability
+- Use monospace fonts for technical data alignment
+- Adjust weight for screen glare or personal preference
 
 ## Date Filtering and Persistence
 
@@ -173,9 +215,9 @@ All timestamps are displayed in your browser's local timezone, automatically det
 **Tech Stack**: Single-page app using vanilla JavaScript + Alpine.js for reactivity. No build step required.
 
 **File Structure** (refactored 2025-10-18):
-- `templates/dashboard.html` (327 lines) - HTML structure and Alpine.js reactive data model
-- `apantli/static/css/dashboard.css` (1,087 lines) - All styles including theme variables
-- `apantli/static/js/dashboard.js` (1,705 lines) - All JavaScript logic and Alpine.js methods
+- `templates/dashboard.html` (502 lines) - HTML structure and Alpine.js reactive data model
+- `apantli/static/css/dashboard.css` (1,451 lines) - All styles including theme variables
+- `apantli/static/js/dashboard.js` (1,728 lines) - All JavaScript logic and Alpine.js methods
 
 **Browser History** (added 2025-10-20):
 - URL hash synchronized with current tab via Alpine.js watcher
