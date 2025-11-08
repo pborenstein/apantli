@@ -15,30 +15,52 @@
     <link rel="stylesheet" href="/static/css/compare.css?v=20251105-2">
 </head>
 <body x-data="compareApp()" x-init="init()" :data-theme="theme">
-    <header class="header">
-        <div class="header-content">
-            <h1 class="header-title">apantli ≈ playground</h1>
-            <div class="header-actions">
-                <select x-model="selectedFont" @change="changeFont()" class="font-control" aria-label="Select font family">
+    <!-- Settings Modal -->
+    <div class="settings-modal"
+         :class="{ 'active': showSettings }"
+         @click.self="showSettings = false">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button class="settings-close" @click="showSettings = false" aria-label="Close settings">×</button>
+            </div>
+            <div class="settings-group">
+                <label for="setting-font">Font Family</label>
+                <select id="setting-font" x-model="selectedFont" @change="changeFont()">
                     <template x-for="font in fontOptions" :key="font.id">
                         <option :value="font.id" x-text="font.name" :selected="font.id === selectedFont"></option>
                     </template>
                 </select>
-                <select x-model="fontSize" @change="changeFontSize()" class="font-control" aria-label="Select font size">
+            </div>
+            <div class="settings-group">
+                <label for="setting-size">Font Size</label>
+                <select id="setting-size" x-model="fontSize" @change="changeFontSize()">
                     <template x-for="size in fontSizeOptions" :key="size.id">
                         <option :value="size.id" x-text="size.name" :selected="size.id === fontSize"></option>
                     </template>
                 </select>
-                <select x-model="fontWeight" @change="changeFontWeight()" class="font-control" aria-label="Select font weight">
+            </div>
+            <div class="settings-group">
+                <label for="setting-weight">Font Weight</label>
+                <select id="setting-weight" x-model="fontWeight" @change="changeFontWeight()">
                     <template x-for="weight in fontWeightOptions" :key="weight.id">
                         <option :value="weight.id" x-text="weight.name" :selected="weight.id === fontWeight"></option>
                     </template>
                 </select>
+            </div>
+        </div>
+    </div>
+
+    <header class="header">
+        <div class="header-content">
+            <h1 class="header-title">apantli ≈ playground</h1>
+            <div class="header-actions">
                 <a href="/" class="btn btn-secondary">Dashboard</a>
-                <button class="btn btn-secondary theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
-                    <span x-show="theme === 'light'">Dark</span>
-                    <span x-show="theme === 'dark'">Light</span>
+                <button class="btn btn-secondary btn-icon" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
+                    <span x-show="theme === 'light'">☀</span>
+                    <span x-show="theme === 'dark'">☾</span>
                 </button>
+                <button class="btn btn-secondary btn-icon" @click="showSettings = !showSettings" aria-label="Open settings">⚙</button>
             </div>
         </div>
     </header>

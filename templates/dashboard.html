@@ -14,9 +14,9 @@
         <input type="date" x-model="dateFilter.startDate">
         <span>to</span>
         <input type="date" x-model="dateFilter.endDate">
-        <button @click="dateFilter = { startDate: '', endDate: '' }" style="margin-left: 10px; padding: 4px 8px; border: 1px solid var(--color-border); background: var(--color-background); color: var(--color-text); cursor: pointer;">Clear Filter</button>
+        <button @click="dateFilter = { startDate: '', endDate: '' }" class="btn btn-secondary">Clear Filter</button>
     </div>
-    <div style="font-size: 12px; color: var(--color-text-secondary); margin-top: 8px;" x-show="dateFilter.startDate || dateFilter.endDate">
+    <div class="filter-active-text" x-show="dateFilter.startDate || dateFilter.endDate">
         Active filter: <span x-text="dateFilter.startDate || '(none)'"></span> to <span x-text="dateFilter.endDate || '(none)'"></span>
     </div>
 </div>
@@ -40,6 +40,7 @@
 <body x-data="{
     currentTab: $persist('stats'),
     theme: $persist('light'),
+    showSettings: false,
     selectedFont: $persist('system'),
     fontSize: $persist('normal'),
     fontWeight: $persist('normal'),
@@ -291,32 +292,60 @@
     }, { deep: true });
     $watch('currentPage', value => loadRequests());
 ">
-    <div id="debug-info" style="position: fixed; top: 0; right: 0; background: yellow; color: black; padding: 10px; font-size: 11px; z-index: 9999; max-width: 300px; word-wrap: break-word; display: none;"></div>
-
-    <header class="page-header">
-        <div class="header-content">
-            <h1 class="header-title">apantli ≈ dashboard</h1>
-            <div class="header-actions">
-                <select x-model="selectedFont" class="font-control" aria-label="Select font family">
+    <!-- Settings Modal -->
+    <div class="settings-modal"
+         :class="{ 'active': showSettings }"
+         @click.self="showSettings = false">
+        <div class="settings-content">
+            <div class="settings-header">
+                <h2>Settings</h2>
+                <button class="settings-close" @click="showSettings = false" aria-label="Close settings">×</button>
+            </div>
+            <div class="settings-group">
+                <label for="setting-font">Font Family</label>
+                <select id="setting-font" x-model="selectedFont">
                     <template x-for="font in fontOptions" :key="font.id">
                         <option :value="font.id" x-text="font.name" :selected="font.id === selectedFont"></option>
                     </template>
                 </select>
-                <select x-model="fontSize" class="font-control" aria-label="Select font size">
+            </div>
+            <div class="settings-group">
+                <label for="setting-size">Font Size</label>
+                <select id="setting-size" x-model="fontSize">
                     <template x-for="size in fontSizeOptions" :key="size.id">
                         <option :value="size.id" x-text="size.name" :selected="size.id === fontSize"></option>
                     </template>
                 </select>
-                <select x-model="fontWeight" class="font-control" aria-label="Select font weight">
+            </div>
+            <div class="settings-group">
+                <label for="setting-weight">Font Weight</label>
+                <select id="setting-weight" x-model="fontWeight">
                     <template x-for="weight in fontWeightOptions" :key="weight.id">
                         <option :value="weight.id" x-text="weight.name" :selected="weight.id === fontWeight"></option>
                     </template>
                 </select>
-                <a href="/compare" class="btn btn-link">Playground</a>
-                <button class="btn btn-link theme-toggle" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
-                    <span x-show="theme === 'light'">Dark</span>
-                    <span x-show="theme === 'dark'">Light</span>
+            </div>
+        </div>
+    </div>
+
+    <header class="page-header">
+        <div class="header-content">
+            <div class="header-left">
+                <h1 class="header-title">apantli ≈ dashboard</h1>
+                <nav class="header-nav">
+                    <a href="#stats" :class="{ 'active': currentTab === 'stats' }" @click.prevent="currentTab = 'stats'">Stats</a>
+                    <a href="#calendar" :class="{ 'active': currentTab === 'calendar' }" @click.prevent="currentTab = 'calendar'">Calendar</a>
+                    <a href="#models" :class="{ 'active': currentTab === 'models' }" @click.prevent="currentTab = 'models'">Models</a>
+                    <a href="#requests" :class="{ 'active': currentTab === 'requests' }" @click.prevent="currentTab = 'requests'">Requests</a>
+                </nav>
+            </div>
+            <div class="header-actions">
+                <a href="/compare" class="btn btn-secondary">Playground</a>
+                <button class="btn btn-secondary btn-icon" @click="toggleTheme()" :aria-label="theme === 'light' ? 'Switch to dark mode' : 'Switch to light mode'">
+                    <span x-show="theme === 'light'">☀</span>
+                    <span x-show="theme === 'dark'">☾</span>
                 </button>
+                <button class="btn btn-secondary btn-icon" @click="showSettings = !showSettings" aria-label="Open settings">⚙</button>
             </div>
         </div>
     </header>
@@ -325,38 +354,49 @@
         <div id="error-banner" class="error-banner" role="alert"></div>
         <div id="chart-tooltip" class="chart-tooltip"></div>
 
-        <nav>
-        <a href="#" :class="{ 'active': currentTab === 'stats' }" @click.prevent="currentTab = 'stats'">Stats</a>
-        <a href="#" :class="{ 'active': currentTab === 'calendar' }" @click.prevent="currentTab = 'calendar'">Calendar</a>
-        <a href="#" :class="{ 'active': currentTab === 'models' }" @click.prevent="currentTab = 'models'">Models</a>
-        <a href="#" :class="{ 'active': currentTab === 'requests' }" @click.prevent="currentTab = 'requests'">Requests</a>
-    </nav>
-
     <div id="stats-tab" x-show="currentTab === 'stats'">
         {{ date_filter() }}
 
         <div id="totals"></div>
 
-        <h2>Provider Cost Breakdown</h2>
-        <div id="provider-breakdown"></div>
+        <details open>
+            <summary><h2>Cost Overview</h2></summary>
+            <div>
+                <h3>Provider Cost Breakdown</h3>
+                <div id="provider-breakdown"></div>
 
-        <h2>Provider Cost Trends</h2>
-        <div id="provider-trends-chart"></div>
+                <h3>Provider Cost Trends</h3>
+                <div id="provider-trends-chart"></div>
+            </div>
+        </details>
 
-        <h2>By Model</h2>
-        <table id="by-model"></table>
+        <details open>
+            <summary><h2>Model Performance</h2></summary>
+            <div>
+                <h3>By Model</h3>
+                <table id="by-model"></table>
 
-        <h2>Model Efficiency</h2>
-        <div id="model-efficiency"></div>
+                <h3>Model Efficiency</h3>
+                <div id="model-efficiency"></div>
 
-        <h2>Model Performance (Speed)</h2>
-        <div id="model-performance"></div>
+                <h3>Model Speed</h3>
+                <div id="model-performance"></div>
 
-        <h2>By Provider</h2>
-        <table id="by-provider"></table>
+                <h3>By Provider</h3>
+                <table id="by-provider"></table>
+            </div>
+        </details>
 
-        <h2>Recent Errors <button onclick="clearErrors()" style="margin-left: 10px;">Clear Errors</button></h2>
-        <table id="errors"></table>
+        <details>
+            <summary><h2>Errors & Debugging</h2></summary>
+            <div>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
+                    <h3 style="margin: 0;">Recent Errors</h3>
+                    <button onclick="clearErrors()" class="btn btn-secondary">Clear Errors</button>
+                </div>
+                <table id="errors"></table>
+            </div>
+        </details>
     </div>
 
     <div id="calendar-tab" x-show="currentTab === 'calendar'">
