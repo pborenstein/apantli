@@ -294,6 +294,5 @@ python test_error_handling.py
 - [LiteLLM Docs: Proxy Logging](https://docs.litellm.ai/docs/proxy/logging)
 
 ### Related Documentation
-- [ERROR_HANDLING_IMPROVEMENTS.md](../ERROR_HANDLING_IMPROVEMENTS.md) - Detailed changelog of error handling fixes (2025-11-07)
 - [ARCHITECTURE.md](ARCHITECTURE.md) - Overall system design
 - [TESTING.md](TESTING.md) - Complete testing procedures
