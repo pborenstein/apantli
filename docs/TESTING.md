@@ -5,7 +5,7 @@
 Apantli includes comprehensive unit tests and integration tests to validate functionality, especially error handling and edge cases.
 
 **Test Suite**:
-- 59 total test cases across all modules
+- 70 total test cases across all modules
 - Unit tests: Fast (<1 second), no API keys required, test individual modules
 - Integration tests: Require running server and API keys, test end-to-end functionality
 
