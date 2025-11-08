@@ -1,6 +1,6 @@
 # Apantli
 
-Lightweight local LLM proxy with SQLite cost tracking. Routes requests to multiple providers through a unified OpenAI-compatible API.
+Lightweight local LLM proxy with SQLite cost tracking and interactive model comparison playground. Routes requests to multiple providers through a unified OpenAI-compatible API.
 
 
 ## Quick Start
@@ -53,12 +53,18 @@ Lightweight local LLM proxy with SQLite cost tracking. Routes requests to multip
 
 7. **View dashboard**: http://localhost:4000/
 
+8. **Try the Playground**: http://localhost:4000/compare - Compare models side-by-side
+
 ## Project Overview
 
-Apantli is a local proxy server that routes LLM requests to multiple providers while tracking usage and costs in a SQLite database. It provides an OpenAI-compatible API and a web dashboard for monitoring.
+Apantli is a local proxy server that routes LLM requests to multiple providers while tracking usage and costs in a SQLite database. It provides:
 
+- **OpenAI-compatible API** - Drop-in replacement for OpenAI SDK clients
+- **Interactive Playground** - Side-by-side model comparison with parallel streaming
+- **Web Dashboard** - Real-time monitoring with cost tracking and request history
+- **SQLite Storage** - Full request/response logging with automatic cost calculation
 
-**Why Apantli?** Lighter alternative to LiteLLM's proxy (which requires Postgres and Docker). Runs entirely locally with no cloud dependencies.
+**Why Apantli?** Lighter alternative to LiteLLM's proxy (which requires Postgres and Docker). Runs entirely locally with no cloud dependencies. The Playground makes it easy to compare model outputs, evaluate prompts, and tune parameters across multiple providers simultaneously.
 
 > **⚠️ Security Notice**
 >
