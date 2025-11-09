@@ -401,11 +401,11 @@
 
         .metric {
             display: inline-block;
-            margin: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm) 0;
+            margin: var(--spacing-xs) var(--spacing-md) var(--spacing-xs) 0;
         }
 
         .metric-value {
-            font-size: var(--font-size-2xl);
+            font-size: var(--font-size-xl);
             font-weight: 700;
             color: var(--color-text);
             font-family: var(--font-mono);
@@ -833,8 +833,8 @@
 
         /* Provider trends chart styles */
         #provider-trends-chart {
-            margin: 20px 0;
-            padding: 20px;
+            margin: var(--spacing-md) 0;
+            padding: var(--spacing-md);
             background: var(--color-background);
             border: 1px solid var(--color-border);
             border-radius: 4px;
@@ -882,8 +882,8 @@
 
         .chart-legend {
             display: flex;
-            gap: 20px;
-            margin-top: 15px;
+            gap: var(--spacing-md);
+            margin-top: var(--spacing-sm);
             flex-wrap: wrap;
             justify-content: center;
         }
@@ -970,8 +970,8 @@
         .chart-title {
             text-align: center;
             font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 10px;
+            font-size: var(--font-size-sm);
+            margin-bottom: var(--spacing-xs);
             color: var(--color-text);
         }
 
