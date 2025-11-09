@@ -347,7 +347,7 @@
         h2 {
             font-size: var(--font-size-2xl);
             font-weight: 600;
-            margin: var(--spacing-lg) 0 var(--spacing-md);
+            margin: var(--spacing-md) 0 var(--spacing-sm);
             border-bottom: 1px solid var(--color-border);
             padding-bottom: var(--spacing-xs);
             color: var(--color-text);
@@ -370,7 +370,7 @@
 
         th, td {
             text-align: left;
-            padding: var(--spacing-sm) var(--spacing-md);
+            padding: 6px var(--spacing-sm);
             border-bottom: 1px solid var(--color-border);
         }
 
@@ -399,13 +399,36 @@
             background-color: var(--color-hover);
         }
 
+        .badge {
+            display: inline-block;
+            font-size: var(--font-size-xs);
+            margin-left: 4px;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: var(--color-background-tertiary);
+            cursor: help;
+            font-weight: 600;
+        }
+
+        .badge-economical {
+            color: #52c41a;
+        }
+
+        .badge-tokens {
+            color: #1890ff;
+        }
+
+        .badge-speed {
+            color: #faad14;
+        }
+
         .metric {
             display: inline-block;
-            margin: var(--spacing-sm) var(--spacing-lg) var(--spacing-sm) 0;
+            margin: var(--spacing-xs) var(--spacing-md) var(--spacing-xs) 0;
         }
 
         .metric-value {
-            font-size: var(--font-size-2xl);
+            font-size: var(--font-size-xl);
             font-weight: 700;
             color: var(--color-text);
             font-family: var(--font-mono);
@@ -638,7 +661,7 @@
 
         /* Collapsible Sections */
         details {
-            margin: var(--spacing-lg) 0;
+            margin: var(--spacing-sm) 0;
             border: 1px solid var(--color-border);
             border-radius: 6px;
             background: var(--color-background);
@@ -647,7 +670,7 @@
 
         details summary {
             cursor: pointer;
-            padding: var(--spacing-md);
+            padding: var(--spacing-sm) var(--spacing-md);
             user-select: none;
             list-style: none;
             display: flex;
@@ -683,7 +706,7 @@
         }
 
         details > div {
-            padding: 0 var(--spacing-md) var(--spacing-md) var(--spacing-md);
+            padding: 0 var(--spacing-sm) var(--spacing-sm) var(--spacing-sm);
         }
 
         /* Calendar styles */
@@ -796,7 +819,7 @@
         }
 
         .provider-bar {
-            margin: 15px 0;
+            margin: var(--spacing-sm) 0;
         }
 
         .provider-header {
@@ -833,8 +856,8 @@
 
         /* Provider trends chart styles */
         #provider-trends-chart {
-            margin: 20px 0;
-            padding: 20px;
+            margin: 0;
+            padding: var(--spacing-sm);
             background: var(--color-background);
             border: 1px solid var(--color-border);
             border-radius: 4px;
@@ -881,19 +904,31 @@
         }
 
         .chart-legend {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 2px var(--spacing-sm);
+            margin-top: var(--spacing-xs);
+        }
+
+        .chart-legend-provider {
             display: flex;
-            gap: 20px;
-            margin-top: 15px;
-            flex-wrap: wrap;
-            justify-content: center;
+            flex-direction: column;
+            gap: 1px;
+        }
+
+        .chart-legend-provider-name {
+            font-weight: bold;
+            font-size: var(--font-size-xs);
+            color: var(--color-text);
+            margin-bottom: 1px;
         }
 
         .chart-legend-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             cursor: pointer;
-            padding: 4px 8px;
+            padding: 2px 4px;
             border-radius: 4px;
             transition: background 0.2s;
         }
@@ -907,15 +942,19 @@
         }
 
         .chart-legend-color {
-            width: 20px;
+            width: 16px;
             height: 3px;
             border-radius: 2px;
+            flex-shrink: 0;
         }
 
         .chart-legend-label {
-            font-size: 12px;
+            font-size: var(--font-size-xs);
             color: var(--color-text);
             font-family: var(--font-mono);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .chart-tooltip {
@@ -970,8 +1009,8 @@
         .chart-title {
             text-align: center;
             font-weight: bold;
-            font-size: 14px;
-            margin-bottom: 10px;
+            font-size: var(--font-size-sm);
+            margin-bottom: var(--spacing-xs);
             color: var(--color-text);
         }
 
@@ -984,15 +1023,15 @@
         .efficiency-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 15px;
-            margin: 20px 0;
+            gap: var(--spacing-sm);
+            margin: var(--spacing-md) 0;
         }
 
         .efficiency-card {
             background: var(--color-background);
             border: 1px solid var(--color-border);
             border-radius: 6px;
-            padding: 15px;
+            padding: var(--spacing-sm);
             transition: border-color 0.2s;
         }
 
@@ -1011,9 +1050,9 @@
         }
 
         .efficiency-model-name {
-            font-size: 14px;
+            font-size: var(--font-size-sm);
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: var(--spacing-xs);
             color: var(--color-text);
         }
 
@@ -1039,8 +1078,8 @@
         .efficiency-metrics {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            font-size: 12px;
+            gap: var(--spacing-xs);
+            font-size: var(--font-size-xs);
         }
 
         .efficiency-metric {
@@ -1061,10 +1100,10 @@
         }
 
         .efficiency-summary {
-            margin-top: 15px;
-            padding-top: 15px;
+            margin-top: var(--spacing-sm);
+            padding-top: var(--spacing-sm);
             border-top: 1px solid var(--color-border);
-            font-size: 12px;
+            font-size: var(--font-size-xs);
             color: var(--color-text-secondary);
         }
 

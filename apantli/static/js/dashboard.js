@@ -964,13 +964,17 @@
             for (let hour = 0; hour < 24; hour++) {
                 const x = hour * barWidth;
                 let yOffset = chartHeight;
+                const hourLabel = formatHour(hour);
 
                 sortedModels.forEach(modelInfo => {
                     const cost = modelInfo.costs[hour];
                     if (cost > 0) {
                         const barHeight = chartHeight - yScale(cost);
                         yOffset -= barHeight;
-                        svg += `<rect class="chart-bar" x="${x + 2}" y="${yOffset}" width="${barWidth - 4}" height="${barHeight}" fill="${modelInfo.color}" />`;
+                        const modelLabel = escapeHtml(modelInfo.model);
+                        svg += `<rect class="chart-bar" x="${x + 2}" y="${yOffset}" width="${barWidth - 4}" height="${barHeight}" fill="${modelInfo.color}"
+                                     onmouseover="showChartTooltip(event, '${hourLabel}', '${modelLabel}', ${cost})"
+                                     onmouseout="hideChartTooltip()" />`;
                     }
                 });
             }
@@ -1012,17 +1016,6 @@
         }
 
         function renderChart(container, modelData, dates) {
-            // Need at least 3 data points for a meaningful trend chart
-            if (dates.length < 3) {
-                container.innerHTML = `
-                    <div class="chart-empty">
-                        <p>Not enough data for trends chart</p>
-                        <p class="chart-empty-hint">Charts require at least 3 days of data. Keep using Apantli to see trends!</p>
-                    </div>
-                `;
-                return;
-            }
-
             const width = container.offsetWidth - 40; // Account for padding
             const height = 300;
             const margin = { top: 20, right: 80, bottom: 60, left: 60 };
@@ -1033,15 +1026,15 @@
             const maxCost = Math.max(...modelData.flatMap(m => m.data.map(d => d.cost)), 0.0001);
             const minCost = 0;
 
-            // X scale: date to pixel
-            const xScale = (dateIndex) => (dateIndex / (dates.length - 1 || 1)) * chartWidth;
+            // Calculate bar width based on number of dates
+            const barWidth = chartWidth / dates.length;
 
             // Y scale: cost to pixel (inverted because SVG Y increases downward)
             const yScale = (cost) => chartHeight - ((cost - minCost) / (maxCost - minCost)) * chartHeight;
 
             // Format date for display
             const formatDate = (dateStr) => {
-                const date = new Date(dateStr);
+                const date = new Date(dateStr + 'T00:00:00');
                 return `${date.getMonth() + 1}/${date.getDate()}`;
             };
 
@@ -1073,35 +1066,27 @@
             const labelStep = Math.ceil(dates.length / 8);
             dates.forEach((date, i) => {
                 if (i % labelStep === 0 || i === dates.length - 1) {
-                    const x = xScale(i);
+                    const x = i * barWidth + barWidth / 2;
                     svg += `<text class="chart-axis-text" x="${x}" y="${chartHeight + 20}" text-anchor="middle">${formatDate(date)}</text>`;
                 }
             });
 
-            // Draw lines for each model
-            modelData.forEach(modelInfo => {
-                const color = modelInfo.color;
+            // Draw stacked bars for each date
+            dates.forEach((date, dateIndex) => {
+                const x = dateIndex * barWidth;
+                let yOffset = chartHeight;
+                const dateLabel = formatDate(date);
 
-                // Generate path
-                const pathData = modelInfo.data.map((d, i) => {
-                    const x = xScale(i);
-                    const y = yScale(d.cost);
-                    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-                }).join(' ');
-
-                svg += `<path class="chart-line" d="${pathData}" stroke="${color}" />`;
-
-                // Add dots
-                modelInfo.data.forEach((d, i) => {
-                    if (d.cost > 0) {
-                        const x = xScale(i);
-                        const y = yScale(d.cost);
+                // Stack bars from each model for this date
+                modelData.forEach(modelInfo => {
+                    const dataPoint = modelInfo.data[dateIndex];
+                    if (dataPoint && dataPoint.cost > 0) {
+                        const barHeight = chartHeight - yScale(dataPoint.cost);
+                        yOffset -= barHeight;
                         const modelLabel = escapeHtml(modelInfo.model);
-                        svg += `
-                            <circle class="chart-dot" cx="${x}" cy="${y}" r="3" stroke="${color}"
-                                    onmouseover="showChartTooltip(event, '${d.date}', '${modelLabel}', ${d.cost})"
-                                    onmouseout="hideChartTooltip()" />
-                        `;
+                        svg += `<rect class="chart-bar" x="${x + 2}" y="${yOffset}" width="${barWidth - 4}" height="${barHeight}" fill="${modelInfo.color}"
+                                     onmouseover="showChartTooltip(event, '${dateLabel}', '${modelLabel}', ${dataPoint.cost})"
+                                     onmouseout="hideChartTooltip()" />`;
                     }
                 });
             });
@@ -1122,8 +1107,9 @@
 
             let legend = '';
             Object.entries(modelsByProvider).forEach(([provider, models]) => {
-                // Add provider header
-                legend += `<div style="width: 100%; font-weight: bold; margin-top: 8px; color: var(--color-text);">${provider}</div>`;
+                // Create provider section as a grid item
+                legend += `<div class="chart-legend-provider">`;
+                legend += `<div class="chart-legend-provider-name">${provider}</div>`;
 
                 // Add models for this provider
                 models.forEach(m => {
@@ -1135,6 +1121,7 @@
                         </div>
                     `;
                 });
+                legend += `</div>`;
             });
 
             container.innerHTML = svg + `<div class="chart-legend">${legend}</div>`;
@@ -1142,13 +1129,24 @@
 
         function showChartTooltip(event, date, provider, cost) {
             const tooltip = document.getElementById('chart-tooltip');
-            tooltip.innerHTML = `
-                <div class="chart-tooltip-date">${date}</div>
-                <div class="chart-tooltip-item">
-                    <span>${provider}:</span>
-                    <span>$${cost.toFixed(4)}</span>
-                </div>
-            `;
+            if (cost === null) {
+                // Badge tooltip (date is title, provider is description)
+                tooltip.innerHTML = `
+                    <div class="chart-tooltip-date">${date}</div>
+                    <div class="chart-tooltip-item">
+                        <span>${provider}</span>
+                    </div>
+                `;
+            } else {
+                // Chart tooltip (standard format)
+                tooltip.innerHTML = `
+                    <div class="chart-tooltip-date">${date}</div>
+                    <div class="chart-tooltip-item">
+                        <span>${provider}:</span>
+                        <span>$${cost.toFixed(4)}</span>
+                    </div>
+                `;
+            }
             tooltip.style.display = 'block';
             tooltip.style.left = (event.pageX + 10) + 'px';
             tooltip.style.top = (event.pageY - 30) + 'px';
@@ -1199,91 +1197,29 @@
                 </div>
             `;
 
-            // Provider breakdown visualization with model segments
-            const totalCost = data.totals.cost;
+            // By model - convert to sortable format and merge with performance data
+            const performanceMap = new Map((data.performance || []).map(p => [p.model, p]));
 
-            let providerHtml = '';
-            if (data.by_model.length > 0 && totalCost > 0) {
-                // Group models by provider
-                const modelsByProvider = {};
-                data.by_model.forEach(m => {
-                    if (!modelsByProvider[m.provider]) {
-                        modelsByProvider[m.provider] = [];
-                    }
-                    modelsByProvider[m.provider].push(m);
-                });
+            byModelData = data.by_model.map(m => {
+                const perf = performanceMap.get(m.model);
+                return [
+                    m.model,                                    // 0: model
+                    m.requests,                                 // 1: requests
+                    m.cost,                                     // 2: cost
+                    m.tokens,                                   // 3: tokens
+                    m.cost / m.requests,                        // 4: avg cost per request
+                    m.tokens / m.requests,                      // 5: avg tokens per request
+                    perf ? perf.avg_tokens_per_sec : null,      // 6: speed (tokens/sec)
+                    perf ? perf.avg_duration_ms : null          // 7: avg duration
+                ];
+            });
 
-                // Sort providers by total cost
-                const providerTotals = Object.entries(modelsByProvider).map(([provider, models]) => ({
-                    provider,
-                    models,
-                    totalCost: models.reduce((sum, m) => sum + m.cost, 0),
-                    totalRequests: models.reduce((sum, m) => sum + m.requests, 0)
-                })).sort((a, b) => b.totalCost - a.totalCost);
-
-                providerHtml = providerTotals.map(p => {
-                    const providerPercentage = (p.totalCost / totalCost * 100);
-
-                    // Sort models by cost within provider and assign colors
-                    const sortedModels = p.models.sort((a, b) => b.cost - a.cost);
-                    sortedModels.forEach((m, index) => {
-                        m.color = getModelColor(p.provider, index, sortedModels.length);
-                    });
-
-                    // Create segmented bar
-                    const segments = sortedModels.map(m => {
-                        const modelPercentage = (m.cost / totalCost * 100);
-                        const modelLabel = escapeHtml(m.model);
-                        return `<div class="bar-segment" style="width: ${modelPercentage}%; background: ${m.color}; cursor: pointer;"
-                                     onmouseover="showChartTooltip(event, '${p.provider}', '${modelLabel}', ${m.cost})"
-                                     onmouseout="hideChartTooltip()"></div>`;
-                    }).join('');
-
-                    // Model details list
-                    const modelDetails = sortedModels.map(m =>
-                        `<span style="color: ${m.color};">●</span> ${escapeHtml(m.model)}: $${m.cost.toFixed(4)} (${m.requests} req)`
-                    ).join(' • ');
-
-                    return `
-                        <div class="provider-bar">
-                            <div class="provider-header">
-                                <span class="provider-name">${p.provider}</span>
-                                <span class="provider-percentage">${providerPercentage.toFixed(0)}%</span>
-                            </div>
-                            <div class="bar-container">
-                                ${segments}
-                            </div>
-                            <div class="provider-details">
-                                $${p.totalCost.toFixed(4)} across ${p.totalRequests} requests ($${(p.totalCost / p.totalRequests).toFixed(4)} per request)
-                            </div>
-                            <div class="provider-details" style="font-size: 11px; margin-top: 4px;">
-                                ${modelDetails}
-                            </div>
-                        </div>
-                    `;
-                }).join('');
-
-                providerHtml += `<div style="margin-top: 20px; font-weight: bold;">Total: $${totalCost.toFixed(4)} (${data.totals.requests} requests)</div>`;
-            } else {
-                providerHtml = '<div style="color: #666;">No data available</div>';
-            }
-
-            document.getElementById('provider-breakdown').innerHTML = providerHtml;
-
-            // By model - convert to sortable format
-            byModelData = data.by_model.map(m => [m.model, m.requests, m.cost, m.tokens]);
             if (!tableSortState['by-model']) {
                 tableSortState['by-model'] = { column: null, direction: null, originalData: [...byModelData] };
             } else {
                 tableSortState['by-model'].originalData = [...byModelData];
             }
             renderByModelTable(applySortIfNeeded('by-model', byModelData), tableSortState['by-model']);
-
-            // Model efficiency
-            renderModelEfficiency(byModelData);
-
-            // Model performance (speed)
-            renderModelPerformance(data.performance || []);
 
             // By provider - convert to sortable format
             byProviderData = data.by_provider.map(p => [p.provider, p.requests, p.cost, p.tokens]);
@@ -1320,25 +1256,54 @@
         }
 
         function renderByModelTable(data, sortState) {
+            // Find best performers
+            const validCostPerRequest = data.filter(r => r[4] != null);
+            const validTokensPerRequest = data.filter(r => r[5] != null);
+            const validSpeed = data.filter(r => r[6] != null);
+
+            const mostEconomical = validCostPerRequest.length > 0
+                ? validCostPerRequest.reduce((min, curr) => curr[4] < min[4] ? curr : min)[0]
+                : null;
+            const mostTokenRich = validTokensPerRequest.length > 0
+                ? validTokensPerRequest.reduce((max, curr) => curr[5] > max[5] ? curr : max)[0]
+                : null;
+            const fastest = validSpeed.length > 0
+                ? validSpeed.reduce((max, curr) => curr[6] > max[6] ? curr : max)[0]
+                : null;
+
             const table = document.getElementById('by-model');
             table.innerHTML = `
                 <thead>
                     <tr>
                         <th class="sortable" onclick="sortByModelTable(0)">Model</th>
                         <th class="sortable" onclick="sortByModelTable(1)">Requests</th>
-                        <th class="sortable" onclick="sortByModelTable(2)">Cost</th>
+                        <th class="sortable" onclick="sortByModelTable(2)">Total Cost</th>
                         <th class="sortable" onclick="sortByModelTable(3)">Tokens</th>
+                        <th class="sortable" onclick="sortByModelTable(4)">$/Request</th>
+                        <th class="sortable" onclick="sortByModelTable(5)">Tokens/Req</th>
+                        <th class="sortable" onclick="sortByModelTable(6)">Speed</th>
+                        <th class="sortable" onclick="sortByModelTable(7)">Duration</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.map(row => `
+                    ${data.map(row => {
+                        const badges = [];
+                        if (row[0] === mostEconomical) badges.push('<span class="badge badge-economical" onmouseover="showChartTooltip(event, \'Most Economical\', \'Lowest cost per request\', null)" onmouseout="hideChartTooltip()">$</span>');
+                        if (row[0] === mostTokenRich) badges.push('<span class="badge badge-tokens" onmouseover="showChartTooltip(event, \'Most Token-Rich\', \'Highest tokens per request\', null)" onmouseout="hideChartTooltip()">▰</span>');
+                        if (row[0] === fastest) badges.push('<span class="badge badge-speed" onmouseover="showChartTooltip(event, \'Fastest\', \'Highest tokens per second\', null)" onmouseout="hideChartTooltip()">⚡︎</span>');
+
+                        return `
                         <tr class="clickable-row" onclick="filterRequests({ model: '${escapeHtml(row[0])}', provider: '', search: '', minCost: '', maxCost: '' })">
-                            <td>${row[0]}</td>
+                            <td>${escapeHtml(row[0])} ${badges.join(' ')}</td>
                             <td>${row[1]}</td>
                             <td>$${row[2].toFixed(4)}</td>
                             <td>${row[3].toLocaleString()}</td>
+                            <td>$${row[4].toFixed(4)}</td>
+                            <td>${Math.round(row[5]).toLocaleString()}</td>
+                            <td>${row[6] != null ? row[6].toFixed(1) + ' tok/s' : '—'}</td>
+                            <td>${row[7] != null ? Math.round(row[7]) + 'ms' : '—'}</td>
                         </tr>
-                    `).join('')}
+                    `}).join('')}
                 </tbody>
             `;
             updateSortIndicators(table, sortState);
