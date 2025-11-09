@@ -858,14 +858,12 @@
         #provider-trends-chart {
             margin: 0;
             padding: 0;
-            border: 3px solid red; /* DEBUG */
         }
 
         .chart-svg {
             width: 100%;
             height: 260px;
             overflow: visible;
-            border: 3px solid blue; /* DEBUG */
         }
 
         .chart-line {
@@ -918,6 +916,14 @@
         }
 
         /* Debug borders - add 'debug-charts' class to body to enable */
+        .debug-charts #provider-trends-chart {
+            border: 3px solid red;
+        }
+
+        .debug-charts .chart-svg {
+            border: 3px solid blue;
+        }
+
         .debug-charts .chart-legend {
             border: 3px solid green;
         }
