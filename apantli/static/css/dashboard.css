@@ -904,7 +904,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 2px var(--spacing-sm);
-            margin-top: 0;
+            margin-top: -50px;
         }
 
         .chart-legend-provider {
