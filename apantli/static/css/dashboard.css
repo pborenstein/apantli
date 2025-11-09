@@ -1011,9 +1011,9 @@
         }
 
         .efficiency-model-name {
-            font-size: 14px;
+            font-size: var(--font-size-sm);
             font-weight: bold;
-            margin-bottom: 10px;
+            margin-bottom: var(--spacing-xs);
             color: var(--color-text);
         }
 
@@ -1039,8 +1039,8 @@
         .efficiency-metrics {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 10px;
-            font-size: 12px;
+            gap: var(--spacing-xs);
+            font-size: var(--font-size-xs);
         }
 
         .efficiency-metric {
@@ -1061,10 +1061,10 @@
         }
 
         .efficiency-summary {
-            margin-top: 15px;
-            padding-top: 15px;
+            margin-top: var(--spacing-sm);
+            padding-top: var(--spacing-sm);
             border-top: 1px solid var(--color-border);
-            font-size: 12px;
+            font-size: var(--font-size-xs);
             color: var(--color-text-secondary);
         }
 
