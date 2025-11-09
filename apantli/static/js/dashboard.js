@@ -1012,17 +1012,6 @@
         }
 
         function renderChart(container, modelData, dates) {
-            // Need at least 3 data points for a meaningful trend chart
-            if (dates.length < 3) {
-                container.innerHTML = `
-                    <div class="chart-empty">
-                        <p>Not enough data for trends chart</p>
-                        <p class="chart-empty-hint">Charts require at least 3 days of data. Keep using Apantli to see trends!</p>
-                    </div>
-                `;
-                return;
-            }
-
             const width = container.offsetWidth - 40; // Account for padding
             const height = 300;
             const margin = { top: 20, right: 80, bottom: 60, left: 60 };
@@ -1033,8 +1022,8 @@
             const maxCost = Math.max(...modelData.flatMap(m => m.data.map(d => d.cost)), 0.0001);
             const minCost = 0;
 
-            // X scale: date to pixel
-            const xScale = (dateIndex) => (dateIndex / (dates.length - 1 || 1)) * chartWidth;
+            // Calculate bar width based on number of dates
+            const barWidth = chartWidth / dates.length;
 
             // Y scale: cost to pixel (inverted because SVG Y increases downward)
             const yScale = (cost) => chartHeight - ((cost - minCost) / (maxCost - minCost)) * chartHeight;
@@ -1073,35 +1062,23 @@
             const labelStep = Math.ceil(dates.length / 8);
             dates.forEach((date, i) => {
                 if (i % labelStep === 0 || i === dates.length - 1) {
-                    const x = xScale(i);
+                    const x = i * barWidth + barWidth / 2;
                     svg += `<text class="chart-axis-text" x="${x}" y="${chartHeight + 20}" text-anchor="middle">${formatDate(date)}</text>`;
                 }
             });
 
-            // Draw lines for each model
-            modelData.forEach(modelInfo => {
-                const color = modelInfo.color;
+            // Draw stacked bars for each date
+            dates.forEach((date, dateIndex) => {
+                const x = dateIndex * barWidth;
+                let yOffset = chartHeight;
 
-                // Generate path
-                const pathData = modelInfo.data.map((d, i) => {
-                    const x = xScale(i);
-                    const y = yScale(d.cost);
-                    return `${i === 0 ? 'M' : 'L'} ${x} ${y}`;
-                }).join(' ');
-
-                svg += `<path class="chart-line" d="${pathData}" stroke="${color}" />`;
-
-                // Add dots
-                modelInfo.data.forEach((d, i) => {
-                    if (d.cost > 0) {
-                        const x = xScale(i);
-                        const y = yScale(d.cost);
-                        const modelLabel = escapeHtml(modelInfo.model);
-                        svg += `
-                            <circle class="chart-dot" cx="${x}" cy="${y}" r="3" stroke="${color}"
-                                    onmouseover="showChartTooltip(event, '${d.date}', '${modelLabel}', ${d.cost})"
-                                    onmouseout="hideChartTooltip()" />
-                        `;
+                // Stack bars from each model for this date
+                modelData.forEach(modelInfo => {
+                    const dataPoint = modelInfo.data[dateIndex];
+                    if (dataPoint && dataPoint.cost > 0) {
+                        const barHeight = chartHeight - yScale(dataPoint.cost);
+                        yOffset -= barHeight;
+                        svg += `<rect class="chart-bar" x="${x + 2}" y="${yOffset}" width="${barWidth - 4}" height="${barHeight}" fill="${modelInfo.color}" />`;
                     }
                 });
             });
