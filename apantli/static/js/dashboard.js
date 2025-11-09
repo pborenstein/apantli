@@ -1348,8 +1348,8 @@
                 <tbody>
                     ${data.map(row => {
                         const badges = [];
-                        if (row[0] === mostEconomical) badges.push('<span class="badge badge-economical" title="Most Economical - Lowest cost per request">💰︎</span>');
-                        if (row[0] === mostTokenRich) badges.push('<span class="badge badge-tokens" title="Most Token-Rich - Highest tokens per request">📊︎</span>');
+                        if (row[0] === mostEconomical) badges.push('<span class="badge badge-economical" title="Most Economical - Lowest cost per request">$</span>');
+                        if (row[0] === mostTokenRich) badges.push('<span class="badge badge-tokens" title="Most Token-Rich - Highest tokens per request">▰</span>');
                         if (row[0] === fastest) badges.push('<span class="badge badge-speed" title="Fastest - Highest tokens per second">⚡︎</span>');
 
                         return `

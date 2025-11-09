@@ -403,7 +403,23 @@
             display: inline-block;
             font-size: var(--font-size-xs);
             margin-left: 4px;
-            opacity: 0.8;
+            padding: 2px 4px;
+            border-radius: 3px;
+            background: var(--color-background-tertiary);
+            cursor: help;
+            font-weight: 600;
+        }
+
+        .badge-economical {
+            color: #52c41a;
+        }
+
+        .badge-tokens {
+            color: #1890ff;
+        }
+
+        .badge-speed {
+            color: #faad14;
         }
 
         .metric {
