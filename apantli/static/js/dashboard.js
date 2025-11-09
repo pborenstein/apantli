@@ -870,7 +870,7 @@
         }
 
         function renderHourlyChart(container, hourlyData, date) {
-            const width = container.offsetWidth - 40; // Account for padding
+            const width = container.offsetWidth;
             const height = 260;
             const margin = { top: 20, right: 80, bottom: 25, left: 60 };
             const chartWidth = width - margin.left - margin.right;
@@ -1016,7 +1016,7 @@
         }
 
         function renderChart(container, modelData, dates) {
-            const width = container.offsetWidth - 40; // Account for padding
+            const width = container.offsetWidth;
             const height = 260;
             const margin = { top: 20, right: 80, bottom: 25, left: 60 };
             const chartWidth = width - margin.left - margin.right;
