@@ -857,10 +857,7 @@
         /* Provider trends chart styles */
         #provider-trends-chart {
             margin: 0;
-            padding: var(--spacing-sm);
-            background: var(--color-background);
-            border: 1px solid var(--color-border);
-            border-radius: 4px;
+            padding: 0;
         }
 
         .chart-svg {
@@ -907,7 +904,7 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 2px var(--spacing-sm);
-            margin-top: var(--spacing-xs);
+            margin-top: 0;
         }
 
         .chart-legend-provider {
