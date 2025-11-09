@@ -399,6 +399,13 @@
             background-color: var(--color-hover);
         }
 
+        .badge {
+            display: inline-block;
+            font-size: var(--font-size-xs);
+            margin-left: 4px;
+            opacity: 0.8;
+        }
+
         .metric {
             display: inline-block;
             margin: var(--spacing-xs) var(--spacing-md) var(--spacing-xs) 0;

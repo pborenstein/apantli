@@ -1257,20 +1257,29 @@
 
             document.getElementById('provider-breakdown').innerHTML = providerHtml;
 
-            // By model - convert to sortable format
-            byModelData = data.by_model.map(m => [m.model, m.requests, m.cost, m.tokens]);
+            // By model - convert to sortable format and merge with performance data
+            const performanceMap = new Map((data.performance || []).map(p => [p.model, p]));
+
+            byModelData = data.by_model.map(m => {
+                const perf = performanceMap.get(m.model);
+                return [
+                    m.model,                                    // 0: model
+                    m.requests,                                 // 1: requests
+                    m.cost,                                     // 2: cost
+                    m.tokens,                                   // 3: tokens
+                    m.cost / m.requests,                        // 4: avg cost per request
+                    m.tokens / m.requests,                      // 5: avg tokens per request
+                    perf ? perf.avg_tokens_per_sec : null,      // 6: speed (tokens/sec)
+                    perf ? perf.avg_duration_ms : null          // 7: avg duration
+                ];
+            });
+
             if (!tableSortState['by-model']) {
                 tableSortState['by-model'] = { column: null, direction: null, originalData: [...byModelData] };
             } else {
                 tableSortState['by-model'].originalData = [...byModelData];
             }
             renderByModelTable(applySortIfNeeded('by-model', byModelData), tableSortState['by-model']);
-
-            // Model efficiency
-            renderModelEfficiency(byModelData);
-
-            // Model performance (speed)
-            renderModelPerformance(data.performance || []);
 
             // By provider - convert to sortable format
             byProviderData = data.by_provider.map(p => [p.provider, p.requests, p.cost, p.tokens]);
@@ -1307,25 +1316,54 @@
         }
 
         function renderByModelTable(data, sortState) {
+            // Find best performers
+            const validCostPerRequest = data.filter(r => r[4] != null);
+            const validTokensPerRequest = data.filter(r => r[5] != null);
+            const validSpeed = data.filter(r => r[6] != null);
+
+            const mostEconomical = validCostPerRequest.length > 0
+                ? validCostPerRequest.reduce((min, curr) => curr[4] < min[4] ? curr : min)[0]
+                : null;
+            const mostTokenRich = validTokensPerRequest.length > 0
+                ? validTokensPerRequest.reduce((max, curr) => curr[5] > max[5] ? curr : max)[0]
+                : null;
+            const fastest = validSpeed.length > 0
+                ? validSpeed.reduce((max, curr) => curr[6] > max[6] ? curr : max)[0]
+                : null;
+
             const table = document.getElementById('by-model');
             table.innerHTML = `
                 <thead>
                     <tr>
                         <th class="sortable" onclick="sortByModelTable(0)">Model</th>
                         <th class="sortable" onclick="sortByModelTable(1)">Requests</th>
-                        <th class="sortable" onclick="sortByModelTable(2)">Cost</th>
+                        <th class="sortable" onclick="sortByModelTable(2)">Total Cost</th>
                         <th class="sortable" onclick="sortByModelTable(3)">Tokens</th>
+                        <th class="sortable" onclick="sortByModelTable(4)">$/Request</th>
+                        <th class="sortable" onclick="sortByModelTable(5)">Tokens/Req</th>
+                        <th class="sortable" onclick="sortByModelTable(6)">Speed</th>
+                        <th class="sortable" onclick="sortByModelTable(7)">Duration</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.map(row => `
+                    ${data.map(row => {
+                        const badges = [];
+                        if (row[0] === mostEconomical) badges.push('<span class="badge badge-economical">💰</span>');
+                        if (row[0] === mostTokenRich) badges.push('<span class="badge badge-tokens">📊</span>');
+                        if (row[0] === fastest) badges.push('<span class="badge badge-speed">⚡</span>');
+
+                        return `
                         <tr class="clickable-row" onclick="filterRequests({ model: '${escapeHtml(row[0])}', provider: '', search: '', minCost: '', maxCost: '' })">
-                            <td>${row[0]}</td>
+                            <td>${escapeHtml(row[0])} ${badges.join(' ')}</td>
                             <td>${row[1]}</td>
                             <td>$${row[2].toFixed(4)}</td>
                             <td>${row[3].toLocaleString()}</td>
+                            <td>$${row[4].toFixed(4)}</td>
+                            <td>${Math.round(row[5]).toLocaleString()}</td>
+                            <td>${row[6] != null ? row[6].toFixed(1) + ' tok/s' : '—'}</td>
+                            <td>${row[7] != null ? Math.round(row[7]) + 'ms' : '—'}</td>
                         </tr>
-                    `).join('')}
+                    `}).join('')}
                 </tbody>
             `;
             updateSortIndicators(table, sortState);
