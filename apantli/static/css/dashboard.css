@@ -881,19 +881,31 @@
         }
 
         .chart-legend {
-            display: flex;
-            gap: var(--spacing-md);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: var(--spacing-xs) var(--spacing-md);
             margin-top: var(--spacing-sm);
-            flex-wrap: wrap;
-            justify-content: center;
+        }
+
+        .chart-legend-provider {
+            display: flex;
+            flex-direction: column;
+            gap: 2px;
+        }
+
+        .chart-legend-provider-name {
+            font-weight: bold;
+            font-size: var(--font-size-xs);
+            color: var(--color-text);
+            margin-bottom: 2px;
         }
 
         .chart-legend-item {
             display: flex;
             align-items: center;
-            gap: 8px;
+            gap: 6px;
             cursor: pointer;
-            padding: 4px 8px;
+            padding: 2px 4px;
             border-radius: 4px;
             transition: background 0.2s;
         }
@@ -907,15 +919,19 @@
         }
 
         .chart-legend-color {
-            width: 20px;
+            width: 16px;
             height: 3px;
             border-radius: 2px;
+            flex-shrink: 0;
         }
 
         .chart-legend-label {
-            font-size: 12px;
+            font-size: var(--font-size-xs);
             color: var(--color-text);
             font-family: var(--font-mono);
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .chart-tooltip {

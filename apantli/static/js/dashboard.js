@@ -1107,8 +1107,9 @@
 
             let legend = '';
             Object.entries(modelsByProvider).forEach(([provider, models]) => {
-                // Add provider header
-                legend += `<div style="width: 100%; font-weight: bold; margin-top: 8px; color: var(--color-text);">${provider}</div>`;
+                // Create provider section as a grid item
+                legend += `<div class="chart-legend-provider">`;
+                legend += `<div class="chart-legend-provider-name">${provider}</div>`;
 
                 // Add models for this provider
                 models.forEach(m => {
@@ -1120,6 +1121,7 @@
                         </div>
                     `;
                 });
+                legend += `</div>`;
             });
 
             container.innerHTML = svg + `<div class="chart-legend">${legend}</div>`;
