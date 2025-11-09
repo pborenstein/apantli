@@ -857,16 +857,15 @@
         /* Provider trends chart styles */
         #provider-trends-chart {
             margin: 0;
-            padding: var(--spacing-sm);
-            background: var(--color-background);
-            border: 1px solid var(--color-border);
-            border-radius: 4px;
+            padding: 0;
+            border: 3px solid red; /* DEBUG */
         }
 
         .chart-svg {
             width: 100%;
-            height: 300px;
+            height: 260px;
             overflow: visible;
+            border: 3px solid blue; /* DEBUG */
         }
 
         .chart-line {
@@ -907,13 +906,17 @@
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
             gap: 2px var(--spacing-sm);
-            margin-top: var(--spacing-xs);
+            margin-top: -35px;
+            padding-left: 60px;
+            padding-right: 80px;
+            border: 3px solid green; /* DEBUG */
         }
 
         .chart-legend-provider {
             display: flex;
             flex-direction: column;
             gap: 1px;
+            border: 1px solid orange;
         }
 
         .chart-legend-provider-name {
