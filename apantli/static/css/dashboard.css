@@ -909,13 +909,20 @@
             margin-top: -35px;
             padding-left: 60px;
             padding-right: 80px;
-            border: 3px solid green; /* DEBUG */
         }
 
         .chart-legend-provider {
             display: flex;
             flex-direction: column;
             gap: 1px;
+        }
+
+        /* Debug borders - add 'debug-charts' class to body to enable */
+        .debug-charts .chart-legend {
+            border: 3px solid green;
+        }
+
+        .debug-charts .chart-legend-provider {
             border: 1px solid orange;
         }
 
