@@ -1129,13 +1129,24 @@
 
         function showChartTooltip(event, date, provider, cost) {
             const tooltip = document.getElementById('chart-tooltip');
-            tooltip.innerHTML = `
-                <div class="chart-tooltip-date">${date}</div>
-                <div class="chart-tooltip-item">
-                    <span>${provider}:</span>
-                    <span>$${cost.toFixed(4)}</span>
-                </div>
-            `;
+            if (cost === null) {
+                // Badge tooltip (date is title, provider is description)
+                tooltip.innerHTML = `
+                    <div class="chart-tooltip-date">${date}</div>
+                    <div class="chart-tooltip-item">
+                        <span>${provider}</span>
+                    </div>
+                `;
+            } else {
+                // Chart tooltip (standard format)
+                tooltip.innerHTML = `
+                    <div class="chart-tooltip-date">${date}</div>
+                    <div class="chart-tooltip-item">
+                        <span>${provider}:</span>
+                        <span>$${cost.toFixed(4)}</span>
+                    </div>
+                `;
+            }
             tooltip.style.display = 'block';
             tooltip.style.left = (event.pageX + 10) + 'px';
             tooltip.style.top = (event.pageY - 30) + 'px';
@@ -1348,9 +1359,9 @@
                 <tbody>
                     ${data.map(row => {
                         const badges = [];
-                        if (row[0] === mostEconomical) badges.push('<span class="badge badge-economical" title="Most Economical - Lowest cost per request">$</span>');
-                        if (row[0] === mostTokenRich) badges.push('<span class="badge badge-tokens" title="Most Token-Rich - Highest tokens per request">▰</span>');
-                        if (row[0] === fastest) badges.push('<span class="badge badge-speed" title="Fastest - Highest tokens per second">⚡︎</span>');
+                        if (row[0] === mostEconomical) badges.push('<span class="badge badge-economical" onmouseover="showChartTooltip(event, \'Most Economical\', \'Lowest cost per request\', null)" onmouseout="hideChartTooltip()">$</span>');
+                        if (row[0] === mostTokenRich) badges.push('<span class="badge badge-tokens" onmouseover="showChartTooltip(event, \'Most Token-Rich\', \'Highest tokens per request\', null)" onmouseout="hideChartTooltip()">▰</span>');
+                        if (row[0] === fastest) badges.push('<span class="badge badge-speed" onmouseover="showChartTooltip(event, \'Fastest\', \'Highest tokens per second\', null)" onmouseout="hideChartTooltip()">⚡︎</span>');
 
                         return `
                         <tr class="clickable-row" onclick="filterRequests({ model: '${escapeHtml(row[0])}', provider: '', search: '', minCost: '', maxCost: '' })">
