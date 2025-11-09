@@ -964,13 +964,17 @@
             for (let hour = 0; hour < 24; hour++) {
                 const x = hour * barWidth;
                 let yOffset = chartHeight;
+                const hourLabel = formatHour(hour);
 
                 sortedModels.forEach(modelInfo => {
                     const cost = modelInfo.costs[hour];
                     if (cost > 0) {
                         const barHeight = chartHeight - yScale(cost);
                         yOffset -= barHeight;
-                        svg += `<rect class="chart-bar" x="${x + 2}" y="${yOffset}" width="${barWidth - 4}" height="${barHeight}" fill="${modelInfo.color}" />`;
+                        const modelLabel = escapeHtml(modelInfo.model);
+                        svg += `<rect class="chart-bar" x="${x + 2}" y="${yOffset}" width="${barWidth - 4}" height="${barHeight}" fill="${modelInfo.color}"
+                                     onmouseover="showChartTooltip(event, '${hourLabel}', '${modelLabel}', ${cost})"
+                                     onmouseout="hideChartTooltip()" />`;
                     }
                 });
             }
@@ -1071,6 +1075,7 @@
             dates.forEach((date, dateIndex) => {
                 const x = dateIndex * barWidth;
                 let yOffset = chartHeight;
+                const dateLabel = formatDate(date);
 
                 // Stack bars from each model for this date
                 modelData.forEach(modelInfo => {
@@ -1078,7 +1083,10 @@
                     if (dataPoint && dataPoint.cost > 0) {
                         const barHeight = chartHeight - yScale(dataPoint.cost);
                         yOffset -= barHeight;
-                        svg += `<rect class="chart-bar" x="${x + 2}" y="${yOffset}" width="${barWidth - 4}" height="${barHeight}" fill="${modelInfo.color}" />`;
+                        const modelLabel = escapeHtml(modelInfo.model);
+                        svg += `<rect class="chart-bar" x="${x + 2}" y="${yOffset}" width="${barWidth - 4}" height="${barHeight}" fill="${modelInfo.color}"
+                                     onmouseover="showChartTooltip(event, '${dateLabel}', '${modelLabel}', ${dataPoint.cost})"
+                                     onmouseout="hideChartTooltip()" />`;
                     }
                 });
             });
