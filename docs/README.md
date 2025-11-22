@@ -14,6 +14,7 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 | [ERROR_HANDLING.md](ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
 | [LLM_CLI_INTEGRATION.md](LLM_CLI_INTEGRATION.md) | How llm CLI integration works - config files, transformation, and data flow | Developers |
 | [MODEL_NAMING.md](MODEL_NAMING.md) | Why model names are confusing (client aliases vs provider identifiers) | Users & Developers |
+| [OPERATIONS.md](OPERATIONS.md) | Regular maintenance, dependency updates, backups, and production operations | DevOps & Production users |
 | [TESTING.md](TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [TROUBLESHOOTING.md](TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |
 | [../launchd/README.md](../launchd/README.md) | macOS launchd service setup, management, and troubleshooting | macOS Users & DevOps |
@@ -34,6 +35,8 @@ Comprehensive documentation for Apantli, a lightweight LLM proxy with SQLite cos
 **llm CLI Integration**: See [LLM_CLI_INTEGRATION.md](LLM_CLI_INTEGRATION.md) for how config.yaml, generate_llm_config.py, and extra-openai-models.yaml work together.
 
 **Database**: See [DATABASE.md](DATABASE.md) for schema details, maintenance procedures, and custom queries.
+
+**Operations**: See [OPERATIONS.md](OPERATIONS.md) for regular maintenance tasks, dependency updates, backups, and production operations.
 
 **Error Handling**: See [ERROR_HANDLING.md](ERROR_HANDLING.md) for timeout/retry configuration, error response format, and design decisions.
 
