@@ -31,7 +31,7 @@ update-pricing:
 # Update all dependencies
 update-deps:
 	@echo "Updating all dependencies..."
-	@uv sync --upgrade
+	@uv sync --upgrade --extra dev
 	@echo "✓ Dependencies updated. Run 'make all' to verify."
 
 # Clean Python cache files
