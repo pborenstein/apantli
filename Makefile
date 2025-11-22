@@ -6,21 +6,26 @@ all: typecheck test
 # Run type checking with mypy
 typecheck:
 	@echo "Running type checks..."
-	@mypy apantli/
+	@uv run mypy apantli/
 
 # Run unit tests
 test:
 	@echo "Running unit tests..."
-	@python run_unit_tests.py
+	@uv run python run_unit_tests.py
 
 # Update LiteLLM pricing data
 update-pricing:
 	@echo "Updating LiteLLM package for latest pricing data..."
 	@uv sync --upgrade-package litellm
 	@echo ""
-	@echo "Recalculating costs for historical requests..."
-	@python utils/recalculate_costs.py
-	@echo ""
+	@if [ -f requests.db ]; then \
+		echo "Recalculating costs for historical requests..."; \
+		uv run python utils/recalculate_costs.py; \
+		echo ""; \
+	else \
+		echo "No database found - skipping cost recalculation."; \
+		echo ""; \
+	fi
 	@echo "✓ Pricing update complete. Restart apantli to use new pricing."
 
 # Update all dependencies
