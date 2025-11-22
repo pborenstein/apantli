@@ -318,6 +318,40 @@ python3 utils/recalculate_costs.py
 
 See [utils/README.md](utils/README.md) for detailed usage.
 
+## Maintenance
+
+**Update model pricing data** (monthly or when providers change pricing):
+
+```bash
+# Update LiteLLM pricing database and recalculate historical costs
+make update-pricing
+
+# Then restart the server
+apantli
+```
+
+**Update all dependencies**:
+
+```bash
+# Update all packages
+make update-deps
+
+# Verify with tests
+make all
+```
+
+**Other maintenance tasks**:
+
+```bash
+# Run type checking and tests
+make all
+
+# Clean build artifacts
+make clean
+```
+
+For complete maintenance procedures including backups, monitoring, and troubleshooting, see [docs/OPERATIONS.md](docs/OPERATIONS.md).
+
 ## Compatibility
 
 Works with any OpenAI-compatible client. Point at `http://localhost:4000/v1` and use model names from `config.yaml`.
@@ -344,6 +378,7 @@ For detailed documentation on specific topics:
 | [docs/DASHBOARD.md](docs/DASHBOARD.md) | Dashboard features, tabs, filtering, and browser navigation | Users |
 | [docs/DATABASE.md](docs/DATABASE.md) | SQLite schema, maintenance, queries, and troubleshooting | Developers & DevOps |
 | [docs/ERROR_HANDLING.md](docs/ERROR_HANDLING.md) | Error handling design, timeout/retry strategy, and implementation | Developers |
+| [docs/OPERATIONS.md](docs/OPERATIONS.md) | Regular maintenance, dependency updates, backups, and production operations | DevOps & Production users |
 | [docs/PLAYGROUND.md](docs/PLAYGROUND.md) | Interactive model comparison interface architecture and usage | Users & Developers |
 | [docs/TESTING.md](docs/TESTING.md) | Test suite, manual testing procedures, and validation | Developers & QA |
 | [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common issues and solutions | Users & Developers |

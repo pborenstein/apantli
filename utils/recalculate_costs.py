@@ -37,7 +37,7 @@ def infer_provider_from_model(model_name: str) -> str:
     elif model_lower.startswith('claude') or 'claude' in model_lower:
         return 'anthropic'
     elif model_lower.startswith(('gemini', 'palm')):
-        return 'google'
+        return 'gemini'  # LiteLLM uses 'gemini' not 'google'
     elif model_lower.startswith('mistral'):
         return 'mistral'
     elif model_lower.startswith('llama'):
@@ -119,7 +119,11 @@ def recalculate_costs(dry_run=False):
                     print(f"  Updated request {request_id} ({original_model} → {normalized_model}): ${cost:.6f}")
                 updated += 1
             else:
-                print(f"  ⚠️  Request {request_id} ({original_model} → {normalized_model}): cost still $0.00 (pricing unknown)")
+                # Check if model has pricing data in LiteLLM
+                has_pricing = normalized_model in litellm.model_cost
+                usage = response_data.get('usage', {})
+                print(f"  ⚠️  Request {request_id} ({original_model} → {normalized_model}): cost still $0.00")
+                print(f"      Pricing exists: {has_pricing}, Tokens: {usage.get('prompt_tokens', 0)}/{usage.get('completion_tokens', 0)}")
                 failed += 1
 
         except Exception as e:
