@@ -18,7 +18,7 @@ def infer_provider_from_model(model_name: str) -> str:
   elif model_lower.startswith('claude') or 'claude' in model_lower:
     return 'anthropic'
   elif model_lower.startswith(('gemini', 'palm')):
-    return 'google'
+    return 'gemini'  # LiteLLM uses 'gemini' not 'google'
   elif model_lower.startswith('mistral'):
     return 'mistral'
   elif model_lower.startswith('llama'):
