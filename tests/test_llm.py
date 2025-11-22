@@ -27,10 +27,10 @@ def test_infer_provider_anthropic():
 
 
 def test_infer_provider_google():
-  """Test Google model patterns."""
-  assert infer_provider_from_model("gemini-pro") == "google"
-  assert infer_provider_from_model("gemini-1.5-flash") == "google"
-  assert infer_provider_from_model("palm-2") == "google"
+  """Test Google/Gemini model patterns."""
+  assert infer_provider_from_model("gemini-pro") == "gemini"
+  assert infer_provider_from_model("gemini-1.5-flash") == "gemini"
+  assert infer_provider_from_model("palm-2") == "gemini"
 
 
 def test_infer_provider_mistral():
@@ -50,7 +50,7 @@ def test_infer_provider_with_prefix():
   """Test explicit provider prefix extraction."""
   assert infer_provider_from_model("openai/gpt-4") == "openai"
   assert infer_provider_from_model("anthropic/claude-3-opus") == "anthropic"
-  assert infer_provider_from_model("google/gemini-pro") == "google"
+  assert infer_provider_from_model("gemini/gemini-pro") == "gemini"
   assert infer_provider_from_model("custom/my-model") == "custom"
 
 

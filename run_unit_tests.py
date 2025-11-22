@@ -44,7 +44,7 @@ test_cases = [
     ("o1-preview", "openai"),
     ("claude-3-opus", "anthropic"),
     ("claude-sonnet-4", "anthropic"),
-    ("gemini-pro", "google"),
+    ("gemini-pro", "gemini"),
     ("mistral-medium", "mistral"),
     ("llama-2-70b", "meta"),
     ("openai/gpt-4", "openai"),
