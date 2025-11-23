@@ -199,7 +199,7 @@ ALTER TABLE requests ADD COLUMN client_identifier TEXT;  -- 'copilot', 'llm-cli'
    │ API Key:      [sk-proj-••••••••••••]    │
    │ Project:      [Default ▾]               │
    │                                         │
-   │ [Test Connection]  [Cancel]  [Save]    │
+   │ [Test Connection]  [Cancel]  [Save]     │
    └─────────────────────────────────────────┘
    ```
 
@@ -673,38 +673,38 @@ async def test_external_accessibility(port: int = 4000) -> dict:
 ├──────────────────────────────────────────────────────┤
 │                                                      │
 │ Tailscale Status                                     │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    │
 │                                                      │
 │ Status: Active                                       │
-│ Mesh IP: 100.101.102.103                            │
-│ Interface: tailscale0                               │
-│ Tailnet: user@example.com                           │
+│ Mesh IP: 100.101.102.103                             │
+│ Interface: tailscale0                                │
+│ Tailnet: user@example.com                            │
 │                                                      │
-│ Accessible from tailnet devices at:                 │
-│   http://100.101.102.103:4000/                      │
+│ Accessible from tailnet devices at:                  │
+│   http://100.101.102.103:4000/                       │
 │                                                      │
 │ Active mesh connections: 2                           │
-│   • 100.101.102.104 (laptop, 15 requests today)     │
-│   • 100.101.102.105 (phone, 3 requests today)       │
+│   • 100.101.102.104 (laptop, 15 requests today)      │
+│   • 100.101.102.105 (phone, 3 requests today)        │
 │                                                      │
 ├──────────────────────────────────────────────────────┤
 │ Other Network Interfaces                             │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    │
 │                                                      │
-│ LAN (not recommended for access):                   │
-│   • en0: 192.168.1.100 (WiFi)                       │
-│   • en1: 10.0.0.5 (Ethernet)                        │
+│ LAN (not recommended for access):                    │
+│   • en0: 192.168.1.100 (WiFi)                        │
+│   • en1: 10.0.0.5 (Ethernet)                         │
 │                                                      │
-│ Note: Use Tailscale mesh IPs for secure access      │
+│ Note: Use Tailscale mesh IPs for secure access       │
 │                                                      │
 ├──────────────────────────────────────────────────────┤
 │ Configuration                                        │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    │
 │                                                      │
 │ Server binding: 0.0.0.0:4000                         │
 │ Access mode: Tailscale + LAN                         │
 │                                                      │
-│ [Switch to Localhost Only]                          │
+│ [Switch to Localhost Only]                           │
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
@@ -1219,42 +1219,42 @@ alias '??'='ai_explain'
 ├──────────────────────────────────────────────────────┤
 │                                                      │
 │ Today's Activity by Tool                             │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    │
 │                                                      │
-│ cursor         ████████████░░░░  145 requests $4.23 │
-│ llm-cli        █████░░░░░░░░░░░   23 requests $0.45 │
-│ obsidian       ████░░░░░░░░░░░░   18 requests $0.38 │
-│ drafts         ██░░░░░░░░░░░░░░    8 requests $0.12 │
-│ iterm-ai       █░░░░░░░░░░░░░░░    3 requests $0.05 │
+│ cursor         ████████████░░░░  145 requests $4.23  │
+│ llm-cli        █████░░░░░░░░░░░   23 requests $0.45  │
+│ obsidian       ████░░░░░░░░░░░░   18 requests $0.38. │
+│ drafts         ██░░░░░░░░░░░░░░    8 requests $0.12  │
+│ iterm-ai       █░░░░░░░░░░░░░░░    3 requests $0.05  │
 │                                                      │
 ├──────────────────────────────────────────────────────┤
 │ Project Breakdown                                    │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    │
 │                                                      │
 │ Project: work                                        │
-│   cursor       89 requests  $2.11                   │
-│   obsidian     18 requests  $0.38                   │
-│   llm-cli       5 requests  $0.09                   │
-│   Total:      112 requests  $2.58                   │
+│   cursor       89 requests  $2.11                    │
+│   obsidian     18 requests  $0.38                    │
+│   llm-cli       5 requests  $0.09                    │
+│   Total:      112 requests  $2.58                    │
 │                                                      │
 │ Project: personal                                    │
-│   cursor       56 requests  $2.12                   │
-│   llm-cli      18 requests  $0.36                   │
-│   drafts        8 requests  $0.12                   │
-│   Total:       82 requests  $2.60                   │
+│   cursor       56 requests  $2.12                    │
+│   llm-cli      18 requests  $0.36                    │
+│   drafts        8 requests  $0.12                    │
+│   Total:       82 requests  $2.60                    │
 │                                                      │
 ├──────────────────────────────────────────────────────┤
 │ Workflow Insights                                    │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━   │
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━    │
 │                                                      │
-│ Most Active Tool: cursor (145 requests)             │
-│ Most Expensive Tool: cursor ($4.23)                 │
-│ Peak Usage Hour: 2-3 PM (45 requests)               │
-│ Average Cost per Request: $0.026                    │
+│ Most Active Tool: cursor (145 requests)              │
+│ Most Expensive Tool: cursor ($4.23)                  │
+│ Peak Usage Hour: 2-3 PM (45 requests)                │
+│ Average Cost per Request: $0.026                     │
 │                                                      │
-│ Tool Switching Patterns:                            │
-│   cursor → llm-cli: 12 times today                  │
-│   (You tend to use llm-cli after cursor sessions)   │
+│ Tool Switching Patterns:                             │
+│   cursor → llm-cli: 12 times today                   │
+│   (You tend to use llm-cli after cursor sessions)    │
 │                                                      │
 └──────────────────────────────────────────────────────┘
 ```
