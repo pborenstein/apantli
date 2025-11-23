@@ -19,7 +19,7 @@ I've completed a comprehensive analysis of Apantli with a focus on local-first c
 - Implementation roadmap (8-12 week timeline)
 
 **Key Insights**:
-- Being local-only is a **superpower**, not a limitation
+- Local architecture provides capabilities unavailable in cloud services
 - Apantli can do things cloud proxies physically cannot do
 - Focus on privacy, cost, and extensibility as differentiators
 
@@ -64,7 +64,7 @@ Prevent users from accidentally exposing their LLM proxy to:
 # Add to server startup
 exposure = detect_exposure(host, port)
 if exposure.level == 'internet':
-    print("🔴 CRITICAL: Server exposed to internet!")
+    print("CRITICAL: CRITICAL: Server exposed to internet!")
     confirm = input("Type 'yes' to continue anyway: ")
     if confirm != 'yes':
         sys.exit(1)
@@ -180,11 +180,11 @@ else:
 **Proposed**: SQLite with encryption
 
 **Rationale**:
-- ✅ UI management (no file editing)
-- ✅ Project-specific keys
-- ✅ Usage tracking per key
-- ✅ Encrypted at rest
-- ✅ Migration path (backward compatible)
+- UI management (no file editing)
+- Project-specific keys
+- Usage tracking per key
+- Encrypted at rest
+- Migration path (backward compatible)
 
 **Migration**: Phase 1 reads both, Phase 2 migrates, Phase 3 database-only
 
@@ -194,10 +194,10 @@ else:
 **Proposed**: 3-level hierarchy (org → project → request)
 
 **Rationale**:
-- ✅ Cost attribution (bill clients)
-- ✅ Budget tracking (per-project limits)
-- ✅ Analytics (which project costs most?)
-- ✅ Separation (work vs personal)
+- Cost attribution (bill clients)
+- Budget tracking (per-project limits)
+- Analytics (which project costs most?)
+- Separation (work vs personal)
 
 **Auto-Detection**: Git repo, workspace path, file location, tags
 
@@ -207,27 +207,27 @@ else:
 **Proposed**: Real-time exposure detection + alerts
 
 **Rationale**:
-- ✅ Prevent silent exposures
-- ✅ Alert on new connections
-- ✅ Visual security status
-- ✅ Proactive protection
+- Prevent silent exposures
+- Alert on new connections
+- Visual security status
+- Proactive protection
 
 **Layers**: Network interfaces, firewall, active connections, public IP
 
-## What Makes This Special
+## Local Architecture Benefits
 
-### Local-Only Superpowers
+### Capabilities Unavailable in Cloud Proxies
 
-Apantli can do things cloud proxies **cannot**:
+Apantli's local deployment provides capabilities that cloud services cannot match:
 
-1. **Full Request Logging**: Store complete JSON (including API keys) forever
-2. **Unlimited History**: No storage fees, no retention limits
-3. **Zero Latency**: <1ms proxy overhead (vs 100-400ms for cloud)
-4. **No Markup**: Direct provider cost (cloud adds 10-30%)
-5. **Custom Logic**: Middleware, caching, routing—anything you want
-6. **File Integration**: Direct access to local files/databases
-7. **Privacy**: Conversations never leave your machine
-8. **Extensibility**: Add any feature (not limited by cloud platform)
+1. **Full Request Logging**: Complete JSON storage including API keys
+2. **Unlimited History**: No storage fees or retention limits
+3. **Low Latency**: <1ms proxy overhead vs 100-400ms for cloud services
+4. **No Markup**: Direct provider pricing without subscription fees
+5. **Custom Logic**: Programmable middleware, caching, and routing
+6. **File Integration**: Direct filesystem and database access
+7. **Privacy**: Data stored on user-controlled hardware
+8. **Extensibility**: No vendor platform limitations
 
 ### Impossible in Cloud Proxies
 
@@ -247,35 +247,35 @@ Apantli can do things cloud proxies **cannot**:
 
 ## Implementation Timeline
 
-### Phase 1: Security (1-2 weeks)
-- ✅ Startup security check
-- ✅ Network exposure detection
-- ✅ Security dashboard tab
-- ✅ Real-time connection monitoring
+### Phase 1: Network Awareness (1-2 weeks)
+- Tailscale interface detection
+- Network classification at startup
+- Network status dashboard tab
+- Connection monitoring by interface type
 
-**Deliverable**: Users can't accidentally expose server
+**Deliverable**: Clear network status visibility with Tailscale detection
 
 ### Phase 2: API Keys (2-3 weeks)
-- ✅ Database schema + encryption
-- ✅ Key management UI
-- ✅ Migration tool
-- ✅ Project-specific keys
+- Database schema + encryption
+- Key management UI
+- Migration tool
+- Project-specific keys
 
 **Deliverable**: Visual key management with encryption
 
 ### Phase 3: Projects (2-3 weeks)
-- ✅ Project database schema
-- ✅ Auto-detection logic
-- ✅ Project dashboard
-- ✅ Budget tracking
+- Project database schema
+- Auto-detection logic
+- Project dashboard
+- Budget tracking
 
 **Deliverable**: Cost attribution + budgets
 
 ### Phase 4: Integration (2-3 weeks)
-- ✅ Header protocol
-- ✅ Integration guides (5+ tools)
-- ✅ Auto-config generation
-- ✅ Cross-tool analytics
+- Header protocol
+- Integration guides (5+ tools)
+- Auto-config generation
+- Cross-tool analytics
 
 **Deliverable**: Unified tool tracking
 
@@ -361,9 +361,7 @@ Apantli is uniquely positioned as a **local-first LLM proxy** with capabilities 
 **API Key Management**: Transform from file-based to UI-managed with project organization
 **Security Monitoring**: Proactive detection prevents accidental exposure
 **Multi-Tool Integration**: Unified tracking across all LLM interactions
-**Local Superpowers**: Privacy, cost, extensibility, unlimited storage
+**Local Architecture**: Privacy, cost control, extensibility, unlimited storage
 
-**The core insight**: Being local-only is not a limitation—it's a superpower.
-
-Build features that cloud proxies can never offer, and you'll have a truly differentiated product.
+Local architecture enables functionality that cloud proxies cannot replicate due to multi-tenant constraints. Combined with Tailscale deployment, Apantli provides secure multi-device access while maintaining complete data control.
 
