@@ -127,6 +127,36 @@
             });
         }
 
+        // Copy JSON request/response to clipboard
+        function copyJsonToClipboard(requestId, type, button) {
+            const requestObj = requestsObjects.find(r => r.timestamp === requestId);
+            if (!requestObj) return;
+
+            let textToCopy = '';
+
+            try {
+                if (type === 'request' || type === 'both') {
+                    const req = JSON.parse(requestObj.request_data);
+                    const requestJson = JSON.stringify(req, null, 2);
+                    textToCopy += type === 'both' ? 'Request:\n' + requestJson : requestJson;
+                }
+
+                if (type === 'both') {
+                    textToCopy += '\n\n';
+                }
+
+                if (type === 'response' || type === 'both') {
+                    const resp = JSON.parse(requestObj.response_data);
+                    const responseJson = JSON.stringify(resp, null, 2);
+                    textToCopy += type === 'both' ? 'Response:\n' + responseJson : responseJson;
+                }
+
+                copyToClipboard(textToCopy, button);
+            } catch (e) {
+                console.error('Failed to parse JSON:', e);
+            }
+        }
+
         // Render conversation view
         function renderConversationView(requestObj) {
             const messages = extractConversation(requestObj);
@@ -178,31 +208,22 @@
                 // JSON view
                 let requestHtml = '<span class="error">Error parsing request</span>';
                 let responseHtml = '<span class="error">Error parsing response</span>';
-                let requestJson = '';
-                let responseJson = '';
 
                 try {
                     const req = JSON.parse(requestObj.request_data);
-                    requestJson = JSON.stringify(req, null, 2);
                     requestHtml = renderJsonTree(req);
                 } catch(e) {}
 
                 try {
                     const resp = JSON.parse(requestObj.response_data);
-                    responseJson = JSON.stringify(resp, null, 2);
                     responseHtml = renderJsonTree(resp);
                 } catch(e) {}
 
-                // Escape JSON for onclick handler
-                const escapedRequest = requestJson.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-                const escapedResponse = responseJson.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-                const escapedBoth = `Request:\n${requestJson}\n\nResponse:\n${responseJson}`.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-
                 contentDiv.innerHTML = `
                     <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <button class="copy-btn" onclick="copyToClipboard(\`${escapedRequest}\`, this)">Copy Request</button>
-                        <button class="copy-btn" onclick="copyToClipboard(\`${escapedResponse}\`, this)">Copy Response</button>
-                        <button class="copy-btn" onclick="copyToClipboard(\`${escapedBoth}\`, this)">Copy Both</button>
+                        <button class="copy-btn" onclick="copyJsonToClipboard('${requestId}', 'request', this)">Copy Request</button>
+                        <button class="copy-btn" onclick="copyJsonToClipboard('${requestId}', 'response', this)">Copy Response</button>
+                        <button class="copy-btn" onclick="copyJsonToClipboard('${requestId}', 'both', this)">Copy Both</button>
                     </div>
                     <b>Request:</b>
                     <div class="json-view json-tree">${requestHtml}</div>
@@ -672,31 +693,22 @@
                 } else {
                     let requestHtml = '<span class="error">Error parsing request</span>';
                     let responseHtml = '<span class="error">Error parsing response</span>';
-                    let requestJson = '';
-                    let responseJson = '';
 
                     try {
                         const req = JSON.parse(requestObj.request_data);
-                        requestJson = JSON.stringify(req, null, 2);
                         requestHtml = renderJsonTree(req);
                     } catch(e) {}
 
                     try {
                         const resp = JSON.parse(requestObj.response_data);
-                        responseJson = JSON.stringify(resp, null, 2);
                         responseHtml = renderJsonTree(resp);
                     } catch(e) {}
 
-                    // Escape JSON for onclick handler
-                    const escapedRequest = requestJson.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-                    const escapedResponse = responseJson.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-                    const escapedBoth = `Request:\n${requestJson}\n\nResponse:\n${responseJson}`.replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$/g, '\\$');
-
                     contentHtml = `
                         <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                            <button class="copy-btn" onclick="copyToClipboard(\`${escapedRequest}\`, this)">Copy Request</button>
-                            <button class="copy-btn" onclick="copyToClipboard(\`${escapedResponse}\`, this)">Copy Response</button>
-                            <button class="copy-btn" onclick="copyToClipboard(\`${escapedBoth}\`, this)">Copy Both</button>
+                            <button class="copy-btn" onclick="copyJsonToClipboard('${requestId}', 'request', this)">Copy Request</button>
+                            <button class="copy-btn" onclick="copyJsonToClipboard('${requestId}', 'response', this)">Copy Response</button>
+                            <button class="copy-btn" onclick="copyJsonToClipboard('${requestId}', 'both', this)">Copy Both</button>
                         </div>
                         <b>Request:</b>
                         <div class="json-view json-tree">${requestHtml}</div>
