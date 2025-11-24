@@ -6,6 +6,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 
+## [0.3.6] - 2025-11-24
+
+### Added
+- Copy buttons for JSON request/response in dashboard Raw JSON view
+- Three copy options: Copy Request, Copy Response, Copy Both
+- Clean function-based implementation without inline JSON strings
+
+### Changed
+- Improved cache busting for dashboard JavaScript
+
 ## [0.3.4] - 2025-11-08
 
 ### Added
@@ -155,6 +165,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Major Features |
 |:--------|:-----|:---------------|
+| 0.3.6 | 2025-11-24 | Copy buttons for JSON request/response |
 | 0.3.4 | 2025-11-08 | Documentation update plan |
 | 0.3.3 | 2025-11-08 | UI/UX design review |
 | 0.3.2 | 2025-11-07 | Code analysis & recommendations |
@@ -194,7 +205,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/pborenstein/apantli/compare/v0.3.4...HEAD
+[0.3.6]: https://github.com/pborenstein/apantli/releases/tag/v0.3.6
 [0.3.4]: https://github.com/pborenstein/apantli/releases/tag/v0.3.4
 [0.3.3]: https://github.com/pborenstein/apantli/releases/tag/v0.3.3
 [0.3.2]: https://github.com/pborenstein/apantli/releases/tag/v0.3.2
