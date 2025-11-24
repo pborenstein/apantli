@@ -1,6 +1,6 @@
 [project]
 name = "apantli"
-version = "0.3.6"
+version = "0.3.7"
 description = "Lightweight local LLM proxy with SQLite cost tracking & interactive model comparison. Unified OpenAI-compatible API for multiple providers."
 readme = "README.md"
 license = {text = "Apache-2.0"}
