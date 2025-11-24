@@ -205,7 +205,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/pborenstein/apantli/compare/v0.3.6...HEAD
 [0.3.6]: https://github.com/pborenstein/apantli/releases/tag/v0.3.6
 [0.3.4]: https://github.com/pborenstein/apantli/releases/tag/v0.3.4
 [0.3.3]: https://github.com/pborenstein/apantli/releases/tag/v0.3.3
