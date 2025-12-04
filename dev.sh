@@ -68,5 +68,5 @@ if [ -z "$VIRTUAL_ENV" ]; then
     fi
 else
     # Already in venv
-    python3 -m apantli.server --reload
+    caffeinate -dimsu -- python3 -m apantli.server --reload
 fi
