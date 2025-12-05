@@ -1642,103 +1642,112 @@
 
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
-            const startingDayOfWeek = firstDay.getDay();
             const daysInMonth = lastDay.getDate();
 
-            const monthData = [];
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = formatDate(new Date(year, month, day));
-                const dayData = calendarData[date];
-                if (dayData) monthData.push(dayData);
-            }
+            // Group days into weeks
+            const weeks = [];
+            let currentWeek = null;
 
-            const maxCost = Math.max(...monthData.map(d => d.cost), 0.01);
-            const maxRequests = Math.max(...monthData.map(d => d.requests), 1);
-            const today = formatDate(new Date());
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                const dateStr = formatDate(date);
+                const dayOfWeek = date.getDay();
+
+                if (dayOfWeek === 0 || day === 1) {
+                    if (currentWeek) weeks.push(currentWeek);
+                    const weekStart = getWeekStart(dateStr);
+                    currentWeek = {
+                        number: getWeekNumber(weekStart),
+                        startDate: weekStart,
+                        days: []
+                    };
+                }
+
+                currentWeek.days.push({
+                    date: dateStr,
+                    dayNum: day,
+                    data: calendarData[dateStr] || { requests: 0, cost: 0 }
+                });
+            }
+            if (currentWeek) weeks.push(currentWeek);
+
+            // Calculate max for scaling
+            const allDays = weeks.flatMap(w => w.days);
+            const maxCost = Math.max(...allDays.map(d => d.data.cost), 0.01);
 
             let html = `
                 <div class="calendar-month">
                   <h3 class="month-header">${monthNames[month]} ${year}</h3>
-                  <div class="calendar-grid-wrapper">
-                    <div class="week-numbers">
+                  <div class="calendar-weeks">
             `;
 
-            const weeks = [];
-            let currentWeekStart = null;
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = new Date(year, month, day);
-                if (date.getDay() === 0 || day === 1) {
-                    const weekStart = getWeekStart(formatDate(date));
-                    if (weekStart !== currentWeekStart) {
-                        currentWeekStart = weekStart;
-                        weeks.push({ number: getWeekNumber(weekStart), startDate: weekStart });
-                    }
-                }
-            }
-
             weeks.forEach(week => {
-                html += `<div class="week-number" data-week-start="${week.startDate}" data-week-num="${week.number}">${week.number}</div>`;
-            });
-
-            html += `</div><div class="calendar-grid">`;
-
-            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
-                html += `<div class="calendar-day-header">${day}</div>`;
-            });
-
-            for (let i = 0; i < startingDayOfWeek; i++) {
-                html += '<div class="calendar-day empty"></div>';
-            }
-
-            for (let day = 1; day <= daysInMonth; day++) {
-                const date = formatDate(new Date(year, month, day));
-                const dayData = calendarData[date] || { requests: 0, cost: 0 };
-                const isToday = date === today ? 'today' : '';
-                const weekClass = `week-${getWeekNumber(date)}`;
-
-                const costHeight = dayData.cost > 0 ? (dayData.cost / maxCost * 100) : 0;
-                const requestsHeight = dayData.requests > 0 ? (dayData.requests / maxRequests * 100) : 0;
+                const weekEnd = getWeekEnd(week.startDate);
+                const weekTotalCost = week.days.reduce((sum, d) => sum + d.data.cost, 0);
+                const weekTotalRequests = week.days.reduce((sum, d) => sum + d.data.requests, 0);
 
                 html += `
-                    <div class="calendar-day ${isToday} ${weekClass}" data-date="${date}" tabindex="0">
-                        <div class="day-number">${day}</div>
-                        <div class="day-bars">
-                            <div class="bar-container">
-                                <div class="bar cost-bar" style="height: ${costHeight}%"></div>
-                                <div class="bar-label">$${dayData.cost.toFixed(2)}</div>
-                            </div>
-                            <div class="bar-container">
-                                <div class="bar requests-bar" style="height: ${requestsHeight}%"></div>
-                                <div class="bar-label">${dayData.requests}</div>
-                            </div>
+                    <div class="week-row" data-week-start="${week.startDate}">
+                        <div class="week-label"
+                             data-week-num="${week.number}"
+                             title="Week ${week.number}: Click for week stats">
+                            ${week.number}
+                        </div>
+                        <div class="week-bar-container">
+                `;
+
+                // Render continuous bar for the week
+                week.days.forEach(day => {
+                    const heightPercent = day.data.cost > 0 ? (day.data.cost / maxCost * 100) : 0;
+                    const dayName = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
+
+                    html += `
+                        <div class="day-segment"
+                             data-date="${day.date}"
+                             title="${dayName} ${day.dayNum}: $${day.data.cost.toFixed(2)} (${day.data.requests} req)">
+                            <div class="day-bar" style="height: ${heightPercent}%"></div>
+                            <div class="day-label">${day.dayNum}</div>
+                        </div>
+                    `;
+                });
+
+                html += `
+                        </div>
+                        <div class="week-total">
+                            $${weekTotalCost.toFixed(2)}<br>
+                            <span class="week-requests">${weekTotalRequests} req</span>
                         </div>
                     </div>
                 `;
-            }
+            });
 
-            html += `</div></div></div>`;
+            html += `</div></div>`;
             return html;
         }
 
         function attachCalendarListeners() {
-            document.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
+            // Day segment click handlers
+            document.querySelectorAll('.day-segment').forEach(el => {
                 const date = el.dataset.date;
                 el.addEventListener('mousedown', (e) => onCalendarDayMouseDown(date, e));
                 el.addEventListener('mouseenter', () => onCalendarDayMouseEnter(date));
                 el.addEventListener('mouseup', () => onCalendarDayMouseUp(date));
-                el.addEventListener('keydown', (e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        onCalendarDayClick(date);
-                    }
+            });
+
+            // Week row hover/click handlers
+            document.querySelectorAll('.week-row').forEach(el => {
+                const weekStart = el.dataset.weekStart;
+                el.addEventListener('mouseenter', () => {
+                    el.classList.add('week-highlighted');
+                });
+                el.addEventListener('mouseleave', () => {
+                    el.classList.remove('week-highlighted');
                 });
             });
 
-            document.querySelectorAll('.week-number').forEach(el => {
-                const weekStart = el.dataset.weekStart;
-                const weekNum = el.dataset.weekNum;
-                el.addEventListener('mouseenter', () => onWeekHover(`week-${weekNum}`, true));
-                el.addEventListener('mouseleave', () => onWeekHover(`week-${weekNum}`, false));
+            // Week label click handlers
+            document.querySelectorAll('.week-label').forEach(el => {
+                const weekStart = el.closest('.week-row').dataset.weekStart;
                 el.addEventListener('click', () => onWeekClick(weekStart));
             });
 
@@ -1774,16 +1783,6 @@
             alpineData.dateFilter.endDate = date;
             alpineData.currentTab = 'stats';
             window.location.hash = 'stats';
-        }
-
-        function onWeekHover(weekClass, isEntering) {
-            document.querySelectorAll(`.calendar-day.${weekClass}`).forEach(day => {
-                if (isEntering) {
-                    day.classList.add('week-highlighted');
-                } else {
-                    day.classList.remove('week-highlighted');
-                }
-            });
         }
 
         function onWeekClick(weekStartDate) {
@@ -1834,8 +1833,8 @@
         }
 
         function updateCalendarRangeSelection() {
-            document.querySelectorAll('.calendar-day').forEach(el => {
-                el.classList.remove('range-selecting', 'range-start', 'range-end');
+            document.querySelectorAll('.day-segment').forEach(el => {
+                el.classList.remove('range-selecting');
             });
 
             if (!rangeSelectionStart || !rangeSelectionEnd) return;
@@ -1844,14 +1843,12 @@
             const startDate = new Date(start + 'T00:00:00');
             const endDate = new Date(end + 'T00:00:00');
 
-            document.querySelectorAll('.calendar-day').forEach(el => {
+            document.querySelectorAll('.day-segment').forEach(el => {
                 const dateStr = el.dataset.date;
                 if (!dateStr) return;
                 const date = new Date(dateStr + 'T00:00:00');
                 if (date >= startDate && date <= endDate) {
                     el.classList.add('range-selecting');
-                    if (dateStr === start) el.classList.add('range-start');
-                    if (dateStr === end) el.classList.add('range-end');
                 }
             });
         }
@@ -1859,8 +1856,8 @@
         function clearCalendarRangeSelection() {
             rangeSelectionStart = null;
             rangeSelectionEnd = null;
-            document.querySelectorAll('.calendar-day').forEach(el => {
-                el.classList.remove('range-selecting', 'range-start', 'range-end');
+            document.querySelectorAll('.day-segment').forEach(el => {
+                el.classList.remove('range-selecting');
             });
         }
 
