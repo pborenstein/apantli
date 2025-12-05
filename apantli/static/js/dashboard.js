@@ -1627,19 +1627,26 @@
                 };
             }
 
-            // Calculate global max cost across all data for consistent scaling
-            const globalMaxCost = Math.max(...Object.values(calendarData).map(d => d.cost), 0.01);
+            // Calculate intensity levels based on quartiles (GitHub style)
+            const costs = Object.values(calendarData).map(d => d.cost).filter(c => c > 0);
+            costs.sort((a, b) => a - b);
+
+            const intensityLevels = {
+                q1: costs[Math.floor(costs.length * 0.25)] || 0,
+                q2: costs[Math.floor(costs.length * 0.50)] || 0,
+                q3: costs[Math.floor(costs.length * 0.75)] || 0
+            };
 
             let html = '';
             Object.values(monthsData).reverse().forEach(({ year, month }) => {
-                html += renderMonth(year, month, globalMaxCost);
+                html += renderMonth(year, month, intensityLevels);
             });
 
             container.innerHTML = html;
             attachCalendarListeners();
         }
 
-        function renderMonth(year, month, maxCost) {
+        function renderMonth(year, month, intensityLevels) {
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                               'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -1674,6 +1681,15 @@
             }
             if (currentWeek) weeks.push(currentWeek);
 
+            // Helper to get intensity level
+            function getIntensityClass(cost) {
+                if (cost === 0) return 'level-0';
+                if (cost <= intensityLevels.q1) return 'level-1';
+                if (cost <= intensityLevels.q2) return 'level-2';
+                if (cost <= intensityLevels.q3) return 'level-3';
+                return 'level-4';
+            }
+
             let html = `
                 <div class="calendar-month">
                   <h3 class="month-header">${monthNames[month]} ${year}</h3>
@@ -1692,26 +1708,18 @@
                              title="Week ${week.number}: Click for week stats">
                             ${week.number}
                         </div>
-                        <div class="week-bar-container">
+                        <div class="week-grid">
                 `;
 
-                // Render continuous bar for the week
+                // Render GitHub-style squares for the week
                 week.days.forEach(day => {
-                    // Use hybrid scaling: baseline + proportional for better visibility of small values
-                    let heightPercent = 0;
-                    if (day.data.cost > 0) {
-                        const baseline = 15; // Minimum height for any non-zero value
-                        const proportional = (day.data.cost / maxCost) * 85; // Scale remaining 85%
-                        heightPercent = baseline + proportional;
-                    }
+                    const intensityClass = getIntensityClass(day.data.cost);
                     const dayName = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
 
                     html += `
-                        <div class="day-segment"
+                        <div class="day-square ${intensityClass}"
                              data-date="${day.date}"
                              title="${dayName} ${day.dayNum}: $${day.data.cost.toFixed(4)} (${day.data.requests} req)">
-                            <div class="day-bar" style="height: ${heightPercent}%"></div>
-                            <div class="day-label">${day.dayNum}</div>
                         </div>
                     `;
                 });
@@ -1731,8 +1739,8 @@
         }
 
         function attachCalendarListeners() {
-            // Day segment click handlers
-            document.querySelectorAll('.day-segment').forEach(el => {
+            // Day square click handlers
+            document.querySelectorAll('.day-square').forEach(el => {
                 const date = el.dataset.date;
                 el.addEventListener('mousedown', (e) => onCalendarDayMouseDown(date, e));
                 el.addEventListener('mouseenter', () => onCalendarDayMouseEnter(date));
@@ -1838,7 +1846,7 @@
         }
 
         function updateCalendarRangeSelection() {
-            document.querySelectorAll('.day-segment').forEach(el => {
+            document.querySelectorAll('.day-square').forEach(el => {
                 el.classList.remove('range-selecting');
             });
 
@@ -1848,7 +1856,7 @@
             const startDate = new Date(start + 'T00:00:00');
             const endDate = new Date(end + 'T00:00:00');
 
-            document.querySelectorAll('.day-segment').forEach(el => {
+            document.querySelectorAll('.day-square').forEach(el => {
                 const dateStr = el.dataset.date;
                 if (!dateStr) return;
                 const date = new Date(dateStr + 'T00:00:00');
@@ -1861,7 +1869,7 @@
         function clearCalendarRangeSelection() {
             rangeSelectionStart = null;
             rangeSelectionEnd = null;
-            document.querySelectorAll('.day-segment').forEach(el => {
+            document.querySelectorAll('.day-square').forEach(el => {
                 el.classList.remove('range-selecting');
             });
         }
