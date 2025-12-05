@@ -852,15 +852,12 @@
                     if (dailyData.length > 0) {
                         const startDate = dailyData[0].date;
                         const endDate = dailyData[dailyData.length - 1].date;
-                        console.log('[Chart] Generating date range from', startDate, 'to', endDate);
                         const start = new Date(startDate + 'T00:00:00');
                         const end = new Date(endDate + 'T00:00:00');
                         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                             const dateStr = d.toISOString().split('T')[0];
                             allDates.push(dateStr);
                         }
-                        console.log('[Chart] Generated', allDates.length, 'dates:', allDates);
-                        console.log('[Chart] dailyData has', dailyData.length, 'dates:', dailyData.map(d => d.date));
                     }
 
                     // Group data by model (includes provider for coloring)
@@ -1565,31 +1562,11 @@
             refreshStats();
         }
 
-        // Calendar functionality
-        let currentMonth = new Date();
-        let selectedDate = null;
+        // Calendar functionality - multi-month scrollable with bar graphs
         let calendarData = {};
-
-        function getCostColor(cost, maxCost) {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
-            if (cost === 0) {
-                return isDark ? '#2a2a2a' : '#f0f0f0';
-            }
-
-            const ratio = Math.min(cost / (maxCost || 1), 1);
-
-            if (isDark) {
-                // Dark mode: darker blues with less saturation
-                const lightness = 25 + (ratio * 25); // 25% to 50%
-                const saturation = 60 + (ratio * 20); // 60% to 80%
-                return `hsl(210, ${saturation}%, ${lightness}%)`;
-            } else {
-                // Light mode: lighter blues
-                const lightness = 100 - (ratio * 50); // 100% to 50%
-                return `hsl(210, 100%, ${lightness}%)`;
-            }
-        }
+        let rangeSelectionStart = null;
+        let rangeSelectionEnd = null;
+        let isSelecting = false;
 
         function formatDate(date) {
             const year = date.getFullYear();
@@ -1599,17 +1576,28 @@
         }
 
         async function loadCalendar() {
-            const year = currentMonth.getFullYear();
-            const month = currentMonth.getMonth();
+            if (!alpineData) return;
 
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-
-            const startDate = formatDate(firstDay);
-            const endDate = formatDate(lastDay);
-
-            // Get browser timezone offset in minutes from UTC (negative for west)
+            const filter = alpineData.dateFilter;
             const timezoneOffset = -new Date().getTimezoneOffset();
+
+            let startDate, endDate;
+
+            if (filter.startDate && filter.endDate) {
+                startDate = filter.startDate;
+                endDate = filter.endDate;
+            } else {
+                const rangeRes = await fetch('/stats/date-range');
+                const rangeData = await rangeRes.json();
+
+                if (!rangeData.start_date || !rangeData.end_date) {
+                    document.getElementById('calendar-container').innerHTML = '<div class="calendar-empty">No data available</div>';
+                    return;
+                }
+
+                startDate = rangeData.start_date;
+                endDate = rangeData.end_date;
+            }
 
             const res = await fetch(`/stats/daily?start_date=${startDate}&end_date=${endDate}&timezone_offset=${timezoneOffset}`);
             const data = await res.json();
@@ -1619,23 +1607,81 @@
                 calendarData[day.date] = day;
             });
 
-            renderCalendar(year, month);
+            renderAllMonths(startDate, endDate);
         }
 
-        function renderCalendar(year, month) {
+        function renderAllMonths(startDate, endDate) {
+            const container = document.getElementById('calendar-container');
+            const start = new Date(startDate + 'T00:00:00');
+            const end = new Date(endDate + 'T00:00:00');
+
+            const monthsData = {};
+            const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+            const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+
+            for (let d = new Date(startMonth); d <= endMonth; d.setMonth(d.getMonth() + 1)) {
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                monthsData[key] = {
+                    year: d.getFullYear(),
+                    month: d.getMonth()
+                };
+            }
+
+            let html = '';
+            Object.values(monthsData).reverse().forEach(({ year, month }) => {
+                html += renderMonth(year, month);
+            });
+
+            container.innerHTML = html;
+            attachCalendarListeners();
+        }
+
+        function renderMonth(year, month) {
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                               'July', 'August', 'September', 'October', 'November', 'December'];
-            document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
 
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
             const startingDayOfWeek = firstDay.getDay();
             const daysInMonth = lastDay.getDate();
 
-            const today = formatDate(new Date());
-            const maxCost = Math.max(...Object.values(calendarData).map(d => d.cost), 0.01);
+            const monthData = [];
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = formatDate(new Date(year, month, day));
+                const dayData = calendarData[date];
+                if (dayData) monthData.push(dayData);
+            }
 
-            let html = '';
+            const maxCost = Math.max(...monthData.map(d => d.cost), 0.01);
+            const maxRequests = Math.max(...monthData.map(d => d.requests), 1);
+            const today = formatDate(new Date());
+
+            let html = `
+                <div class="calendar-month">
+                  <h3 class="month-header">${monthNames[month]} ${year}</h3>
+                  <div class="calendar-grid-wrapper">
+                    <div class="week-numbers">
+            `;
+
+            const weeks = [];
+            let currentWeekStart = null;
+            for (let day = 1; day <= daysInMonth; day++) {
+                const date = new Date(year, month, day);
+                if (date.getDay() === 0 || day === 1) {
+                    const weekStart = getWeekStart(formatDate(date));
+                    if (weekStart !== currentWeekStart) {
+                        currentWeekStart = weekStart;
+                        weeks.push({ number: getWeekNumber(weekStart), startDate: weekStart });
+                    }
+                }
+            }
+
+            weeks.forEach(week => {
+                html += `<div class="week-number" data-week-start="${week.startDate}" data-week-num="${week.number}">${week.number}</div>`;
+            });
+
+            html += `</div><div class="calendar-grid">`;
+
             ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
                 html += `<div class="calendar-day-header">${day}</div>`;
             });
@@ -1647,80 +1693,175 @@
             for (let day = 1; day <= daysInMonth; day++) {
                 const date = formatDate(new Date(year, month, day));
                 const dayData = calendarData[date] || { requests: 0, cost: 0 };
-                const bgColor = getCostColor(dayData.cost, maxCost);
                 const isToday = date === today ? 'today' : '';
+                const weekClass = `week-${getWeekNumber(date)}`;
 
-                const ariaLabel = `${date}: ${dayData.requests} requests, $${dayData.cost.toFixed(2)} total cost`;
+                const costHeight = dayData.cost > 0 ? (dayData.cost / maxCost * 100) : 0;
+                const requestsHeight = dayData.requests > 0 ? (dayData.requests / maxRequests * 100) : 0;
+
                 html += `
-                    <div class="calendar-day ${isToday}"
-                         style="background-color: ${bgColor}"
-                         onclick="onDayClick('${date}')"
-                         onkeydown="handleCalendarKeyPress(event, '${date}')"
-                         tabindex="0"
-                         role="gridcell"
-                         aria-label="${ariaLabel}"
-                         data-date="${date}">
+                    <div class="calendar-day ${isToday} ${weekClass}" data-date="${date}" tabindex="0">
                         <div class="day-number">${day}</div>
-                        <div class="day-cost">$${dayData.cost.toFixed(2)}</div>
-                        <div class="day-requests">${dayData.requests} req</div>
-                    </div>
-                `;
-            }
-
-            document.getElementById('calendar-grid').innerHTML = html;
-        }
-
-        function navigateMonth(direction) {
-            currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1);
-            loadCalendar();
-        }
-
-        function handleCalendarKeyPress(event, date) {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onDayClick(date);
-            }
-        }
-
-        function onDayClick(date) {
-            selectedDate = date;
-            const dayData = calendarData[date];
-
-            if (!dayData || dayData.requests === 0) {
-                document.getElementById('day-detail').style.display = 'none';
-                return;
-            }
-
-            const detailTitle = document.getElementById('day-detail-title');
-            const detailContent = document.getElementById('day-detail-content');
-
-            detailTitle.textContent = `${date} - $${dayData.cost.toFixed(4)} across ${dayData.requests} requests`;
-
-            let providersHtml = '<h4>By Provider:</h4>';
-            const totalCost = dayData.cost;
-
-            dayData.by_provider.forEach(p => {
-                const percentage = totalCost > 0 ? (p.cost / totalCost * 100) : 0;
-                const color = getProviderColor(p.provider);
-
-                providersHtml += `
-                    <div class="provider-bar">
-                        <div class="provider-header">
-                            <span class="provider-name">${p.provider}</span>
-                            <span class="provider-percentage">${percentage.toFixed(0)}%</span>
-                        </div>
-                        <div class="bar-container">
-                            <div class="bar-fill" style="width: ${percentage}%; background: ${color}"></div>
-                        </div>
-                        <div class="provider-details">
-                            $${p.cost.toFixed(4)} across ${p.requests} requests
+                        <div class="day-bars">
+                            <div class="bar-container">
+                                <div class="bar cost-bar" style="height: ${costHeight}%"></div>
+                                <div class="bar-label">$${dayData.cost.toFixed(2)}</div>
+                            </div>
+                            <div class="bar-container">
+                                <div class="bar requests-bar" style="height: ${requestsHeight}%"></div>
+                                <div class="bar-label">${dayData.requests}</div>
+                            </div>
                         </div>
                     </div>
                 `;
+            }
+
+            html += `</div></div></div>`;
+            return html;
+        }
+
+        function attachCalendarListeners() {
+            document.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
+                const date = el.dataset.date;
+                el.addEventListener('mousedown', (e) => onCalendarDayMouseDown(date, e));
+                el.addEventListener('mouseenter', () => onCalendarDayMouseEnter(date));
+                el.addEventListener('mouseup', () => onCalendarDayMouseUp(date));
+                el.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        onCalendarDayClick(date);
+                    }
+                });
             });
 
-            detailContent.innerHTML = providersHtml;
-            document.getElementById('day-detail').style.display = 'block';
+            document.querySelectorAll('.week-number').forEach(el => {
+                const weekStart = el.dataset.weekStart;
+                const weekNum = el.dataset.weekNum;
+                el.addEventListener('mouseenter', () => onWeekHover(`week-${weekNum}`, true));
+                el.addEventListener('mouseleave', () => onWeekHover(`week-${weekNum}`, false));
+                el.addEventListener('click', () => onWeekClick(weekStart));
+            });
+
+            document.addEventListener('mouseup', handleCalendarGlobalMouseUp);
+        }
+
+        function getWeekNumber(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+            const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+            return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        }
+
+        function getWeekStart(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(date.setDate(diff));
+            return monday.toISOString().split('T')[0];
+        }
+
+        function getWeekEnd(dateStr) {
+            const start = getWeekStart(dateStr);
+            const startDate = new Date(start + 'T00:00:00');
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
+            return endDate.toISOString().split('T')[0];
+        }
+
+        function onCalendarDayClick(date) {
+            if (!alpineData) return;
+            alpineData.dateFilter.startDate = date;
+            alpineData.dateFilter.endDate = date;
+            alpineData.currentTab = 'stats';
+            window.location.hash = 'stats';
+        }
+
+        function onWeekHover(weekClass, isEntering) {
+            document.querySelectorAll(`.calendar-day.${weekClass}`).forEach(day => {
+                if (isEntering) {
+                    day.classList.add('week-highlighted');
+                } else {
+                    day.classList.remove('week-highlighted');
+                }
+            });
+        }
+
+        function onWeekClick(weekStartDate) {
+            if (!alpineData) return;
+            const weekEnd = getWeekEnd(weekStartDate);
+            alpineData.dateFilter.startDate = weekStartDate;
+            alpineData.dateFilter.endDate = weekEnd;
+            alpineData.currentTab = 'stats';
+            window.location.hash = 'stats';
+        }
+
+        function onCalendarDayMouseDown(date, event) {
+            event.stopPropagation();
+            rangeSelectionStart = date;
+            rangeSelectionEnd = date;
+            isSelecting = true;
+            updateCalendarRangeSelection();
+        }
+
+        function onCalendarDayMouseEnter(date) {
+            if (!isSelecting) return;
+            rangeSelectionEnd = date;
+            updateCalendarRangeSelection();
+        }
+
+        function onCalendarDayMouseUp(date) {
+            if (!isSelecting) return;
+            isSelecting = false;
+
+            if (rangeSelectionStart === rangeSelectionEnd) {
+                onCalendarDayClick(date);
+            } else {
+                const [start, end] = [rangeSelectionStart, rangeSelectionEnd].sort();
+                if (alpineData) {
+                    alpineData.dateFilter.startDate = start;
+                    alpineData.dateFilter.endDate = end;
+                    alpineData.currentTab = 'stats';
+                    window.location.hash = 'stats';
+                }
+            }
+            clearCalendarRangeSelection();
+        }
+
+        function handleCalendarGlobalMouseUp() {
+            if (isSelecting) {
+                onCalendarDayMouseUp(rangeSelectionEnd);
+            }
+        }
+
+        function updateCalendarRangeSelection() {
+            document.querySelectorAll('.calendar-day').forEach(el => {
+                el.classList.remove('range-selecting', 'range-start', 'range-end');
+            });
+
+            if (!rangeSelectionStart || !rangeSelectionEnd) return;
+
+            const [start, end] = [rangeSelectionStart, rangeSelectionEnd].sort();
+            const startDate = new Date(start + 'T00:00:00');
+            const endDate = new Date(end + 'T00:00:00');
+
+            document.querySelectorAll('.calendar-day').forEach(el => {
+                const dateStr = el.dataset.date;
+                if (!dateStr) return;
+                const date = new Date(dateStr + 'T00:00:00');
+                if (date >= startDate && date <= endDate) {
+                    el.classList.add('range-selecting');
+                    if (dateStr === start) el.classList.add('range-start');
+                    if (dateStr === end) el.classList.add('range-end');
+                }
+            });
+        }
+
+        function clearCalendarRangeSelection() {
+            rangeSelectionStart = null;
+            rangeSelectionEnd = null;
+            document.querySelectorAll('.calendar-day').forEach(el => {
+                el.classList.remove('range-selecting', 'range-start', 'range-end');
+            });
         }
 
         // Auto-refresh stats every 5 seconds (uses current filter state)
