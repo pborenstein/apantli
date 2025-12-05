@@ -770,8 +770,8 @@
             flex: 1;
             display: flex;
             align-items: flex-end;
-            padding: 4px 0;
-            min-height: 60px;
+            padding: 8px 4px;
+            min-height: 80px;
         }
 
         .day-segment {
@@ -781,6 +781,7 @@
             align-items: center;
             cursor: pointer;
             position: relative;
+            padding: 0 1px;
         }
 
         .day-segment:hover .day-bar {
@@ -789,8 +790,8 @@
 
         .day-bar {
             width: 100%;
-            min-height: 2px;
-            background: var(--color-primary);
+            min-height: 3px;
+            background: #ff9500;
             transition: opacity 0.2s;
         }
 
@@ -818,7 +819,7 @@
         }
 
         .day-segment.range-selecting .day-bar {
-            background: var(--color-accent);
+            background: #ffcc00;
         }
 
         .calendar-empty {
