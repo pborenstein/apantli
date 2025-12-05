@@ -852,15 +852,12 @@
                     if (dailyData.length > 0) {
                         const startDate = dailyData[0].date;
                         const endDate = dailyData[dailyData.length - 1].date;
-                        console.log('[Chart] Generating date range from', startDate, 'to', endDate);
                         const start = new Date(startDate + 'T00:00:00');
                         const end = new Date(endDate + 'T00:00:00');
                         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                             const dateStr = d.toISOString().split('T')[0];
                             allDates.push(dateStr);
                         }
-                        console.log('[Chart] Generated', allDates.length, 'dates:', allDates);
-                        console.log('[Chart] dailyData has', dailyData.length, 'dates:', dailyData.map(d => d.date));
                     }
 
                     // Group data by model (includes provider for coloring)
@@ -1565,31 +1562,11 @@
             refreshStats();
         }
 
-        // Calendar functionality
-        let currentMonth = new Date();
-        let selectedDate = null;
+        // Calendar functionality - multi-month scrollable with bar graphs
         let calendarData = {};
-
-        function getCostColor(cost, maxCost) {
-            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-
-            if (cost === 0) {
-                return isDark ? '#2a2a2a' : '#f0f0f0';
-            }
-
-            const ratio = Math.min(cost / (maxCost || 1), 1);
-
-            if (isDark) {
-                // Dark mode: darker blues with less saturation
-                const lightness = 25 + (ratio * 25); // 25% to 50%
-                const saturation = 60 + (ratio * 20); // 60% to 80%
-                return `hsl(210, ${saturation}%, ${lightness}%)`;
-            } else {
-                // Light mode: lighter blues
-                const lightness = 100 - (ratio * 50); // 100% to 50%
-                return `hsl(210, 100%, ${lightness}%)`;
-            }
-        }
+        let rangeSelectionStart = null;
+        let rangeSelectionEnd = null;
+        let isSelecting = false;
 
         function formatDate(date) {
             const year = date.getFullYear();
@@ -1599,17 +1576,28 @@
         }
 
         async function loadCalendar() {
-            const year = currentMonth.getFullYear();
-            const month = currentMonth.getMonth();
+            if (!alpineData) return;
 
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
-
-            const startDate = formatDate(firstDay);
-            const endDate = formatDate(lastDay);
-
-            // Get browser timezone offset in minutes from UTC (negative for west)
+            const filter = alpineData.dateFilter;
             const timezoneOffset = -new Date().getTimezoneOffset();
+
+            let startDate, endDate;
+
+            if (filter.startDate && filter.endDate) {
+                startDate = filter.startDate;
+                endDate = filter.endDate;
+            } else {
+                const rangeRes = await fetch('/stats/date-range');
+                const rangeData = await rangeRes.json();
+
+                if (!rangeData.start_date || !rangeData.end_date) {
+                    document.getElementById('calendar-container').innerHTML = '<div class="calendar-empty">No data available</div>';
+                    return;
+                }
+
+                startDate = rangeData.start_date;
+                endDate = rangeData.end_date;
+            }
 
             const res = await fetch(`/stats/daily?start_date=${startDate}&end_date=${endDate}&timezone_offset=${timezoneOffset}`);
             const data = await res.json();
@@ -1619,108 +1607,271 @@
                 calendarData[day.date] = day;
             });
 
-            renderCalendar(year, month);
+            renderAllMonths(startDate, endDate);
         }
 
-        function renderCalendar(year, month) {
+        function renderAllMonths(startDate, endDate) {
+            const container = document.getElementById('calendar-container');
+            const start = new Date(startDate + 'T00:00:00');
+            const end = new Date(endDate + 'T00:00:00');
+
+            const monthsData = {};
+            const startMonth = new Date(start.getFullYear(), start.getMonth(), 1);
+            const endMonth = new Date(end.getFullYear(), end.getMonth(), 1);
+
+            for (let d = new Date(startMonth); d <= endMonth; d.setMonth(d.getMonth() + 1)) {
+                const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+                monthsData[key] = {
+                    year: d.getFullYear(),
+                    month: d.getMonth()
+                };
+            }
+
+            // Calculate intensity levels based on quartiles (GitHub style)
+            const costs = Object.values(calendarData).map(d => d.cost).filter(c => c > 0);
+            costs.sort((a, b) => a - b);
+
+            const intensityLevels = {
+                q1: costs[Math.floor(costs.length * 0.25)] || 0,
+                q2: costs[Math.floor(costs.length * 0.50)] || 0,
+                q3: costs[Math.floor(costs.length * 0.75)] || 0
+            };
+
+            let html = '';
+            Object.values(monthsData).reverse().forEach(({ year, month }) => {
+                html += renderMonth(year, month, intensityLevels);
+            });
+
+            container.innerHTML = html;
+            attachCalendarListeners();
+        }
+
+        function renderMonth(year, month, intensityLevels) {
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                               'July', 'August', 'September', 'October', 'November', 'December'];
-            document.getElementById('current-month').textContent = `${monthNames[month]} ${year}`;
 
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
-            const startingDayOfWeek = firstDay.getDay();
             const daysInMonth = lastDay.getDate();
 
-            const today = formatDate(new Date());
-            const maxCost = Math.max(...Object.values(calendarData).map(d => d.cost), 0.01);
-
-            let html = '';
-            ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
-                html += `<div class="calendar-day-header">${day}</div>`;
-            });
-
-            for (let i = 0; i < startingDayOfWeek; i++) {
-                html += '<div class="calendar-day empty"></div>';
-            }
+            // Group days into weeks
+            const weeks = [];
+            let currentWeek = null;
 
             for (let day = 1; day <= daysInMonth; day++) {
-                const date = formatDate(new Date(year, month, day));
-                const dayData = calendarData[date] || { requests: 0, cost: 0 };
-                const bgColor = getCostColor(dayData.cost, maxCost);
-                const isToday = date === today ? 'today' : '';
+                const date = new Date(year, month, day);
+                const dateStr = formatDate(date);
+                const dayOfWeek = date.getDay();
 
-                const ariaLabel = `${date}: ${dayData.requests} requests, $${dayData.cost.toFixed(2)} total cost`;
+                if (dayOfWeek === 0 || day === 1) {
+                    if (currentWeek) weeks.push(currentWeek);
+                    const weekStart = getWeekStart(dateStr);
+                    currentWeek = {
+                        number: getWeekNumber(weekStart),
+                        startDate: weekStart,
+                        days: []
+                    };
+                }
+
+                currentWeek.days.push({
+                    date: dateStr,
+                    dayNum: day,
+                    data: calendarData[dateStr] || { requests: 0, cost: 0 }
+                });
+            }
+            if (currentWeek) weeks.push(currentWeek);
+
+            // Helper to get intensity level
+            function getIntensityClass(cost) {
+                if (cost === 0) return 'level-0';
+                if (cost <= intensityLevels.q1) return 'level-1';
+                if (cost <= intensityLevels.q2) return 'level-2';
+                if (cost <= intensityLevels.q3) return 'level-3';
+                return 'level-4';
+            }
+
+            let html = `
+                <div class="calendar-month">
+                  <h3 class="month-header">${monthNames[month]} ${year}</h3>
+                  <div class="calendar-weeks">
+            `;
+
+            weeks.forEach(week => {
+                const weekEnd = getWeekEnd(week.startDate);
+                const weekTotalCost = week.days.reduce((sum, d) => sum + d.data.cost, 0);
+                const weekTotalRequests = week.days.reduce((sum, d) => sum + d.data.requests, 0);
+
                 html += `
-                    <div class="calendar-day ${isToday}"
-                         style="background-color: ${bgColor}"
-                         onclick="onDayClick('${date}')"
-                         onkeydown="handleCalendarKeyPress(event, '${date}')"
-                         tabindex="0"
-                         role="gridcell"
-                         aria-label="${ariaLabel}"
-                         data-date="${date}">
-                        <div class="day-number">${day}</div>
-                        <div class="day-cost">$${dayData.cost.toFixed(2)}</div>
-                        <div class="day-requests">${dayData.requests} req</div>
-                    </div>
+                    <div class="week-row" data-week-start="${week.startDate}">
+                        <div class="week-label"
+                             data-week-num="${week.number}"
+                             title="Week ${week.number}: Click for week stats">
+                            ${week.number}
+                        </div>
+                        <div class="week-grid">
                 `;
-            }
 
-            document.getElementById('calendar-grid').innerHTML = html;
-        }
+                // Render GitHub-style squares for the week
+                week.days.forEach(day => {
+                    const intensityClass = getIntensityClass(day.data.cost);
+                    const dayName = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
 
-        function navigateMonth(direction) {
-            currentMonth = new Date(currentMonth.getFullYear(), currentMonth.getMonth() + direction, 1);
-            loadCalendar();
-        }
-
-        function handleCalendarKeyPress(event, date) {
-            if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault();
-                onDayClick(date);
-            }
-        }
-
-        function onDayClick(date) {
-            selectedDate = date;
-            const dayData = calendarData[date];
-
-            if (!dayData || dayData.requests === 0) {
-                document.getElementById('day-detail').style.display = 'none';
-                return;
-            }
-
-            const detailTitle = document.getElementById('day-detail-title');
-            const detailContent = document.getElementById('day-detail-content');
-
-            detailTitle.textContent = `${date} - $${dayData.cost.toFixed(4)} across ${dayData.requests} requests`;
-
-            let providersHtml = '<h4>By Provider:</h4>';
-            const totalCost = dayData.cost;
-
-            dayData.by_provider.forEach(p => {
-                const percentage = totalCost > 0 ? (p.cost / totalCost * 100) : 0;
-                const color = getProviderColor(p.provider);
-
-                providersHtml += `
-                    <div class="provider-bar">
-                        <div class="provider-header">
-                            <span class="provider-name">${p.provider}</span>
-                            <span class="provider-percentage">${percentage.toFixed(0)}%</span>
+                    html += `
+                        <div class="day-square ${intensityClass}"
+                             data-date="${day.date}"
+                             title="${dayName} ${day.dayNum}: $${day.data.cost.toFixed(4)} (${day.data.requests} req)">
                         </div>
-                        <div class="bar-container">
-                            <div class="bar-fill" style="width: ${percentage}%; background: ${color}"></div>
+                    `;
+                });
+
+                html += `
                         </div>
-                        <div class="provider-details">
-                            $${p.cost.toFixed(4)} across ${p.requests} requests
+                        <div class="week-total">
+                            $${weekTotalCost.toFixed(2)}<br>
+                            <span class="week-requests">${weekTotalRequests} req</span>
                         </div>
                     </div>
                 `;
             });
 
-            detailContent.innerHTML = providersHtml;
-            document.getElementById('day-detail').style.display = 'block';
+            html += `</div></div>`;
+            return html;
+        }
+
+        function attachCalendarListeners() {
+            // Day square click handlers
+            document.querySelectorAll('.day-square').forEach(el => {
+                const date = el.dataset.date;
+                el.addEventListener('mousedown', (e) => onCalendarDayMouseDown(date, e));
+                el.addEventListener('mouseenter', () => onCalendarDayMouseEnter(date));
+                el.addEventListener('mouseup', () => onCalendarDayMouseUp(date));
+            });
+
+            // Week row hover/click handlers
+            document.querySelectorAll('.week-row').forEach(el => {
+                const weekStart = el.dataset.weekStart;
+                el.addEventListener('mouseenter', () => {
+                    el.classList.add('week-highlighted');
+                });
+                el.addEventListener('mouseleave', () => {
+                    el.classList.remove('week-highlighted');
+                });
+            });
+
+            // Week label click handlers
+            document.querySelectorAll('.week-label').forEach(el => {
+                const weekStart = el.closest('.week-row').dataset.weekStart;
+                el.addEventListener('click', () => onWeekClick(weekStart));
+            });
+
+            document.addEventListener('mouseup', handleCalendarGlobalMouseUp);
+        }
+
+        function getWeekNumber(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const firstDayOfYear = new Date(date.getFullYear(), 0, 1);
+            const pastDaysOfYear = (date - firstDayOfYear) / 86400000;
+            return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7);
+        }
+
+        function getWeekStart(dateStr) {
+            const date = new Date(dateStr + 'T00:00:00');
+            const day = date.getDay();
+            const diff = date.getDate() - day + (day === 0 ? -6 : 1);
+            const monday = new Date(date.setDate(diff));
+            return monday.toISOString().split('T')[0];
+        }
+
+        function getWeekEnd(dateStr) {
+            const start = getWeekStart(dateStr);
+            const startDate = new Date(start + 'T00:00:00');
+            const endDate = new Date(startDate);
+            endDate.setDate(startDate.getDate() + 6);
+            return endDate.toISOString().split('T')[0];
+        }
+
+        function onCalendarDayClick(date) {
+            if (!alpineData) return;
+            alpineData.dateFilter.startDate = date;
+            alpineData.dateFilter.endDate = date;
+            alpineData.currentTab = 'stats';
+            window.location.hash = 'stats';
+        }
+
+        function onWeekClick(weekStartDate) {
+            if (!alpineData) return;
+            const weekEnd = getWeekEnd(weekStartDate);
+            alpineData.dateFilter.startDate = weekStartDate;
+            alpineData.dateFilter.endDate = weekEnd;
+            alpineData.currentTab = 'stats';
+            window.location.hash = 'stats';
+        }
+
+        function onCalendarDayMouseDown(date, event) {
+            event.stopPropagation();
+            rangeSelectionStart = date;
+            rangeSelectionEnd = date;
+            isSelecting = true;
+            updateCalendarRangeSelection();
+        }
+
+        function onCalendarDayMouseEnter(date) {
+            if (!isSelecting) return;
+            rangeSelectionEnd = date;
+            updateCalendarRangeSelection();
+        }
+
+        function onCalendarDayMouseUp(date) {
+            if (!isSelecting) return;
+            isSelecting = false;
+
+            if (rangeSelectionStart === rangeSelectionEnd) {
+                onCalendarDayClick(date);
+            } else {
+                const [start, end] = [rangeSelectionStart, rangeSelectionEnd].sort();
+                if (alpineData) {
+                    alpineData.dateFilter.startDate = start;
+                    alpineData.dateFilter.endDate = end;
+                    alpineData.currentTab = 'stats';
+                    window.location.hash = 'stats';
+                }
+            }
+            clearCalendarRangeSelection();
+        }
+
+        function handleCalendarGlobalMouseUp() {
+            if (isSelecting) {
+                onCalendarDayMouseUp(rangeSelectionEnd);
+            }
+        }
+
+        function updateCalendarRangeSelection() {
+            document.querySelectorAll('.day-square').forEach(el => {
+                el.classList.remove('range-selecting');
+            });
+
+            if (!rangeSelectionStart || !rangeSelectionEnd) return;
+
+            const [start, end] = [rangeSelectionStart, rangeSelectionEnd].sort();
+            const startDate = new Date(start + 'T00:00:00');
+            const endDate = new Date(end + 'T00:00:00');
+
+            document.querySelectorAll('.day-square').forEach(el => {
+                const dateStr = el.dataset.date;
+                if (!dateStr) return;
+                const date = new Date(dateStr + 'T00:00:00');
+                if (date >= startDate && date <= endDate) {
+                    el.classList.add('range-selecting');
+                }
+            });
+        }
+
+        function clearCalendarRangeSelection() {
+            rangeSelectionStart = null;
+            rangeSelectionEnd = null;
+            document.querySelectorAll('.day-square').forEach(el => {
+                el.classList.remove('range-selecting');
+            });
         }
 
         // Auto-refresh stats every 5 seconds (uses current filter state)

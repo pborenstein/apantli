@@ -277,6 +277,7 @@
 
     $watch('dateFilter', value => {
         refreshStats();
+        loadCalendar(); // Reload calendar with new filter
         if (currentPage === 1) {
             loadRequests(); // Already on page 1, manually trigger reload
         } else {
@@ -388,16 +389,9 @@
     </div>
 
     <div id="calendar-tab" x-show="currentTab === 'calendar'">
-        <div class="calendar-header">
-            <button id="prev-month" onclick="navigateMonth(-1)" aria-label="Previous month">←</button>
-            <h2 id="current-month"></h2>
-            <button id="next-month" onclick="navigateMonth(1)" aria-label="Next month">→</button>
-        </div>
-        <div class="calendar-grid" id="calendar-grid" role="grid" aria-label="Monthly calendar"></div>
-        <div id="day-detail" style="display:none" role="region" aria-live="polite">
-            <h3 id="day-detail-title"></h3>
-            <div id="day-detail-content"></div>
-        </div>
+        {{ date_filter() }}
+
+        <div id="calendar-container" class="calendar-container"></div>
     </div>
 
     <div id="models-tab" x-show="currentTab === 'models'">
