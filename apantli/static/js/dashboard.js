@@ -846,6 +846,23 @@
                     // Sort daily data by date ascending for proper line rendering
                     const dailyData = data.daily.sort((a, b) => a.date.localeCompare(b.date));
 
+                    // Generate complete date range (including empty days)
+                    // Use first and last dates from data to ensure we cover the full range
+                    const allDates = [];
+                    if (dailyData.length > 0) {
+                        const startDate = dailyData[0].date;
+                        const endDate = dailyData[dailyData.length - 1].date;
+                        console.log('[Chart] Generating date range from', startDate, 'to', endDate);
+                        const start = new Date(startDate + 'T00:00:00');
+                        const end = new Date(endDate + 'T00:00:00');
+                        for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                            const dateStr = d.toISOString().split('T')[0];
+                            allDates.push(dateStr);
+                        }
+                        console.log('[Chart] Generated', allDates.length, 'dates:', allDates);
+                        console.log('[Chart] dailyData has', dailyData.length, 'dates:', dailyData.map(d => d.date));
+                    }
+
                     // Group data by model (includes provider for coloring)
                     const modelData = {};
                     dailyData.forEach(day => {
@@ -866,7 +883,6 @@
                     });
 
                     // Fill in missing dates with 0 cost for each model
-                    const allDates = dailyData.map(d => d.date);
                     Object.values(modelData).forEach(modelInfo => {
                         const existingDates = new Set(modelInfo.data.map(d => d.date));
                         allDates.forEach(date => {

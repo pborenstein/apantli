@@ -78,6 +78,33 @@ app = FastAPI(title="LLM Proxy", lifespan=lifespan)
 # Mount static files directory
 app.mount("/static", StaticFiles(directory="apantli/static"), name="static")
 
+
+# Configure logging filter for dashboard endpoints (at module level for --reload compatibility)
+class DashboardFilter(logging.Filter):
+    """Filter out noisy dashboard GET requests from access logs."""
+    def filter(self, record):
+        # Suppress logs for dashboard polling endpoints
+        # Check the formatted message since uvicorn log records vary
+        message = record.getMessage() if hasattr(record, 'getMessage') else str(record.msg)
+
+        # Filter out all dashboard-related GET requests
+        noisy_patterns = [
+            'GET / ',  # Dashboard homepage
+            'GET /stats?',
+            'GET /stats/daily?',
+            'GET /stats/date-range',
+            'GET /static/',
+            'GET /requests',  # Requests endpoint
+            'GET /models',  # Models endpoint
+            'GET /errors',  # Errors endpoint
+            'GET /health',  # Health check
+        ]
+        return not any(pattern in message for pattern in noisy_patterns)
+
+
+# Apply filter to access logger at module level
+logging.getLogger("uvicorn.access").addFilter(DashboardFilter())
+
 # Add CORS middleware - allow all origins by using regex
 app.add_middleware(
     CORSMiddleware,
@@ -798,31 +825,6 @@ def main():
     # Update access formatter (for HTTP request logs)
     log_config["formatters"]["access"]["fmt"] = '%(asctime)s %(levelprefix)s %(client_addr)s - "%(request_line)s" %(status_code)s'
     log_config["formatters"]["access"]["datefmt"] = '%Y-%m-%d %H:%M:%S'
-
-    # Add filter to suppress noisy dashboard endpoints
-    class DashboardFilter(logging.Filter):
-        """Filter out noisy dashboard GET requests from access logs."""
-        def filter(self, record):
-            # Suppress logs for dashboard polling endpoints
-            # Check the formatted message since uvicorn log records vary
-            message = record.getMessage() if hasattr(record, 'getMessage') else str(record.msg)
-
-            # Filter out all dashboard-related GET requests
-            noisy_patterns = [
-                'GET / ',  # Dashboard homepage
-                'GET /stats?',
-                'GET /stats/daily?',
-                'GET /stats/date-range',
-                'GET /static/',
-                'GET /requests',  # Requests endpoint
-                'GET /models',  # Models endpoint
-                'GET /errors',  # Errors endpoint
-                'GET /health',  # Health check
-            ]
-            return not any(pattern in message for pattern in noisy_patterns)
-
-    # Apply filter to access logger
-    logging.getLogger("uvicorn.access").addFilter(DashboardFilter())
 
     # Print available URLs
     print(f"\n🚀 Apantli server starting...")
