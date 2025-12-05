@@ -1697,13 +1697,19 @@
 
                 // Render continuous bar for the week
                 week.days.forEach(day => {
-                    const heightPercent = day.data.cost > 0 ? (day.data.cost / maxCost * 100) : 0;
+                    // Use hybrid scaling: baseline + proportional for better visibility of small values
+                    let heightPercent = 0;
+                    if (day.data.cost > 0) {
+                        const baseline = 15; // Minimum height for any non-zero value
+                        const proportional = (day.data.cost / maxCost) * 85; // Scale remaining 85%
+                        heightPercent = baseline + proportional;
+                    }
                     const dayName = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' });
 
                     html += `
                         <div class="day-segment"
                              data-date="${day.date}"
-                             title="${dayName} ${day.dayNum}: $${day.data.cost.toFixed(2)} (${day.data.requests} req)">
+                             title="${dayName} ${day.dayNum}: $${day.data.cost.toFixed(4)} (${day.data.requests} req)">
                             <div class="day-bar" style="height: ${heightPercent}%"></div>
                             <div class="day-label">${day.dayNum}</div>
                         </div>
