@@ -1627,16 +1627,19 @@
                 };
             }
 
+            // Calculate global max cost across all data for consistent scaling
+            const globalMaxCost = Math.max(...Object.values(calendarData).map(d => d.cost), 0.01);
+
             let html = '';
             Object.values(monthsData).reverse().forEach(({ year, month }) => {
-                html += renderMonth(year, month);
+                html += renderMonth(year, month, globalMaxCost);
             });
 
             container.innerHTML = html;
             attachCalendarListeners();
         }
 
-        function renderMonth(year, month) {
+        function renderMonth(year, month, maxCost) {
             const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
                               'July', 'August', 'September', 'October', 'November', 'December'];
 
@@ -1670,10 +1673,6 @@
                 });
             }
             if (currentWeek) weeks.push(currentWeek);
-
-            // Calculate max for scaling
-            const allDays = weeks.flatMap(w => w.days);
-            const maxCost = Math.max(...allDays.map(d => d.data.cost), 0.01);
 
             let html = `
                 <div class="calendar-month">
