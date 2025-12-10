@@ -110,43 +110,72 @@ Fixed Provider Cost Trends chart skipping days with no data. Now generates compl
 
 ---
 
-## Streaming Request Database Logging Issue
+## Streaming Request Token Usage Fix
 
-**Status**: 🔴 In Progress (2025-12-10)
-**Branch**: TBD
+**Status**: ✅ Complete (2025-12-10)
+**Commit**: `b6134d6` - "Fix streaming requests to capture token usage and costs"
 
 ### The Problem
 
-Streaming requests complete successfully (HTTP 200) and show in server logs, but fail to write to the database. Evidence:
+Streaming requests were being logged to database successfully, but with zero token counts and $0.00 costs. Example from logs:
 
-- Last database entry: 2025-12-10 07:08:02
-- Server logs show successful streaming requests at 08:01:56, 08:02:00, 08:02:13, 08:02:17, 08:03:38, 08:03:42
-- All returned HTTP 200 OK
-- Database has 0 entries after 08:00:00
+```
+✓ LLM Response: claude-sonnet-4-5 (anthropic) | 3456ms | 0→0 tokens (0 total) | $0.0000 [streaming]
+```
+
+Database entries showed `prompt_tokens=0, completion_tokens=0, cost=0.0` for all streaming requests.
 
 ### Root Cause
 
-Database insertion errors in streaming requests are being caught and suppressed by exception handler (server.py:350-351):
+Providers (Anthropic, OpenAI, etc.) don't send token usage data in streaming chunks by default. The server was accumulating chunks correctly but `full_response['usage']` remained at its initialized zero values because no usage data was being received.
 
+From server.py:270:
 ```python
-except Exception as exc:
-    logging.error(f"Error logging streaming request to database: {exc}")
+full_response = {
+    'usage': {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}  # stayed at zero
+}
 ```
 
-The `finally` block at line 338 calls `await db.log_request()` to log streaming requests, but any exceptions are caught and only logged to console, not re-raised. This causes silent failures.
+The code at line 300-301 would only update if usage data was present in chunks:
+```python
+if 'usage' in chunk_dict:
+    full_response['usage'] = chunk_dict['usage']  # never triggered
+```
 
-### Next Steps
+### The Solution
 
-1. Check server console for "Error logging streaming request to database:" messages
-2. Identify the actual database error causing the failures
-3. Fix the underlying issue (likely connection pool, locking, or async context problem)
-4. Consider whether to re-raise database errors or handle them differently
+Added `stream_options={"include_usage": True}` to streaming requests (server.py:500-501):
 
-### Files Involved
+```python
+# For streaming requests, request usage data from provider
+if is_streaming:
+    request_data['stream_options'] = {"include_usage": True}
+```
 
-- `apantli/server.py` - streaming response generator (lines 280-351)
-- `apantli/database.py` - log_request method (lines 84-120)
+This tells providers to include token usage data in the final streaming chunk, enabling accurate cost calculation and database logging.
 
-### Context
+### Additional Improvements
 
-Non-streaming requests work correctly and log to database. Only streaming requests are affected, suggesting the issue is specific to the streaming code path or how it interacts with async database operations.
+While investigating, also improved streaming request logging reliability:
+
+1. **Background task for database logging** - Moved from inline `finally` block to FastAPI's `background` parameter on StreamingResponse
+2. **Error state tracking** - Store stream errors in `full_response['_stream_error']` for background task access
+3. **Removed diagnostic logging** - Cleaned up debug prints added during investigation
+
+### Verification
+
+Tested with TEQUITL/Joan streaming requests. Now correctly shows:
+
+```
+✓ LLM Response: claude-sonnet-4-5 (anthropic) | 3294ms | 11576→57 tokens (11633 total) | $0.0356 [streaming]
+```
+
+Database entries verified:
+```sql
+2025-12-10T21:21:00Z | claude-sonnet-4-5 | 11731 | 344 | 0.040353
+2025-12-10T21:18:28Z | claude-sonnet-4-5 | 11649 | 19  | 0.035232
+```
+
+### Files Modified
+
+- `apantli/server.py` - Added stream_options, refactored background logging (28 insertions, 19 deletions)
