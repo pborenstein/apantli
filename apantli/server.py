@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 from typing import Optional
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, Request, HTTPException
+from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -313,6 +313,7 @@ async def execute_streaming_request(
             # Provider error during streaming - send error event with clean message
             clean_msg = extract_error_message(exc)
             stream_error = f"{type(exc).__name__}: {clean_msg}"
+            full_response['_stream_error'] = stream_error  # Store for background logging
             error_event = build_error_response("stream_error", clean_msg, type(exc).__name__.lower())
             # Only try to send error if client is still connected
             if not await request.is_disconnected():
@@ -322,6 +323,7 @@ async def execute_streaming_request(
             # Unexpected error during streaming
             clean_msg = extract_error_message(exc)
             stream_error = f"UnexpectedStreamError: {clean_msg}"
+            full_response['_stream_error'] = stream_error  # Store for background logging
             error_event = build_error_response("stream_error", clean_msg, "internal_error")
             # Only try to send error if client is still connected
             if not await request.is_disconnected():
@@ -332,25 +334,28 @@ async def execute_streaming_request(
             if not await request.is_disconnected():
                 yield "data: [DONE]\n\n"
 
-            # Log to database
-            try:
-                duration_ms = int((time.time() - start_time) * 1000)
-                await db.log_request(model, provider, full_response, duration_ms, request_data_for_logging, error=stream_error)
+    # Background task to log after streaming completes
+    async def log_streaming_request():
+        try:
+            duration_ms = int((time.time() - start_time) * 1000)
+            stream_error = full_response.get('_stream_error')  # Will be set if there was an error
 
-                # Log completion
-                if stream_error:
-                    print(f"{LOG_INDENT}✗ LLM Response: {model} ({provider}) | {duration_ms}ms | Error: {stream_error}")
-                else:
-                    usage = full_response.get('usage', {})
-                    prompt_tokens = usage.get('prompt_tokens', 0)
-                    completion_tokens = usage.get('completion_tokens', 0)
-                    total_tokens = usage.get('total_tokens', 0)
-                    cost = calculate_cost(full_response)
-                    print(f"{LOG_INDENT}✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f} [streaming]")
-            except Exception as exc:
-                logging.error(f"Error logging streaming request to database: {exc}")
+            await db.log_request(model, provider, full_response, duration_ms, request_data_for_logging, error=stream_error)
 
-    return StreamingResponse(generate(), media_type="text/event-stream")
+            # Log completion
+            if stream_error:
+                print(f"{LOG_INDENT}✗ LLM Response: {model} ({provider}) | {duration_ms}ms | Error: {stream_error}")
+            else:
+                usage = full_response.get('usage', {})
+                prompt_tokens = usage.get('prompt_tokens', 0)
+                completion_tokens = usage.get('completion_tokens', 0)
+                total_tokens = usage.get('total_tokens', 0)
+                cost = calculate_cost(full_response)
+                print(f"{LOG_INDENT}✓ LLM Response: {model} ({provider}) | {duration_ms}ms | {prompt_tokens}→{completion_tokens} tokens ({total_tokens} total) | ${cost:.4f} [streaming]")
+        except Exception as exc:
+            logging.error(f"Error logging streaming request to database: {exc}")
+
+    return StreamingResponse(generate(), media_type="text/event-stream", background=log_streaming_request)
 
 
 async def execute_request(
@@ -477,6 +482,10 @@ async def chat_completions(request: Request):
         is_streaming = request_data.get('stream', False)
         stream_indicator = " [streaming]" if is_streaming else ""
         print(f"{LOG_INDENT}→ LLM Request: {model}{stream_indicator}")
+
+        # For streaming requests, request usage data from provider
+        if is_streaming:
+            request_data['stream_options'] = {"include_usage": True}
 
         # Call LiteLLM
         response = completion(**request_data)
