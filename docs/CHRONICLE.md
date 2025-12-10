@@ -92,3 +92,35 @@ This makes a $0.39 week and a $0.03 week both visible and comparable within the 
 **Rationale**: Users expect continuous x-axis on time-series charts. Gaps are confusing.
 
 **Implementation**: Generate all dates from first to last, fill missing days with zeros.
+
+---
+
+## Episode: Streaming Database Logging Mystery (2025-12-10)
+
+### The Discovery
+
+User noticed requests appearing in server logs but not in the database dashboard. Investigation revealed:
+
+- ✅ Non-streaming requests: logged correctly
+- ❌ Streaming requests: successful HTTP responses but no database entries
+- 🤔 No error messages visible (caught and suppressed)
+
+### The Diagnosis
+
+Code review found the smoking gun in `server.py` lines 350-351:
+
+```python
+except Exception as exc:
+    logging.error(f"Error logging streaming request to database: {exc}")
+```
+
+The streaming code path has a `finally` block that attempts to log requests to the database after streaming completes. However, any exceptions during database insertion are caught and only logged to console, never re-raised.
+
+**Why This Is Subtle**: The exception handler is inside the streaming generator function. Errors are logged with `logging.error()` but not visible without checking server console. HTTP response is already sent (200 OK) before database logging happens, so from the client's perspective, everything looks successful.
+
+### Questions for Next Session
+
+1. What is the actual database error? (Check server console for error messages)
+2. Why do non-streaming requests succeed but streaming requests fail?
+3. Is it an async context issue? Connection pool? Lock contention?
+4. Should database errors be re-raised or handled differently?

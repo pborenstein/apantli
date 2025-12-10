@@ -107,3 +107,46 @@ Fixed DashboardFilter not working in `--reload` mode by moving filter applicatio
 **Commit**: `31bb706` - "Fix dashboard logging filter and chart date gaps"
 
 Fixed Provider Cost Trends chart skipping days with no data. Now generates complete date range from first to last date in dataset (dashboard.js:576-581).
+
+---
+
+## Streaming Request Database Logging Issue
+
+**Status**: 🔴 In Progress (2025-12-10)
+**Branch**: TBD
+
+### The Problem
+
+Streaming requests complete successfully (HTTP 200) and show in server logs, but fail to write to the database. Evidence:
+
+- Last database entry: 2025-12-10 07:08:02
+- Server logs show successful streaming requests at 08:01:56, 08:02:00, 08:02:13, 08:02:17, 08:03:38, 08:03:42
+- All returned HTTP 200 OK
+- Database has 0 entries after 08:00:00
+
+### Root Cause
+
+Database insertion errors in streaming requests are being caught and suppressed by exception handler (server.py:350-351):
+
+```python
+except Exception as exc:
+    logging.error(f"Error logging streaming request to database: {exc}")
+```
+
+The `finally` block at line 338 calls `await db.log_request()` to log streaming requests, but any exceptions are caught and only logged to console, not re-raised. This causes silent failures.
+
+### Next Steps
+
+1. Check server console for "Error logging streaming request to database:" messages
+2. Identify the actual database error causing the failures
+3. Fix the underlying issue (likely connection pool, locking, or async context problem)
+4. Consider whether to re-raise database errors or handle them differently
+
+### Files Involved
+
+- `apantli/server.py` - streaming response generator (lines 280-351)
+- `apantli/database.py` - log_request method (lines 84-120)
+
+### Context
+
+Non-streaming requests work correctly and log to database. Only streaming requests are affected, suggesting the issue is specific to the streaming code path or how it interacts with async database operations.
