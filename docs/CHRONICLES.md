@@ -95,32 +95,77 @@ This makes a $0.39 week and a $0.03 week both visible and comparable within the 
 
 ---
 
-## Episode: Streaming Database Logging Mystery (2025-12-10)
+## Episode: Streaming Token Usage Mystery (2025-12-10)
 
 ### The Discovery
 
-User noticed requests appearing in server logs but not in the database dashboard. Investigation revealed:
+User noticed streaming requests were being logged to database, but with zero token counts and $0.00 costs:
 
-- ✅ Non-streaming requests: logged correctly
-- ❌ Streaming requests: successful HTTP responses but no database entries
-- 🤔 No error messages visible (caught and suppressed)
-
-### The Diagnosis
-
-Code review found the smoking gun in `server.py` lines 350-351:
-
-```python
-except Exception as exc:
-    logging.error(f"Error logging streaming request to database: {exc}")
+```
+✓ LLM Response: claude-sonnet-4-5 (anthropic) | 3456ms | 0→0 tokens (0 total) | $0.0000 [streaming]
 ```
 
-The streaming code path has a `finally` block that attempts to log requests to the database after streaming completes. However, any exceptions during database insertion are caught and only logged to console, never re-raised.
+Database showed `prompt_tokens=0, completion_tokens=0, cost=0.0` for all streaming requests, while non-streaming requests had accurate counts.
 
-**Why This Is Subtle**: The exception handler is inside the streaming generator function. Errors are logged with `logging.error()` but not visible without checking server console. HTTP response is already sent (200 OK) before database logging happens, so from the client's perspective, everything looks successful.
+### The Investigation
 
-### Questions for Next Session
+Added diagnostic logging to track down the issue:
+- Database writes were working (connection → insert → commit → close all successful)
+- `full_response['usage']` was coming through as `{'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}`
+- The code was correctly attempting to capture usage from chunks, but chunks never contained usage data
 
-1. What is the actual database error? (Check server console for error messages)
-2. Why do non-streaming requests succeed but streaming requests fail?
-3. Is it an async context issue? Connection pool? Lock contention?
-4. Should database errors be re-raised or handled differently?
+### The Root Cause
+
+Providers (Anthropic, OpenAI, etc.) don't send token usage data in streaming chunks by default. The accumulation logic was correct:
+
+```python
+if 'usage' in chunk_dict:
+    full_response['usage'] = chunk_dict['usage']  # never triggered - no usage in chunks
+```
+
+But since chunks never contained `'usage'`, the initialized zero values persisted throughout the stream.
+
+### The Solution
+
+One line fix: Add `stream_options={"include_usage": True}` to streaming requests:
+
+```python
+# For streaming requests, request usage data from provider
+if is_streaming:
+    request_data['stream_options'] = {"include_usage": True}
+```
+
+This tells providers to include token usage data in the final streaming chunk.
+
+### Bonus Improvements
+
+While investigating, also improved streaming reliability:
+1. **Background task logging** - Moved from inline `finally` block to FastAPI's `background` parameter
+2. **Error state tracking** - Store stream errors in `full_response['_stream_error']` for background task
+3. **Clean diagnostic removal** - Removed all debug prints after confirming fix
+
+### The Verification
+
+Tested with TEQUITL/Joan streaming conversations. Now shows accurate token counts:
+
+```
+✓ LLM Response: claude-sonnet-4-5 (anthropic) | 3294ms | 11576→57 tokens (11633 total) | $0.0356 [streaming]
+```
+
+Database entries confirmed:
+```
+2025-12-10T21:21:00Z | claude-sonnet-4-5 | 11731 | 344 | 0.040353
+```
+
+### What We Learned
+
+1. **Provider APIs need explicit flags** - Features like usage tracking in streaming aren't automatic
+2. **Diagnostic logging is temporary** - Add it, use it, remove it. Don't let it accumulate
+3. **Background tasks are cleaner** - FastAPI's `background` parameter is better than inline `finally` blocks
+4. **Test with real clients** - TEQUITL/Joan provided perfect test case with actual streaming usage
+
+### Follow-up Observation
+
+User noticed the high prompt token counts (11K+) mean TEQUITL is sending full conversation history every turn, which is expected for stateless LLM APIs. Each turn costs $0.035-$0.040 because of the massive context being sent (vault data, project context, full conversation history).
+
+**Commits**: `b6134d6`, `80c5e69`, `3c33454`
