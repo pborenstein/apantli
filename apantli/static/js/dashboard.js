@@ -147,10 +147,9 @@
             const messages = extractConversation(requestObj);
             if (!messages) return;
 
-            // Format as: Role: content\n\n
+            // Format as: <role>content</role>
             const fullConversation = messages.map(msg => {
-                const role = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
-                return `${role}:\n${msg.content}`;
+                return `<${msg.role}>\n${msg.content}\n</${msg.role}>`;
             }).join('\n\n');
 
             copyToClipboard(fullConversation, button);
