@@ -195,13 +195,6 @@
             const requestId = requestObj.timestamp;
             let html = '<div class="conversation-view">';
 
-            // Add "Copy All" button at the top
-            html += `
-                <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
-                    <button class="copy-btn" onclick="copyEntireConversation('${requestId}', this)">Copy All</button>
-                </div>
-            `;
-
             messages.forEach((msg, index) => {
                 // Store message content for copy button
                 const messageKey = `${requestId}:${index}`;
@@ -272,13 +265,13 @@
                 `;
             }
 
-            // Update toggle buttons
-            detailRow.querySelectorAll('.toggle-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.mode === mode) {
-                    btn.classList.add('active');
-                }
-            });
+            // Update toggle buttons and "Copy All" button visibility
+            const toggleDiv = detailRow.querySelector('.detail-toggle');
+            toggleDiv.innerHTML = `
+                <button class="toggle-btn ${mode === 'conversation' ? 'active' : ''}" data-mode="conversation" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'conversation')">Conversation</button>
+                <button class="toggle-btn ${mode === 'json' ? 'active' : ''}" data-mode="json" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'json')">Raw JSON</button>
+                ${mode === 'conversation' ? `<button class="copy-btn" onclick="event.stopPropagation(); copyEntireConversation('${requestId}', this)">Copy All</button>` : ''}
+            `;
         }
 
         function sortTable(tableId, columnIndex, data, renderCallback) {
@@ -723,6 +716,7 @@
                     <div class="detail-toggle">
                         <button class="toggle-btn ${currentMode === 'conversation' ? 'active' : ''}" data-mode="conversation" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'conversation')">Conversation</button>
                         <button class="toggle-btn ${currentMode === 'json' ? 'active' : ''}" data-mode="json" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'json')">Raw JSON</button>
+                        ${currentMode === 'conversation' ? `<button class="copy-btn" onclick="event.stopPropagation(); copyEntireConversation('${requestId}', this)">Copy All</button>` : ''}
                     </div>
                 `;
 
