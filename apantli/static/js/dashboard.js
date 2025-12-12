@@ -139,6 +139,23 @@
             }
         }
 
+        // Copy entire conversation to clipboard
+        function copyEntireConversation(requestId, button) {
+            const requestObj = requestsObjects.find(r => r.timestamp === requestId);
+            if (!requestObj) return;
+
+            const messages = extractConversation(requestObj);
+            if (!messages) return;
+
+            // Format as: Role: content\n\n
+            const fullConversation = messages.map(msg => {
+                const role = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
+                return `${role}:\n${msg.content}`;
+            }).join('\n\n');
+
+            copyToClipboard(fullConversation, button);
+        }
+
         // Copy JSON request/response to clipboard
         function copyJsonToClipboard(requestId, type, button) {
             const requestObj = requestsObjects.find(r => r.timestamp === requestId);
@@ -178,6 +195,13 @@
 
             const requestId = requestObj.timestamp;
             let html = '<div class="conversation-view">';
+
+            // Add "Copy All" button at the top
+            html += `
+                <div style="display: flex; justify-content: flex-end; margin-bottom: 12px;">
+                    <button class="copy-btn" onclick="copyEntireConversation('${requestId}', this)">Copy All</button>
+                </div>
+            `;
 
             messages.forEach((msg, index) => {
                 // Store message content for copy button
