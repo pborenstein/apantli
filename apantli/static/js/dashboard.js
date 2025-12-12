@@ -27,6 +27,7 @@
 
         let expandedRequests = new Set();
         let detailViewMode = {}; // Track view mode per request: 'conversation' or 'json'
+        let conversationMessages = {}; // Store conversation messages by requestId:messageIndex
 
         // Table sorting state: { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
         let tableSortState = {};
@@ -127,6 +128,17 @@
             });
         }
 
+        // Copy conversation message to clipboard by ID
+        function copyConversationMessage(requestId, messageIndex, button) {
+            const key = `${requestId}:${messageIndex}`;
+            const content = conversationMessages[key];
+            if (content) {
+                copyToClipboard(content, button);
+            } else {
+                console.error('Message not found:', key);
+            }
+        }
+
         // Copy JSON request/response to clipboard
         function copyJsonToClipboard(requestId, type, button) {
             const requestObj = requestsObjects.find(r => r.timestamp === requestId);
@@ -164,9 +176,14 @@
                 return '<p class="error">Could not extract conversation from request/response data</p>';
             }
 
+            const requestId = requestObj.timestamp;
             let html = '<div class="conversation-view">';
 
             messages.forEach((msg, index) => {
+                // Store message content for copy button
+                const messageKey = `${requestId}:${index}`;
+                conversationMessages[messageKey] = msg.content;
+
                 const icon = msg.role === 'user' ? '⊙' : msg.role === 'assistant' ? '◈' : '⚙';
                 const roleLabel = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
                 const tokens = estimateTokens(msg.content);
@@ -181,7 +198,7 @@
                                     <span class="message-role">${roleLabel}</span>
                                     <span class="message-meta">~${tokens.toLocaleString()} tokens</span>
                                 </div>
-                                <button class="copy-btn" onclick="copyToClipboard(\`${escapeHtml(msg.content).replace(/`/g, '\\`')}\`, this)">Copy</button>
+                                <button class="copy-btn" onclick="copyConversationMessage('${requestId}', ${index}, this)">Copy</button>
                             </div>
                             <div class="message-text">${formattedContent}</div>
                         </div>
