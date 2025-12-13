@@ -13,6 +13,7 @@ import logging
 from datetime import datetime, timedelta
 from typing import Optional
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse, StreamingResponse
@@ -45,8 +46,13 @@ from apantli.utils import convert_local_date_to_utc_range, build_time_filter, bu
 # Load environment variables
 load_dotenv()
 
-# Templates
-templates = Jinja2Templates(directory="templates")
+# Resolve paths relative to this file for package installation
+PACKAGE_DIR = Path(__file__).parent.resolve()
+# Templates are at the package root level when installed
+TEMPLATES_DIR = PACKAGE_DIR.parent.parent / "templates"
+STATIC_DIR = PACKAGE_DIR / "static"
+
+templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
 
 
 @asynccontextmanager
@@ -76,7 +82,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="LLM Proxy", lifespan=lifespan)
 
 # Mount static files directory
-app.mount("/static", StaticFiles(directory="apantli/static"), name="static")
+app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 
 # Configure logging filter for dashboard endpoints (at module level for --reload compatibility)

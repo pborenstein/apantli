@@ -31,6 +31,16 @@ else
     fi
 fi
 
+# Kill any existing apantli processes on port 4000
+PIDS=$(lsof -ti :4000 2>/dev/null)
+if [ ! -z "$PIDS" ]; then
+    echo -e "${YELLOW}Stopping existing processes on port 4000...${NC}"
+    echo "$PIDS" | xargs kill 2>/dev/null || true
+    sleep 1
+    echo -e "${GREEN}✓${NC} Port cleared"
+    echo
+fi
+
 # Function to restore service on exit
 cleanup() {
     echo
