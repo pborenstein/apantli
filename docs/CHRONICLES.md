@@ -169,3 +169,122 @@ Database entries confirmed:
 User noticed the high prompt token counts (11K+) mean TEQUITL is sending full conversation history every turn, which is expected for stateless LLM APIs. Each turn costs $0.035-$0.040 because of the massive context being sent (vault data, project context, full conversation history).
 
 **Commits**: `b6134d6`, `80c5e69`, `3c33454`
+
+---
+
+## Episode: Copy Button JavaScript Escaping Trap (2025-12-12)
+
+**Branch**: `claude/fix-conversation-copy-buttons-017XRKXH1kyWRbhcy5rkm8r3`
+
+### The Discovery
+
+User reported: "The copy buttons in the conversation view don't work. (The ones in the JSON view do work)"
+
+Classic symptom - some copy buttons work, others don't. This pointed to different implementations.
+
+### The Investigation
+
+**JSON view copy buttons** (working):
+```javascript
+onclick="copyJsonToClipboard('${requestId}', 'request', this)"
+```
+Only passes simple identifiers - clean and safe.
+
+**Conversation view copy buttons** (broken):
+```javascript
+onclick="copyToClipboard(\`${escapeHtml(msg.content).replace(/`/g, '\\`')}\`, this)"
+```
+Tried to inline entire message content (multi-line, with quotes, backticks, newlines) into the onclick attribute. Despite HTML escaping and backtick escaping, this created JavaScript syntax errors because:
+- Content can contain unescaped single quotes
+- Content can contain newlines
+- Content can contain other special characters
+- You can't reliably escape everything for inline attribute context
+
+### The Solution
+
+Store message content in a global object, pass only IDs:
+
+```javascript
+// Global storage
+let conversationMessages = {};
+
+// In render function
+conversationMessages[`${requestId}:${index}`] = msg.content;
+
+// In onclick
+onclick="copyConversationMessage('${requestId}', ${index}, this)"
+
+// Lookup function
+function copyConversationMessage(requestId, messageIndex, button) {
+    const key = `${requestId}:${messageIndex}`;
+    const content = conversationMessages[key];
+    if (content) {
+        copyToClipboard(content, button);
+    }
+}
+```
+
+This matches the working JSON view pattern - never inline complex data.
+
+### The Enhancement Request
+
+User: "we need to be able to distinguish the system / user / assistant roles. maybe with xmlish tags <ap-tagname>. What do you think"
+
+**Options considered**:
+1. `<ap-user>content</ap-user>` - safer for HTML contexts
+2. `<user>content</user>` - cleaner, matches LLM APIs
+3. `<user>content` - self-closing style (compact)
+
+**Decision**: Option 2 - standard role names with closing tags:
+- Most parseable with regex: `/<user>(.*?)<\/user>/gs`
+- Matches OpenAI/Anthropic API role naming conventions
+- Clean and professional
+- Easy to extract programmatically
+
+### The UI Iteration
+
+**First attempt**: Copy All button in its own row at top of conversation
+- User: "takes up too much space"
+
+**Final solution**: Inline with Conversation/Raw JSON toggle buttons
+- Only appears when viewing Conversation mode
+- Saves vertical space
+- Groups related controls together
+
+### What We Learned
+
+1. **Never inline complex data in HTML attributes** - Always use indirection (IDs, keys) even if you think you've escaped everything
+2. **Working examples guide solutions** - JSON view copy buttons showed the right pattern
+3. **XML tags are versatile** - Machine-readable, human-readable, and familiar from LLM APIs
+4. **Progressive enhancement** - Fix broken feature → add missing feature → refine UI
+
+### Technical Pattern: The ID-Lookup Pattern
+
+**Anti-pattern** (fragile):
+```javascript
+onclick="doThing(`${escapeComplexData(data)}`)"
+```
+
+**Pattern** (robust):
+```javascript
+// Store
+dataStore[id] = complexData;
+
+// Reference
+onclick="doThing('${id}')"
+
+// Lookup
+function doThing(id) {
+    const data = dataStore[id];
+    // use data
+}
+```
+
+This pattern works for:
+- Multi-line text
+- JSON objects
+- User input with arbitrary characters
+- Binary data (via base64 encoding in store)
+- Anything too complex for attribute context
+
+**Commits**: `ecc6b81`, `cbfe047`, `b26bbec`, `6251d94`

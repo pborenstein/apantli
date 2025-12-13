@@ -179,3 +179,69 @@ Database entries verified:
 ### Files Modified
 
 - `apantli/server.py` - Added stream_options, refactored background logging (28 insertions, 19 deletions)
+
+---
+
+## Dashboard Conversation Copy Buttons
+
+**Status**: ✅ Complete (2025-12-12)
+**Branch**: `claude/fix-conversation-copy-buttons-017XRKXH1kyWRbhcy5rkm8r3`
+**Commits**: `ecc6b81`, `cbfe047`, `b26bbec`, `6251d94`
+
+### The Problem
+
+The copy buttons in the dashboard's Requests tab conversation view were broken. Clicking them did nothing because the implementation tried to embed multi-line message content with special characters (quotes, backticks, newlines) directly into `onclick` attributes, causing JavaScript syntax errors.
+
+### The Solution
+
+**Issue 1: Copy buttons broken**
+
+Refactored to store message content in a global object instead of inlining:
+
+```javascript
+// Store messages by key
+conversationMessages[`${requestId}:${index}`] = msg.content;
+
+// Reference by ID in onclick
+onclick="copyConversationMessage('${requestId}', ${index}, this)"
+```
+
+This matches the pattern used by JSON view copy buttons (which already worked).
+
+**Issue 2: No "Copy All" button**
+
+Added button to copy entire conversations with XML-style role tags:
+
+```
+<user>
+message content
+</user>
+
+<assistant>
+response content
+</assistant>
+```
+
+Format is machine-readable and matches standard LLM API role names.
+
+**Issue 3: UI space efficiency**
+
+Moved "Copy All" button inline with Conversation/Raw JSON toggle buttons. Button only appears when viewing Conversation mode.
+
+### Files Modified
+
+- `apantli/static/js/dashboard.js`:
+  - Added `conversationMessages` global store (line 30)
+  - Added `copyConversationMessage()` function (lines 131-140)
+  - Added `copyEntireConversation()` with XML formatting (lines 142-156)
+  - Updated `renderConversationView()` to store messages (lines 189-211)
+  - Updated `toggleDetailView()` to show/hide Copy All button dynamically (lines 268-274)
+
+### How to Continue
+
+Implementation complete. Copy buttons in conversation view now work reliably:
+- Individual message copy buttons work for all content types
+- Copy All button exports conversations in XML format
+- Button visibility managed automatically when switching between Conversation/JSON views
+
+No immediate work planned - waiting for user feedback.
