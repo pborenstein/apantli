@@ -27,6 +27,7 @@
 
         let expandedRequests = new Set();
         let detailViewMode = {}; // Track view mode per request: 'conversation' or 'json'
+        let conversationMessages = {}; // Store conversation messages by requestId:messageIndex
 
         // Table sorting state: { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
         let tableSortState = {};
@@ -127,6 +128,33 @@
             });
         }
 
+        // Copy conversation message to clipboard by ID
+        function copyConversationMessage(requestId, messageIndex, button) {
+            const key = `${requestId}:${messageIndex}`;
+            const content = conversationMessages[key];
+            if (content) {
+                copyToClipboard(content, button);
+            } else {
+                console.error('Message not found:', key);
+            }
+        }
+
+        // Copy entire conversation to clipboard
+        function copyEntireConversation(requestId, button) {
+            const requestObj = requestsObjects.find(r => r.timestamp === requestId);
+            if (!requestObj) return;
+
+            const messages = extractConversation(requestObj);
+            if (!messages) return;
+
+            // Format as: <role>content</role>
+            const fullConversation = messages.map(msg => {
+                return `<${msg.role}>\n${msg.content}\n</${msg.role}>`;
+            }).join('\n\n');
+
+            copyToClipboard(fullConversation, button);
+        }
+
         // Copy JSON request/response to clipboard
         function copyJsonToClipboard(requestId, type, button) {
             const requestObj = requestsObjects.find(r => r.timestamp === requestId);
@@ -164,9 +192,14 @@
                 return '<p class="error">Could not extract conversation from request/response data</p>';
             }
 
+            const requestId = requestObj.timestamp;
             let html = '<div class="conversation-view">';
 
             messages.forEach((msg, index) => {
+                // Store message content for copy button
+                const messageKey = `${requestId}:${index}`;
+                conversationMessages[messageKey] = msg.content;
+
                 const icon = msg.role === 'user' ? '⊙' : msg.role === 'assistant' ? '◈' : '⚙';
                 const roleLabel = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
                 const tokens = estimateTokens(msg.content);
@@ -181,7 +214,7 @@
                                     <span class="message-role">${roleLabel}</span>
                                     <span class="message-meta">~${tokens.toLocaleString()} tokens</span>
                                 </div>
-                                <button class="copy-btn" onclick="copyToClipboard(\`${escapeHtml(msg.content).replace(/`/g, '\\`')}\`, this)">Copy</button>
+                                <button class="copy-btn" onclick="copyConversationMessage('${requestId}', ${index}, this)">Copy</button>
                             </div>
                             <div class="message-text">${formattedContent}</div>
                         </div>
@@ -232,13 +265,13 @@
                 `;
             }
 
-            // Update toggle buttons
-            detailRow.querySelectorAll('.toggle-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.mode === mode) {
-                    btn.classList.add('active');
-                }
-            });
+            // Update toggle buttons and "Copy All" button visibility
+            const toggleDiv = detailRow.querySelector('.detail-toggle');
+            toggleDiv.innerHTML = `
+                <button class="toggle-btn ${mode === 'conversation' ? 'active' : ''}" data-mode="conversation" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'conversation')">Conversation</button>
+                <button class="toggle-btn ${mode === 'json' ? 'active' : ''}" data-mode="json" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'json')">Raw JSON</button>
+                ${mode === 'conversation' ? `<button class="copy-btn" onclick="event.stopPropagation(); copyEntireConversation('${requestId}', this)">Copy All</button>` : ''}
+            `;
         }
 
         function sortTable(tableId, columnIndex, data, renderCallback) {
@@ -683,6 +716,7 @@
                     <div class="detail-toggle">
                         <button class="toggle-btn ${currentMode === 'conversation' ? 'active' : ''}" data-mode="conversation" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'conversation')">Conversation</button>
                         <button class="toggle-btn ${currentMode === 'json' ? 'active' : ''}" data-mode="json" onclick="event.stopPropagation(); toggleDetailView('${requestId}', 'json')">Raw JSON</button>
+                        ${currentMode === 'conversation' ? `<button class="copy-btn" onclick="event.stopPropagation(); copyEntireConversation('${requestId}', this)">Copy All</button>` : ''}
                     </div>
                 `;
 
