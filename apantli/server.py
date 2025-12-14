@@ -48,8 +48,8 @@ load_dotenv()
 
 # Resolve paths relative to this file for package installation
 PACKAGE_DIR = Path(__file__).parent.resolve()
-# Templates are at the package root level when installed
-TEMPLATES_DIR = PACKAGE_DIR.parent.parent / "templates"
+# Templates are at the project root level
+TEMPLATES_DIR = PACKAGE_DIR.parent / "templates"
 STATIC_DIR = PACKAGE_DIR / "static"
 
 templates = Jinja2Templates(directory=str(TEMPLATES_DIR))
