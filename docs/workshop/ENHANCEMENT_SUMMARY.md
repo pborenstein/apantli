@@ -1,7 +1,12 @@
 # Apantli Enhancement Summary
 
 **Date**: 2025-11-23
-**Status**: Analysis Complete
+**Status**: Analysis Complete → Converted to GitHub Issues (2025-12-19)
+
+**GitHub Issues**:
+- [#16 Project-Based Usage Tracking](https://github.com/pborenstein/apantli/issues/16)
+- [#18 Network Awareness and Tailscale Detection](https://github.com/pborenstein/apantli/issues/18)
+- [#17 Database-Backed API Key Management UI](https://github.com/pborenstein/apantli/issues/17)
 
 ## Documents Created
 
