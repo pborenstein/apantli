@@ -37,6 +37,7 @@ import uvicorn
 from dotenv import load_dotenv
 
 # Import from local modules
+from apantli.__version__ import __version__
 from apantli.config import LOG_INDENT, Config
 from apantli.database import Database, RequestFilter
 from apantli.errors import build_error_response, get_error_details, extract_error_message
@@ -79,7 +80,14 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="LLM Proxy", lifespan=lifespan)
+app = FastAPI(
+    title="Apantli",
+    description="Lightweight LLM proxy with SQLite cost tracking and multi-provider routing",
+    version=__version__,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan
+)
 
 # Mount static files directory
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
