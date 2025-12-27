@@ -288,3 +288,91 @@ This pattern works for:
 - Anything too complex for attribute context
 
 **Commits**: `ecc6b81`, `cbfe047`, `b26bbec`, `6251d94`
+
+---
+
+## Episode: Version Management Cleanup (2025-12-27)
+
+### The Context
+
+After recent work on copy buttons and documentation cleanup, noticed the FastAPI app still showed generic "LLM Proxy" title in API documentation at `/docs`. Time to add proper branding and version management.
+
+### The Implementation
+
+**Step 1: Centralized Version Module**
+
+Created `apantli/__version__.py` using Python's standard `importlib.metadata`:
+
+```python
+import importlib.metadata
+
+try:
+    __version__ = importlib.metadata.version("apantli")
+except importlib.metadata.PackageNotFoundError:
+    # Fallback for development/uninstalled package
+    __version__ = "0.3.8-dev"
+```
+
+This pattern:
+- Pulls version from installed package metadata (synced with `pyproject.toml`)
+- Falls back to dev version when running from source
+- Works in both production and development environments
+- No version duplication across files
+
+**Step 2: FastAPI Metadata Enhancement**
+
+Updated FastAPI app configuration to use proper branding:
+
+```python
+app = FastAPI(
+    title="Apantli",
+    description="Lightweight LLM proxy with SQLite cost tracking and multi-provider routing",
+    version=__version__,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan
+)
+```
+
+Changed from bare-bones initialization to fully configured metadata.
+
+### Why This Matters
+
+**Before**: API docs at `/docs` showed:
+- Title: "LLM Proxy" (generic, could be any proxy)
+- No description
+- No version visible
+- Implicit docs URLs
+
+**After**: API docs now show:
+- Title: "Apantli" (proper branding)
+- Clear description of functionality
+- Version badge (0.3.8)
+- Explicit documentation URLs
+
+This makes the API documentation professional and discoverable. Users visiting `/docs` immediately understand what Apantli does and what version they're running.
+
+### Technical Decision: importlib.metadata vs Hardcoded
+
+**Rejected**: Hardcoding version in `__version__.py`
+```python
+__version__ = "0.3.8"  # Would drift out of sync with pyproject.toml
+```
+
+**Chosen**: Dynamic lookup from package metadata
+```python
+__version__ = importlib.metadata.version("apantli")
+```
+
+**Rationale**: Single source of truth. Version defined once in `pyproject.toml`, read everywhere. No chance of version drift between package metadata and runtime version display.
+
+**Fallback**: Dev version string when package not installed (development from source, not via pip/uv).
+
+### What We Learned
+
+1. **Single source of truth** - Use `importlib.metadata` for version management, not duplication
+2. **Professional touches matter** - API docs are user-facing, they should look polished
+3. **Explicit is better** - Even though FastAPI enables `/docs` by default, being explicit makes it clear and intentional
+4. **Small improvements add up** - Version badge, proper title, and description make a big difference
+
+**Commit**: `345b1ce`

@@ -245,3 +245,77 @@ Implementation complete. Copy buttons in conversation view now work reliably:
 - Button visibility managed automatically when switching between Conversation/JSON views
 
 No immediate work planned - waiting for user feedback.
+
+---
+
+## Version Management and API Metadata
+
+**Status**: ✅ Complete (2025-12-27)
+**Commit**: `345b1ce` - "Add centralized version management and improve FastAPI metadata"
+
+### What Was Built
+
+Centralized version management and improved FastAPI application metadata for better API documentation.
+
+**Core Changes**:
+
+- Created `apantli/__version__.py` module for centralized version management
+- Updated FastAPI app configuration with proper metadata
+- Enabled API documentation endpoints explicitly
+
+### Implementation Details
+
+**Version Module** (`apantli/__version__.py`):
+```python
+import importlib.metadata
+
+try:
+    __version__ = importlib.metadata.version("apantli")
+except importlib.metadata.PackageNotFoundError:
+    # Fallback for development/uninstalled package
+    __version__ = "0.3.8-dev"
+```
+
+Uses `importlib.metadata` to pull version from installed package, with fallback to dev version when running from source.
+
+**FastAPI Metadata Updates** (apantli/server.py:83-89):
+```python
+app = FastAPI(
+    title="Apantli",
+    description="Lightweight LLM proxy with SQLite cost tracking and multi-provider routing",
+    version=__version__,
+    docs_url="/docs",
+    redoc_url="/redoc",
+    lifespan=lifespan
+)
+```
+
+Changed title from generic "LLM Proxy" to "Apantli", added description, version, and explicitly enabled Swagger/ReDoc documentation URLs.
+
+### Benefits
+
+**Before**:
+- API docs showed "LLM Proxy" with no description
+- Version not visible in API documentation
+- Docs endpoints enabled implicitly
+
+**After**:
+- Professional branding with "Apantli" title
+- Clear description of proxy functionality
+- Version displayed in API docs (synced with package)
+- Documentation URLs explicit and discoverable
+
+### Files Modified
+
+- `apantli/__version__.py` (new) - Version module with metadata fallback
+- `apantli/server.py` - Import version, update FastAPI configuration
+
+### How to Continue
+
+Implementation complete. The `/docs` endpoint now shows:
+- Professional "Apantli" branding
+- Clear description of functionality
+- Current version (0.3.8)
+- Full API endpoint documentation
+
+No immediate work planned - version management is centralized and working.
