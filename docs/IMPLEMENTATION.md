@@ -1,321 +1,182 @@
 # Implementation Status
 
-**Note**: This document is the plan of record. It will be backfilled with historical context in future sessions.
+## Phase Overview
 
-## Calendar View - GitHub Contribution Graph Style
-
-**Status**: ✅ Complete (2025-12-04)
-**Branch**: `calendar-revitalization-initiative`
-**Commit**: `0004b8d` - "Redesign calendar as GitHub contribution graph style"
-
-### What Was Built
-
-Multi-month scrollable calendar visualization using GitHub contribution graph pattern for sparse usage data.
-
-**Core Features**:
-
-- GitHub-style squares colored by quartile-based intensity (5 levels: 0-4)
-- Week-based layout: one row per week, 7 uniform squares per row
-- Quartile calculation: divides non-zero activity into 4 equal groups
-- Orange color palette: #ffedd5 (lightest) → #ea580c (brightest)
-- Dark mode support with adjusted color values
-- Week totals displayed on right side of each row
-- All months rendered at once (no pagination)
-
-**Interactions**:
-
-- Click day → navigate to Stats tab with single-day filter
-- Click week number → navigate to Stats tab with week filter
-- Drag across days → select date range, navigate to Stats tab
-- Hover tooltips show exact cost and request count
-
-**Integration**:
-
-- Respects date filter from Stats tab
-- Auto-reloads when date filter changes
-- Uses `/stats/daily` endpoint with timezone offset
-- Calculates intensity levels client-side from fetched data
-
-### Why This Design
-
-**Problem**: User has sparse, low-cost usage ($0.0005-$0.39/week) that was invisible with absolute scaling.
-
-**Solution**: Relative intensity based on user's own quartiles. A $0.39 week shows as "top 25%" (bright orange) and $0.03 shows as "bottom 25%" (light orange). Both visible, pattern clear.
-
-**Rejected Approaches**:
-
-1. Heat map - not distinct enough
-2. Side-by-side bars - too small to see
-3. Horizontal continuous bars - still invisible
-4. Baseline + proportional scaling - confusing
-
-### Files Modified
-
-- `templates/dashboard.html` - removed old navigation, added date filter integration
-- `apantli/static/js/modules/calendar.js` - complete rewrite (~400 lines changed)
-- `apantli/static/css/dashboard.css` - replaced bar styles with GitHub-style squares
-
-### Technical Implementation
-
-**Quartile Calculation** (calendar.js:66-73):
-```javascript
-const costs = Object.values(calendarData).map(d => d.cost).filter(c => c > 0);
-costs.sort((a, b) => a - b);
-const intensityLevels = {
-    q1: costs[Math.floor(costs.length * 0.25)] || 0,
-    q2: costs[Math.floor(costs.length * 0.50)] || 0,
-    q3: costs[Math.floor(costs.length * 0.75)] || 0
-};
-```
-
-**Intensity Class Assignment** (calendar.js:167-174):
-```javascript
-let intensityClass = 'level-0';
-if (day.data.cost > 0) {
-    if (day.data.cost <= intensityLevels.q1) intensityClass = 'level-1';
-    else if (day.data.cost <= intensityLevels.q2) intensityClass = 'level-2';
-    else if (day.data.cost <= intensityLevels.q3) intensityClass = 'level-3';
-    else intensityClass = 'level-4';
-}
-```
-
-### How to Continue
-
-The calendar implementation is complete and working. Future work might include:
-
-- Export calendar data to CSV/JSON
-- Provider-specific intensity views
-- Model-specific intensity views
-- Comparison mode (show two time periods side-by-side)
-
-No immediate work planned - waiting for user feedback.
+| Phase | Name | Status | Duration | Key Outcome |
+|-------|------|--------|----------|-------------|
+| 0 | Foundation | ✅ Complete | Oct 2025 | Core proxy with SQLite tracking |
+| 1 | Dashboard Evolution | ✅ Complete | Oct-Nov 2025 | Interactive analytics dashboard |
+| 2 | Advanced Features | ✅ Complete | Nov-Dec 2025 | Calendar viz, streaming fixes |
+| 3 | Documentation & Polish | ✅ Complete | Dec 2025 | Comprehensive docs |
+| 4 | Token-Efficient Documentation | 🔵 Current | Dec 2025- | Migration to efficient tracking |
 
 ---
 
-## Other Recent Work
+## Phase 0: Foundation (Oct 2025) ✅
 
-### Dashboard Logging Filter Fix
+- Built OpenAI-compatible LLM proxy with LiteLLM for multi-provider routing
+- Implemented SQLite database for request/response logging and cost tracking
+- Created initial dashboard with basic stats and request viewer
+- Converted to uv-based Python package with CLI entry point
 
-**Status**: ✅ Complete (2025-12-04)
-**Commit**: `31bb706` - "Fix dashboard logging filter and chart date gaps"
-
-Fixed DashboardFilter not working in `--reload` mode by moving filter application to module level (server.py:106).
-
-### Chart Date Range Fix
-
-**Status**: ✅ Complete (2025-12-04)
-**Commit**: `31bb706` - "Fix dashboard logging filter and chart date gaps"
-
-Fixed Provider Cost Trends chart skipping days with no data. Now generates complete date range from first to last date in dataset (dashboard.js:576-581).
+See: [chronicles/phase-0-foundation.md](chronicles/phase-0-foundation.md)
 
 ---
 
-## Streaming Request Token Usage Fix
+## Phase 1: Dashboard Evolution (Oct-Nov 2025) ✅
 
-**Status**: ✅ Complete (2025-12-10)
-**Commit**: `b6134d6` - "Fix streaming requests to capture token usage and costs"
+- Added time range filtering and date-based analytics
+- Implemented request detail viewer with conversation/JSON toggle
+- Built provider and model statistics tables
+- Created cost trend visualizations
 
-### The Problem
-
-Streaming requests were being logged to database successfully, but with zero token counts and $0.00 costs. Example from logs:
-
-```
-✓ LLM Response: claude-sonnet-4-5 (anthropic) | 3456ms | 0→0 tokens (0 total) | $0.0000 [streaming]
-```
-
-Database entries showed `prompt_tokens=0, completion_tokens=0, cost=0.0` for all streaming requests.
-
-### Root Cause
-
-Providers (Anthropic, OpenAI, etc.) don't send token usage data in streaming chunks by default. The server was accumulating chunks correctly but `full_response['usage']` remained at its initialized zero values because no usage data was being received.
-
-From server.py:270:
-```python
-full_response = {
-    'usage': {'prompt_tokens': 0, 'completion_tokens': 0, 'total_tokens': 0}  # stayed at zero
-}
-```
-
-The code at line 300-301 would only update if usage data was present in chunks:
-```python
-if 'usage' in chunk_dict:
-    full_response['usage'] = chunk_dict['usage']  # never triggered
-```
-
-### The Solution
-
-Added `stream_options={"include_usage": True}` to streaming requests (server.py:500-501):
-
-```python
-# For streaming requests, request usage data from provider
-if is_streaming:
-    request_data['stream_options'] = {"include_usage": True}
-```
-
-This tells providers to include token usage data in the final streaming chunk, enabling accurate cost calculation and database logging.
-
-### Additional Improvements
-
-While investigating, also improved streaming request logging reliability:
-
-1. **Background task for database logging** - Moved from inline `finally` block to FastAPI's `background` parameter on StreamingResponse
-2. **Error state tracking** - Store stream errors in `full_response['_stream_error']` for background task access
-3. **Removed diagnostic logging** - Cleaned up debug prints added during investigation
-
-### Verification
-
-Tested with TEQUITL/Joan streaming requests. Now correctly shows:
-
-```
-✓ LLM Response: claude-sonnet-4-5 (anthropic) | 3294ms | 11576→57 tokens (11633 total) | $0.0356 [streaming]
-```
-
-Database entries verified:
-```sql
-2025-12-10T21:21:00Z | claude-sonnet-4-5 | 11731 | 344 | 0.040353
-2025-12-10T21:18:28Z | claude-sonnet-4-5 | 11649 | 19  | 0.035232
-```
-
-### Files Modified
-
-- `apantli/server.py` - Added stream_options, refactored background logging (28 insertions, 19 deletions)
+See: [chronicles/phase-1-dashboard-evolution.md](chronicles/phase-1-dashboard-evolution.md)
 
 ---
 
-## Dashboard Conversation Copy Buttons
+## Phase 2: Advanced Features (Nov-Dec 2025) ✅
 
-**Status**: ✅ Complete (2025-12-12)
-**Branch**: `claude/fix-conversation-copy-buttons-017XRKXH1kyWRbhcy5rkm8r3`
-**Commits**: `ecc6b81`, `cbfe047`, `b26bbec`, `6251d94`
+- Developed GitHub contribution-graph style calendar visualization with quartile-based intensity
+- Fixed streaming request token usage tracking with `stream_options.include_usage`
+- Added conversation copy buttons with XML-tagged role formatting
+- Implemented browser history support for tab navigation
 
-### The Problem
-
-The copy buttons in the dashboard's Requests tab conversation view were broken. Clicking them did nothing because the implementation tried to embed multi-line message content with special characters (quotes, backticks, newlines) directly into `onclick` attributes, causing JavaScript syntax errors.
-
-### The Solution
-
-**Issue 1: Copy buttons broken**
-
-Refactored to store message content in a global object instead of inlining:
-
-```javascript
-// Store messages by key
-conversationMessages[`${requestId}:${index}`] = msg.content;
-
-// Reference by ID in onclick
-onclick="copyConversationMessage('${requestId}', ${index}, this)"
-```
-
-This matches the pattern used by JSON view copy buttons (which already worked).
-
-**Issue 2: No "Copy All" button**
-
-Added button to copy entire conversations with XML-style role tags:
-
-```
-<user>
-message content
-</user>
-
-<assistant>
-response content
-</assistant>
-```
-
-Format is machine-readable and matches standard LLM API role names.
-
-**Issue 3: UI space efficiency**
-
-Moved "Copy All" button inline with Conversation/Raw JSON toggle buttons. Button only appears when viewing Conversation mode.
-
-### Files Modified
-
-- `apantli/static/js/dashboard.js`:
-  - Added `conversationMessages` global store (line 30)
-  - Added `copyConversationMessage()` function (lines 131-140)
-  - Added `copyEntireConversation()` with XML formatting (lines 142-156)
-  - Updated `renderConversationView()` to store messages (lines 189-211)
-  - Updated `toggleDetailView()` to show/hide Copy All button dynamically (lines 268-274)
-
-### How to Continue
-
-Implementation complete. Copy buttons in conversation view now work reliably:
-- Individual message copy buttons work for all content types
-- Copy All button exports conversations in XML format
-- Button visibility managed automatically when switching between Conversation/JSON views
-
-No immediate work planned - waiting for user feedback.
+See: [chronicles/phase-2-advanced-features.md](chronicles/phase-2-advanced-features.md)
 
 ---
 
-## Version Management and API Metadata
+## Phase 3: Documentation & Polish (Dec 2025) ✅
 
-**Status**: ✅ Complete (2025-12-27)
-**Commit**: `345b1ce` - "Add centralized version management and improve FastAPI metadata"
+- Created comprehensive documentation suite (API, ARCHITECTURE, DATABASE, etc.)
+- Added centralized version management with importlib.metadata
+- Enhanced FastAPI metadata for professional API docs
+- Converted workshop proposals to GitHub issues
 
-### What Was Built
+See: [chronicles/phase-3-documentation-polish.md](chronicles/phase-3-documentation-polish.md)
 
-Centralized version management and improved FastAPI application metadata for better API documentation.
+---
 
-**Core Changes**:
+## Phase 4: Token-Efficient Documentation (Dec 2025-) 🔵
 
-- Created `apantli/__version__.py` module for centralized version management
-- Updated FastAPI app configuration with proper metadata
-- Enabled API documentation endpoints explicitly
+**Status**: In progress
+**Branch**: `new-project-tracking`
+**Latest Commit**: `8e0cd4c`
 
-### Implementation Details
+### Goal
 
-**Version Module** (`apantli/__version__.py`):
-```python
-import importlib.metadata
+Migrate project tracking to token-efficient system that reduces session pickup from ~700 lines to ~50 lines.
 
-try:
-    __version__ = importlib.metadata.version("apantli")
-except importlib.metadata.PackageNotFoundError:
-    # Fallback for development/uninstalled package
-    __version__ = "0.3.8-dev"
-```
+### Objectives
 
-Uses `importlib.metadata` to pull version from installed package, with fallback to dev version when running from source.
+- [x] Create CONTEXT.md for hot session state (< 50 lines)
+- [x] Restructure IMPLEMENTATION.md with phase-based organization
+- [x] Extract decisions from CHRONICLES.md into heading-based DECISIONS.md
+- [x] Create chronicles/ directory with phase-specific files
+- [x] Eliminate CHRONICLES.md (preserve unique content)
+- [x] Verify token efficiency improvements
 
-**FastAPI Metadata Updates** (apantli/server.py:83-89):
-```python
-app = FastAPI(
-    title="Apantli",
-    description="Lightweight LLM proxy with SQLite cost tracking and multi-provider routing",
-    version=__version__,
-    docs_url="/docs",
-    redoc_url="/redoc",
-    lifespan=lifespan
-)
-```
+### Current Work
 
-Changed title from generic "LLM Proxy" to "Apantli", added description, version, and explicitly enabled Swagger/ReDoc documentation URLs.
+**Migration Strategy**:
+1. Retroactively identify 4 historical phases from commit history
+2. Compress completed phases to 3-5 bullet summaries
+3. Extract architectural decisions into dedicated DECISIONS.md
+4. Split CHRONICLES.md episodes into phase-specific chronicle files
+5. Create CONTEXT.md as new session pickup entry point
 
-### Benefits
+**Phase Identification** (based on git history analysis):
+- Phase 0: Foundation - Initial proxy implementation (Oct 4+)
+- Phase 1: Dashboard Evolution - Analytics and visualization (Oct-Nov)
+- Phase 2: Advanced Features - Calendar, streaming, copy features (Nov-Dec)
+- Phase 3: Documentation & Polish - Comprehensive docs (Dec)
+- Phase 4: Token-Efficient Documentation - Current migration (Dec 27+)
 
-**Before**:
-- API docs showed "LLM Proxy" with no description
-- Version not visible in API documentation
-- Docs endpoints enabled implicitly
+### Progress
 
-**After**:
-- Professional branding with "Apantli" title
-- Clear description of proxy functionality
-- Version displayed in API docs (synced with package)
-- Documentation URLs explicit and discoverable
+**Completed**:
+- ✅ Analyzed project history (50+ commits, 2.5 months)
+- ✅ Identified natural phase boundaries (5 phases)
+- ✅ Created CONTEXT.md (37 lines)
+- ✅ Restructured IMPLEMENTATION.md with phase overview (187 lines)
+- ✅ Created heading-based DECISIONS.md with 7 decisions (244 lines)
+- ✅ Split CHRONICLES.md into 5 phase-specific chronicle files
+- ✅ Removed CHRONICLES.md after content migration
+- ✅ Committed migration (f8b0b21)
+- ✅ Verified token savings: 95% reduction (700 lines → 37 lines)
+
+**Migration Complete**: Token-efficient system is now active and ready for ongoing use.
+
+### Technical Notes
+
+**Token Efficiency Targets**:
+- Session pickup: 700 lines → 50 lines (93% reduction)
+- CONTEXT.md replaces reading full IMPLEMENTATION.md + CHRONICLES.md
+- Completed phases compressed from detailed logs to 3-5 bullet outcomes
+- Decisions moved to grep-friendly heading-based format
+
+**Migration Guided By**: plinth:project-tracking skill (token-efficient system)
+
+### Ambiguities & Uncertainties
+
+**Phase Boundary Decisions**:
+- Retrospectively identified phases from commit messages and timing
+- Some features span phases (e.g., dashboard work continued through multiple phases)
+- Used natural breakpoints: architecture changes, major features, documentation shifts
+
+**Decision Extraction**:
+- CHRONICLES.md contains "episodes" not explicit "decisions"
+- Need to infer architectural decisions from episode narratives
+- May need user input on which decisions are most significant
+
+**Chronicle Splitting Strategy**:
+- Current CHRONICLES.md is episode-based, not phase-based
+- Some episodes describe evolution across multiple sessions
+- Will create phase files with summary entries, referencing detailed work in commits
 
 ### Files Modified
 
-- `apantli/__version__.py` (new) - Version module with metadata fallback
-- `apantli/server.py` - Import version, update FastAPI configuration
+- `docs/CONTEXT.md` (created) - Hot session state
+- `docs/IMPLEMENTATION.md` (restructured) - Phase-based organization
+- `docs/DECISIONS.md` (pending) - Heading-based decision log
+- `docs/chronicles/*` (pending) - Phase-specific history files
+- `docs/CHRONICLES.md` (to be removed) - After content migration
 
-### How to Continue
+---
 
-Implementation complete. The `/docs` endpoint now shows:
-- Professional "Apantli" branding
-- Clear description of functionality
-- Current version (0.3.8)
-- Full API endpoint documentation
+## Future Phases (Tentative)
 
-No immediate work planned - version management is centralized and working.
+### Phase 5: Project-Based Usage Tracking
+
+**Goal**: Track costs per project/client for invoicing and budget management
+
+**Key Features**:
+- Auto-detection of project context from git repo, workspace path
+- Budget tracking with alerts at 80% threshold
+- Client billing support with markup percentage
+- Dashboard project selector and per-project analytics
+
+**Status**: Planned (GitHub issue #16 created)
+
+See: [docs/workshop/PROJECT_BASED_USAGE_TRACKING.md](workshop/PROJECT_BASED_USAGE_TRACKING.md)
+
+### Phase 6: Production Hardening
+
+**Goal**: Prepare for multi-user and internet-exposed deployments
+
+**Potential Features**:
+- Authentication and authorization
+- Rate limiting and quota management
+- Enhanced logging and monitoring
+- Docker deployment support
+
+**Status**: Exploration stage
+
+---
+
+## Notes
+
+**Documentation System**: This file follows the token-efficient tracking pattern:
+- Completed phases: 3-5 bullet summaries + chronicle link
+- Current phase: Detailed task list and progress
+- Future phases: High-level goals only
+- Session pickup: Read CONTEXT.md first (50 lines vs 700)
