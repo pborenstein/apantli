@@ -396,6 +396,10 @@
 
     <div id="models-tab" x-show="currentTab === 'models'">
         <h2>Available Models</h2>
+        <div class="models-toolbar">
+            <button class="btn btn-primary" onclick="openAddModelModal()">+ Add Model</button>
+            <button class="btn btn-secondary" onclick="openExportModal()">Export for Obsidian</button>
+        </div>
         <table id="models-list"></table>
     </div>
 

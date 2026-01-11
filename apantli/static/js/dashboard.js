@@ -378,11 +378,12 @@
             const res = await fetch('/models');
             const data = await res.json();
 
-            // Convert to array format for sorting: [name, provider, litellm_model, input_cost, output_cost]
+            // Convert to array format for sorting: [name, provider, litellm_model, enabled, input_cost, output_cost]
             modelsData = data.models.map(m => [
                 m.name,
                 m.provider,
                 m.litellm_model,
+                m.enabled !== undefined ? m.enabled : true,
                 m.input_cost_per_million || 0,
                 m.output_cost_per_million || 0
             ]);
@@ -407,23 +408,106 @@
                         <th class="sortable" onclick="sortModelsTable(0)">Name</th>
                         <th class="sortable" onclick="sortModelsTable(1)">Provider</th>
                         <th class="sortable" onclick="sortModelsTable(2)">LiteLLM Model</th>
-                        <th class="sortable" onclick="sortModelsTable(3)">Input Cost/1M</th>
-                        <th class="sortable" onclick="sortModelsTable(4)">Output Cost/1M</th>
+                        <th class="sortable" onclick="sortModelsTable(3)">Status</th>
+                        <th class="sortable" onclick="sortModelsTable(4)">Input Cost/1M</th>
+                        <th class="sortable" onclick="sortModelsTable(5)">Output Cost/1M</th>
+                        <th>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
-                    ${data.map(row => `
-                        <tr>
-                            <td>${row[0]}</td>
-                            <td>${row[1]}</td>
-                            <td>${row[2]}</td>
-                            <td>${row[3] ? '$' + row[3].toFixed(2) : 'N/A'}</td>
-                            <td>${row[4] ? '$' + row[4].toFixed(2) : 'N/A'}</td>
-                        </tr>
-                    `).join('')}
+                    ${data.map(row => {
+                        const name = row[0];
+                        const enabled = row[3];
+                        const statusBadge = enabled
+                            ? '<span class="status-badge status-enabled">Enabled</span>'
+                            : '<span class="status-badge status-disabled">Disabled</span>';
+                        const toggleButton = enabled
+                            ? '<button class="btn-sm btn-secondary" onclick="toggleModel(\'' + name + '\', false)">Disable</button>'
+                            : '<button class="btn-sm btn-primary" onclick="toggleModel(\'' + name + '\', true)">Enable</button>';
+
+                        return `
+                            <tr>
+                                <td>${name}</td>
+                                <td>${row[1]}</td>
+                                <td>${row[2]}</td>
+                                <td>${statusBadge}</td>
+                                <td>${row[4] ? '$' + row[4].toFixed(2) : 'N/A'}</td>
+                                <td>${row[5] ? '$' + row[5].toFixed(2) : 'N/A'}</td>
+                                <td class="actions-cell">
+                                    ${toggleButton}
+                                    <button class="btn-sm btn-danger" onclick="deleteModel('${name}')">Delete</button>
+                                </td>
+                            </tr>
+                        `;
+                    }).join('')}
                 </tbody>
             `;
             updateSortIndicators(table, sortState);
+        }
+
+        async function toggleModel(modelName, enabled) {
+            try {
+                const res = await fetch(`/api/models/${encodeURIComponent(modelName)}`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ enabled })
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    alert('Error: ' + (error.error || 'Failed to toggle model'));
+                    return;
+                }
+
+                // Reload models to reflect changes
+                await loadModels();
+                showToast(`Model ${modelName} ${enabled ? 'enabled' : 'disabled'}`);
+            } catch (error) {
+                console.error('Error toggling model:', error);
+                alert('Failed to toggle model: ' + error.message);
+            }
+        }
+
+        async function deleteModel(modelName) {
+            if (!confirm(`Are you sure you want to delete the model "${modelName}"?\n\nThis will remove it from config.yaml.`)) {
+                return;
+            }
+
+            try {
+                const res = await fetch(`/api/models/${encodeURIComponent(modelName)}`, {
+                    method: 'DELETE'
+                });
+
+                if (!res.ok) {
+                    const error = await res.json();
+                    alert('Error: ' + (error.error || 'Failed to delete model'));
+                    return;
+                }
+
+                // Reload models to reflect changes
+                await loadModels();
+                showToast(`Model ${modelName} deleted`);
+            } catch (error) {
+                console.error('Error deleting model:', error);
+                alert('Failed to delete model: ' + error.message);
+            }
+        }
+
+        function showToast(message) {
+            // Simple toast notification
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = message;
+            document.body.appendChild(toast);
+
+            setTimeout(() => {
+                toast.classList.add('show');
+            }, 10);
+
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
         }
 
         function escapeHtml(text) {
@@ -1932,3 +2016,14 @@
                 alpineData.currentTab = 'stats';
             }
         });
+
+        // Model Management Modal Functions (stubs - to be implemented)
+        function openAddModelModal() {
+            alert('Add Model modal coming in Phase 2b!');
+            // TODO: Implement 3-step wizard modal
+        }
+
+        function openExportModal() {
+            alert('Export modal coming in Phase 2c!');
+            // TODO: Implement Obsidian export modal with JSON preview
+        }
