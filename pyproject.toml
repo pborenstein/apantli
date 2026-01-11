@@ -23,6 +23,7 @@ dependencies = [
     "uvicorn",
     "litellm",
     "pyyaml",
+    "ruamel.yaml",
     "python-dotenv",
     "netifaces",
     "tenacity",
