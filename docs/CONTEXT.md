@@ -1,20 +1,21 @@
 # Current Session Context
 
 ---
-phase: 4
-phase_name: "Token-Efficient Documentation"
+phase: QoL
+phase_name: "Model Management UI"
 updated: 2026-01-11
-last_commit: 5247919
+last_commit: fd15586
 last_entry: 1
 ---
 
 ## Current Focus
 
-Phase 4 complete. Token-efficient documentation system is in production use. Ready to begin Phase 5 (Project-Based Usage Tracking) or other priorities.
+Building model management UI with CRUD operations. Backend complete (6/8 phases), most frontend done. Only Add Model wizard (Phase 2b) remaining.
 
 ## Active Tasks
 
-None. Phase 4 completed, awaiting new work direction.
+- [ ] Phase 2b: Build Add Model modal wizard (3-step: provider → model → configure)
+- [ ] Phase 3: Tests and polish
 
 ## Blockers
 
@@ -22,12 +23,13 @@ None.
 
 ## Context
 
-- Phase 4 complete: Migration to token-efficient docs (95% reduction in session pickup)
-- Recent additions: centralized version management, improved FastAPI metadata
-- Cleaned up unused model configurations
-- All tests passing, system stable
-- GitHub issue #16 created for Phase 5 (project-based usage tracking)
+- All backend APIs working: CRUD, provider discovery, Obsidian export
+- Models tab shows status badges and enable/disable/delete buttons
+- Export modal complete with JSON preview and clipboard copy
+- Config backups created automatically, hot-reload working
+- Branch: qol/improve-model-documentation (3 commits)
+- Tested: toggle/delete models, export JSON, disabled models return 403
 
 ## Next Session
 
-Phase 4 complete. Options: (1) Begin Phase 5 per GitHub issue #16, (2) Address other priorities. Run session-pickup to orient and check for updates.
+Complete Phase 2b (Add Model wizard) - most complex piece with 3-step flow. Then Phase 3 (tests/polish) and merge to main.
