@@ -483,6 +483,27 @@
         </svg>
     </footer>
 
+    <!-- Export Modal -->
+    <div id="export-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Export for Obsidian Copilot</h3>
+                <button class="modal-close" onclick="closeExportModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <p>Copy this JSON configuration and paste it into Obsidian Copilot settings:</p>
+                <div class="export-info">
+                    <strong>Models exported:</strong> <span id="export-count">0</span> (enabled models only)
+                </div>
+                <pre id="export-json" class="json-preview"></pre>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-primary" onclick="copyExportJson()">Copy to Clipboard</button>
+                <button class="btn btn-secondary" onclick="closeExportModal()">Close</button>
+            </div>
+        </div>
+    </div>
+
     <script src="/static/js/dashboard.js?v=20251124-1"></script>
 </body>
 </html>

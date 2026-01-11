@@ -2017,13 +2017,65 @@
             }
         });
 
-        // Model Management Modal Functions (stubs - to be implemented)
+        // Model Management Modal Functions
         function openAddModelModal() {
             alert('Add Model modal coming in Phase 2b!');
             // TODO: Implement 3-step wizard modal
         }
 
-        function openExportModal() {
-            alert('Export modal coming in Phase 2c!');
-            // TODO: Implement Obsidian export modal with JSON preview
+        async function openExportModal() {
+            try {
+                const res = await fetch('/api/export/obsidian');
+                if (!res.ok) {
+                    throw new Error('Failed to fetch export data');
+                }
+
+                const data = await res.json();
+
+                // Update modal content
+                document.getElementById('export-count').textContent = data.models.length;
+                document.getElementById('export-json').textContent = JSON.stringify(data, null, 2);
+
+                // Show modal
+                const modal = document.getElementById('export-modal');
+                modal.classList.add('show');
+            } catch (error) {
+                console.error('Error opening export modal:', error);
+                alert('Failed to generate export: ' + error.message);
+            }
         }
+
+        function closeExportModal() {
+            const modal = document.getElementById('export-modal');
+            modal.classList.remove('show');
+        }
+
+        async function copyExportJson() {
+            const jsonText = document.getElementById('export-json').textContent;
+
+            try {
+                await navigator.clipboard.writeText(jsonText);
+                showToast('Copied to clipboard!');
+            } catch (error) {
+                // Fallback for older browsers
+                const textarea = document.createElement('textarea');
+                textarea.value = jsonText;
+                document.body.appendChild(textarea);
+                textarea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast('Copied to clipboard!');
+                } catch (err) {
+                    alert('Failed to copy to clipboard');
+                }
+                document.body.removeChild(textarea);
+            }
+        }
+
+        // Close modal when clicking outside
+        document.addEventListener('click', function(event) {
+            const modal = document.getElementById('export-modal');
+            if (event.target === modal) {
+                closeExportModal();
+            }
+        });
