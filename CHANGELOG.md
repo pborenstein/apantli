@@ -5,6 +5,36 @@ All notable changes to Apantli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.0] - 2026-01-11
+
+### Added
+- Complete model management UI with 3-step Add Model wizard
+  - Provider selection with active provider badges and documentation links
+  - Model selection with configured alias badges, sortable by name/cost
+  - Configuration form with smart defaults and validation
+- CRUD APIs for model management with hot-reload
+  - POST `/api/models` - Add new model
+  - PATCH `/api/models/{name}` - Update model configuration
+  - DELETE `/api/models/{name}` - Remove model
+  - GET `/api/providers` - Discover available providers from LiteLLM
+- Obsidian Copilot export modal for exporting enabled models
+- Status toggle showing current state (not action verb)
+- Search and sort controls for providers and models
+- Grid layouts for provider and model selection
+
+### Fixed
+- **Critical**: All API requests failing with "Extra inputs are not permitted"
+  - Server was passing metadata fields (enabled, cost data) to LiteLLM
+  - Playground was sending usage tokens in message history
+- Alpine expression errors when parameter defaults are null
+- Light/dark mode CSS variables for all modals
+- Claude Haiku 4.5 model name (claude-haiku-4-5)
+- Type annotations for mypy compliance
+
+### Changed
+- Models tab UI enhanced with actions and status columns
+- Improved model configuration backup system
+
 ## [0.3.7] - 2025-11-24
 
 ### Added
