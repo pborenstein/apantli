@@ -38,3 +38,24 @@ Quality-of-life improvements for model management through dashboard UI.
 - Status toggle shows current state not action
 
 **Files**: `templates/dashboard.html` (lines 507-630), `apantli/static/js/dashboard.js` (lines 2017-2360), `apantli/static/css/dashboard.css` (lines 1688-2004)
+
+---
+
+## Entry 3: Critical Bug Fixes (2026-01-11)
+
+**What**: Fixed playground and API completely broken - all requests failing with "Extra inputs are not permitted".
+
+**Why**: Server was passing metadata fields to LiteLLM that providers reject; playground was including metadata in message history.
+
+**How**:
+- Server: Added EXCLUDED_KEYS filter to prevent passing `enabled`, cost metadata to LiteLLM
+- Playground: Strip `tokens` property from messages before sending to API
+- Playground: Handle null parameter defaults in Alpine expressions
+- Config: Fixed Claude Haiku 4.5 model name (confirmed model exists)
+
+**Root Causes**:
+1. `resolve_model_config()` passed all model config fields to LiteLLM (including metadata)
+2. Playground stored `tokens` with messages, sent entire message objects to API
+3. `getDefaultValue()` returned null, template called `.toFixed()` on null
+
+**Files**: `apantli/server.py:193`, `apantli/static/js/compare.js:332-335,243`, `config.yaml`

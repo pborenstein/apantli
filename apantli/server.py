@@ -189,8 +189,10 @@ def resolve_model_config(model: str, request_data: dict, model_map: dict,
 
     # Pass through all other litellm_params (timeout, num_retries, temperature, etc.)
     # Config provides defaults; client values (except null) always win
+    # Exclude metadata fields that shouldn't be sent to LiteLLM
+    EXCLUDED_KEYS = ('model', 'api_key', 'enabled', 'input_cost_per_million', 'output_cost_per_million')
     for key, value in model_config.items():
-        if key not in ('model', 'api_key'):
+        if key not in EXCLUDED_KEYS:
             # Use config value only if client didn't provide, or provided None/null
             # This allows: config defaults, client override, null → use config
             if key not in request_data or request_data.get(key) is None:

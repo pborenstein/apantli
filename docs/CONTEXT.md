@@ -4,17 +4,19 @@
 phase: QoL
 phase_name: "Model Management UI"
 updated: 2026-01-11
-last_commit: 78f349c
-last_entry: 2
+last_commit: 4411077
+last_entry: 3
 ---
 
 ## Current Focus
 
-Model management UI complete with 3-step Add Model wizard. Ready for Phase 3 (tests and polish).
+Fixed critical bugs in playground and API that broke all requests. Model management UI ready for testing.
 
 ## Active Tasks
 
-- [x] Phase 2b: Build Add Model modal wizard (3-step: provider → model → configure)
+- [x] Fix playground bugs (enabled param, tokens in messages, null defaults)
+- [x] Fix server passing metadata to LiteLLM
+- [x] Fix Claude Haiku 4.5 model name
 - [ ] Phase 3: Tests and polish
 - [ ] Merge to main
 
@@ -24,15 +26,13 @@ None.
 
 ## Context
 
-- Add Model wizard: provider selection → model selection → configuration
-- Smart sorting: active providers first, configured models first
-- Shows configured aliases as orange badges on model cards
-- Provider documentation links on cards and model selection page
-- Grid layouts for both providers and models with search/sort
-- Status column uses single toggle button showing current state
-- All modals work in light/dark mode with proper CSS variables
+- Server was passing `enabled` and cost metadata to LiteLLM (rejected by providers)
+- Playground was sending `tokens` metadata in message history (rejected by providers)
+- Alpine expressions failing on null parameter defaults
+- Fixed by filtering metadata in server, stripping tokens in playground JS
+- Haiku 4.5 exists: `anthropic/claude-haiku-4-5` (not 3.5)
 - Branch: qol/improve-model-documentation
 
 ## Next Session
 
-Run through full test of Add Model wizard flow, add any polish needed, then merge to main.
+Test playground thoroughly with multiple providers, verify all bugs fixed, then merge to main.

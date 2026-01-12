@@ -240,7 +240,7 @@ function compareApp() {
       const slot = this.slots[slotIndex]
       const modelConfig = this.modelConfigs[slot.model]
 
-      if (modelConfig && modelConfig[paramName] !== undefined) {
+      if (modelConfig && modelConfig[paramName] !== undefined && modelConfig[paramName] !== null) {
         return modelConfig[paramName]
       }
 
@@ -326,9 +326,13 @@ function compareApp() {
 
       // Prepare request with conversation history
       // Use conversationModel to ensure we keep using the same model throughout
+      // Strip out metadata (tokens) from messages - only send role and content
       const requestBody = {
         model: slot.conversationModel,
-        messages: slot.messages,
+        messages: slot.messages.map(msg => ({
+          role: msg.role,
+          content: msg.content
+        })),
         stream: true,
         stream_options: {
           include_usage: true  // Request usage info in streaming response
