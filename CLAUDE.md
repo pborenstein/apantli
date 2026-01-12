@@ -62,10 +62,14 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design, dat
 
 ### Development
 
+**Server URL**: `http://localhost:4000` (NOT 8000!)
+
 **Run server**:
 ```bash
-./dev.sh  # Development mode with auto-reload
+./dev.sh  # Development mode with auto-reload on port 4000
 ```
+
+**Before offering to start the server**: Check if it's already running with `lsof -i :4000` or `curl -s http://localhost:4000/health`
 
 **Run tests**:
 ```bash

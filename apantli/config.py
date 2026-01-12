@@ -3,9 +3,13 @@
 import os
 import logging
 import warnings
+import shutil
+from pathlib import Path
+from datetime import datetime
 from typing import Dict, Optional, Any
 from pydantic import BaseModel, Field, field_validator, ValidationError
 import yaml
+from ruamel.yaml import YAML
 
 
 # Default configuration
@@ -29,6 +33,7 @@ class ModelConfig(BaseModel):
   model_name: str = Field(..., description="Alias used by clients")
   litellm_model: str = Field(..., alias="model", description="LiteLLM model identifier")
   api_key_var: str = Field(..., alias="api_key", description="Environment variable reference")
+  enabled: bool = Field(True, description="Whether model is active for API requests")
   timeout: Optional[int] = Field(None, description="Request timeout override")
   num_retries: Optional[int] = Field(None, description="Retry count override")
   temperature: Optional[float] = None
@@ -187,3 +192,121 @@ class Config:
       name: model.to_litellm_params(defaults)
       for name, model in self.models.items()
     }
+
+  def backup_config(self) -> Path:
+    """Create a backup of the config file.
+
+    Returns:
+      Path to the backup file
+
+    Raises:
+      FileNotFoundError: If config file doesn't exist
+    """
+    config_path = Path(self.config_path)
+    if not config_path.exists():
+      raise FileNotFoundError(f"Config file not found: {self.config_path}")
+
+    # Create backup with timestamp
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = config_path.with_suffix(f'.backup.{timestamp}.yaml')
+
+    # Copy file
+    shutil.copy2(config_path, backup_path)
+    logging.info(f"Created backup: {backup_path}")
+
+    # Clean up old backups (keep last 5)
+    self._cleanup_old_backups()
+
+    return backup_path
+
+  def _cleanup_old_backups(self, keep: int = 5):
+    """Remove old backup files, keeping the most recent ones.
+
+    Args:
+      keep: Number of backups to keep
+    """
+    config_path = Path(self.config_path)
+    backup_pattern = f"{config_path.stem}.backup.*.yaml"
+
+    # Find all backups
+    backups = sorted(
+      config_path.parent.glob(backup_pattern),
+      key=lambda p: p.stat().st_mtime,
+      reverse=True
+    )
+
+    # Delete old ones
+    for old_backup in backups[keep:]:
+      old_backup.unlink()
+      logging.debug(f"Removed old backup: {old_backup}")
+
+  def write_config(self, models: Optional[Dict[str, ModelConfig]] = None):
+    """Write configuration to YAML file, preserving comments and formatting.
+
+    Args:
+      models: Model configurations to write. If None, uses self.models.
+
+    Raises:
+      ConfigError: If writing fails
+    """
+    if models is None:
+      models = self.models
+
+    try:
+      # Use ruamel.yaml to preserve comments and formatting
+      yaml_handler = YAML()
+      yaml_handler.preserve_quotes = True
+      yaml_handler.default_flow_style = False
+      yaml_handler.width = 4096  # Prevent line wrapping
+
+      # Read existing file structure
+      config_path = Path(self.config_path)
+      if config_path.exists():
+        with open(config_path, 'r') as f:
+          data = yaml_handler.load(f)
+      else:
+        data = {}
+
+      # Build model_list
+      model_list = []
+      for name, model_config in models.items():
+        # Convert ModelConfig to dict structure matching YAML format
+        model_entry = {
+          'model_name': model_config.model_name,
+          'litellm_params': {
+            'model': model_config.litellm_model,
+            'api_key': model_config.api_key_var,
+          }
+        }
+
+        # Add optional fields if present
+        if not model_config.enabled:
+          model_entry['litellm_params']['enabled'] = False
+
+        for field in ['timeout', 'num_retries', 'temperature', 'max_tokens']:
+          value = getattr(model_config, field, None)
+          if value is not None:
+            model_entry['litellm_params'][field] = value
+
+        # Add any extra fields from the original config
+        extra_fields = model_config.model_dump(exclude={
+          'model_name', 'litellm_model', 'api_key_var', 'enabled',
+          'timeout', 'num_retries', 'temperature', 'max_tokens'
+        })
+        for key, value in extra_fields.items():
+          if value is not None and key not in model_entry['litellm_params']:
+            model_entry['litellm_params'][key] = value
+
+        model_list.append(model_entry)
+
+      # Update data
+      data['model_list'] = model_list
+
+      # Write to file
+      with open(config_path, 'w') as f:
+        yaml_handler.dump(data, f)
+
+      logging.info(f"Wrote configuration to {self.config_path}")
+
+    except Exception as exc:
+      raise ConfigError(f"Failed to write config: {exc}") from exc

@@ -134,6 +134,170 @@ model_list:
       api_key: os.environ/COHERE_API_KEY
 ```
 
+## Adding New Models
+
+This section walks you through adding a new model to Apantli from scratch.
+
+### Step-by-Step Process
+
+**1. Find the model identifier**
+
+First, determine the correct LiteLLM model identifier for your new model. This follows the format `provider/model-name`.
+
+- **OpenAI models**: Check [platform.openai.com/docs/models](https://platform.openai.com/docs/models)
+  - Example: `openai/gpt-5.2`, `openai/gpt-5.1-mini`
+- **Anthropic models**: Check [docs.anthropic.com/en/docs/models-overview](https://docs.anthropic.com/en/docs/models-overview)
+  - Example: `anthropic/claude-sonnet-4-5`, `anthropic/claude-3-5-haiku-20241022`
+- **Other providers**: Check [LiteLLM provider docs](https://docs.litellm.ai/docs/providers)
+
+**2. Add API key to .env (if needed)**
+
+If you don't already have an API key for this provider in your `.env` file, add it:
+
+```bash
+# Edit .env file
+OPENAI_API_KEY=sk-proj-your-key-here
+ANTHROPIC_API_KEY=sk-ant-api03-your-key-here
+```
+
+**3. Add model to config.yaml**
+
+Open `config.yaml` and add a new entry to the `model_list`:
+
+```yaml
+model_list:
+  # ... existing models ...
+
+  - model_name: gpt-5.2              # Alias clients will use
+    litellm_params:
+      model: openai/gpt-5.2          # LiteLLM identifier
+      api_key: os.environ/OPENAI_API_KEY  # Reference to .env
+```
+
+**Required fields**:
+
+- `model_name` - The alias clients use in requests (can be anything)
+- `litellm_params.model` - The LiteLLM provider/model identifier
+- `litellm_params.api_key` - Must be `os.environ/VAR_NAME` format
+
+**4. Restart the server**
+
+Config changes require a server restart:
+
+```bash
+# Stop the current server (Ctrl+C)
+# Then restart
+apantli
+```
+
+Note: The `--reload` flag only watches Python files, not `config.yaml`.
+
+**5. Verify the model is available**
+
+Check that your new model appears in the models list:
+
+```bash
+curl http://localhost:4000/models | jq '.models[] | select(.name == "gpt-5.2")'
+```
+
+Expected output:
+
+```json
+{
+  "name": "gpt-5.2",
+  "provider": "openai",
+  "litellm_model": "openai/gpt-5.2",
+  "input_cost_per_million": 1.75,
+  "output_cost_per_million": 14.0
+}
+```
+
+**6. Test the model**
+
+Make a test request:
+
+```bash
+curl http://localhost:4000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model": "gpt-5.2",
+    "messages": [{"role": "user", "content": "Hello!"}]
+  }'
+```
+
+If successful, the request will be logged in the database and visible in the dashboard at http://localhost:4000/
+
+### Real Example: Adding GPT-5.2 Models
+
+Here's the actual process for adding OpenAI's GPT-5.2 models:
+
+**Step 1**: Research showed these models are available:
+
+- `gpt-5.2` (GPT-5.2 Thinking)
+- `gpt-5.2-pro` (Enhanced reasoning)
+- `gpt-5.2-chat-latest` (GPT-5.2 Instant)
+
+**Step 2**: Already have `OPENAI_API_KEY` in `.env` - skip
+
+**Step 3**: Added to `config.yaml`:
+
+```yaml
+model_list:
+  # === OpenAI GPT-5.2 Models (Latest - January 2026) ===
+  - model_name: gpt-5.2
+    litellm_params:
+      model: openai/gpt-5.2
+      api_key: os.environ/OPENAI_API_KEY
+      # GPT-5.2 Thinking: $1.75/1M input, $14/1M output
+
+  - model_name: gpt-5.2-pro
+    litellm_params:
+      model: openai/gpt-5.2-pro
+      api_key: os.environ/OPENAI_API_KEY
+      # GPT-5.2 Pro: Enhanced reasoning with xhigh effort level
+
+  - model_name: gpt-5.2-chat
+    litellm_params:
+      model: openai/gpt-5.2-chat-latest
+      api_key: os.environ/OPENAI_API_KEY
+      # GPT-5.2 Instant: Faster responses
+```
+
+**Step 4**: Restarted server
+
+**Step 5**: Verified with `/models` endpoint - all three appeared
+
+**Step 6**: Tested with playground at http://localhost:4000/compare
+
+### Common Issues
+
+**Model not showing in /models endpoint**
+
+→ Restart server (config changes don't trigger auto-reload)
+
+**"Unknown model" error when making request**
+
+→ Check LiteLLM identifier format is correct (must be `provider/model-name`)
+
+**"API key not found" error**
+
+→ Verify `.env` contains the key and uses the exact variable name from `config.yaml`
+
+**Model works but costs show as 0.0**
+
+→ LiteLLM may not have pricing data yet. Run `make update-pricing` to get latest pricing.
+
+**Request timeout**
+
+→ Some models are slower. Add `timeout: 300` under `litellm_params` for that model.
+
+### Tips
+
+- **Use comments** - Add pricing or capability notes as YAML comments
+- **Group by provider** - Use comment sections like `# === OpenAI Models ===`
+- **Test in playground first** - Easier to verify than command-line requests
+- **Check dashboard** - After first request, verify cost calculation at http://localhost:4000/
+
 ## Provider-Specific Configuration
 
 ### Supported Providers

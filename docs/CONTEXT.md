@@ -1,24 +1,24 @@
 # Current Session Context
 
 ---
-phase: 4
-phase_name: "Token-Efficient Documentation"
-updated: 2026-01-01
-last_commit: f8b0b21
-last_entry: 1
+phase: QoL
+phase_name: "Model Management UI"
+updated: 2026-01-11
+last_commit: 4411077
+last_entry: 3
 ---
 
 ## Current Focus
 
-Migration to token-efficient documentation system complete. Achieved 95% reduction in session pickup overhead (700 lines → 37 lines).
+Fixed critical bugs in playground and API that broke all requests. Model management UI ready for testing.
 
 ## Active Tasks
 
-- [x] Create CONTEXT.md (this file)
-- [x] Restructure IMPLEMENTATION.md with phase-based organization
-- [x] Extract decisions from CHRONICLES.md into new DECISIONS.md
-- [x] Create chronicles/ directory structure with phase-based files
-- [x] Eliminate CHRONICLES.md after preserving unique content
+- [x] Fix playground bugs (enabled param, tokens in messages, null defaults)
+- [x] Fix server passing metadata to LiteLLM
+- [x] Fix Claude Haiku 4.5 model name
+- [ ] Phase 3: Tests and polish
+- [ ] Merge to main
 
 ## Blockers
 
@@ -26,12 +26,13 @@ None.
 
 ## Context
 
-- Migration complete: CONTEXT.md (37 lines), IMPLEMENTATION.md (187 lines), DECISIONS.md (244 lines)
-- Created 5 phase-specific chronicle files replacing monolithic CHRONICLES.md
-- Extracted 7 architectural decisions in grep-friendly heading format
-- Retroactively identified 5 project phases from 2.5 months of history
-- Token-efficient system now active: read CONTEXT.md for session pickup instead of ~700 lines
+- Server was passing `enabled` and cost metadata to LiteLLM (rejected by providers)
+- Playground was sending `tokens` metadata in message history (rejected by providers)
+- Alpine expressions failing on null parameter defaults
+- Fixed by filtering metadata in server, stripping tokens in playground JS
+- Haiku 4.5 exists: `anthropic/claude-haiku-4-5` (not 3.5)
+- Branch: qol/improve-model-documentation
 
 ## Next Session
 
-System ready for ongoing use. For future sessions: read CONTEXT.md (this file) for quick pickup, update phase progress in IMPLEMENTATION.md, add entries to chronicles/phase-4-token-efficient-documentation.md as work continues.
+Test playground thoroughly with multiple providers, verify all bugs fixed, then merge to main.
