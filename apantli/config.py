@@ -268,10 +268,10 @@ class Config:
         data = {}
 
       # Build model_list
-      model_list = []
+      model_list: list[dict[str, Any]] = []
       for name, model_config in models.items():
         # Convert ModelConfig to dict structure matching YAML format
-        model_entry = {
+        model_entry: dict[str, Any] = {
           'model_name': model_config.model_name,
           'litellm_params': {
             'model': model_config.litellm_model,

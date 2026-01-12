@@ -16,6 +16,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from fastapi import FastAPI, Request, HTTPException, BackgroundTasks
+from starlette.background import BackgroundTask
 from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
@@ -381,7 +382,7 @@ async def execute_streaming_request(
         except Exception as exc:
             logging.error(f"Error logging streaming request to database: {exc}")
 
-    return StreamingResponse(generate(), media_type="text/event-stream", background=log_streaming_request)
+    return StreamingResponse(generate(), media_type="text/event-stream", background=BackgroundTask(log_streaming_request))
 
 
 async def execute_request(
@@ -619,7 +620,7 @@ async def get_providers():
     from litellm import model_cost
 
     # Group models by provider
-    provider_counts = {}
+    provider_counts: dict[str, int] = {}
     for model_id in model_cost.keys():
         # Extract provider from model ID (format: provider/model or just model)
         if '/' in model_id:
