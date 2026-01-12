@@ -1,3 +1,3 @@
 """Apantli - Lightweight LLM proxy with SQLite cost tracking."""
 
-__version__ = "0.3.9"
+__version__ = "0.4.0"
