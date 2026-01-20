@@ -84,6 +84,9 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - [x] Persist folded messages state across page refreshes
 - [x] Responsive chart rendering on window resize
 - [x] Color-coded message role headings (SYSTEM/USER/ASSISTANT)
+- [x] "Clear All Filters" clears all filter fields (not just date)
+- [x] Visual indicators for active filters (blue glow)
+- [x] Fix filter dropdowns persisting across pagination
 - [ ] Merge to main and release v0.4.1
 
 **Key Changes**:
@@ -92,6 +95,9 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - localStorage persistence: `apantli_expandedRequests`, `apantli_foldedMessages`
 - Debounced resize handler (250ms) re-renders charts for responsive layout
 - Role headings: SYSTEM orange (#ff9e64), USER blue (#7aa2f7), ASSISTANT green (#9ece6a)
+- Active filters have `.filter-active` class with blue glow (#7aa2f7 shadow)
+- New `/stats/filters` endpoint returns all providers/models sorted by usage count
+- Filter dropdowns populated once on load, persist across pagination
 
 ---
 

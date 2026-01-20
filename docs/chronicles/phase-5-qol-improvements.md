@@ -106,3 +106,25 @@ Covers model management UI, dashboard UX, visual feedback, state persistence, an
 - Data attribute `data-role` on message role spans for CSS targeting
 
 **Files**: `apantli/static/js/dashboard.js`, `apantli/static/js/modules/requests.js`, `apantli/static/css/dashboard.css`
+
+---
+
+## Entry 7: Filter UX Improvements (2026-01-19)
+
+**What**: Fixed major filter usability issues - "Clear Filter" now clears everything, active filters glow, dropdowns persist across pagination.
+
+**Why**: Multiple annoyances: Clear Filter only cleared date (not search/model/provider), no visual indication when filters were active, dropdowns reset on pagination requiring filter reselection.
+
+**How**:
+- "Clear All Filters" button now resets all filter fields (date, search, provider, model, cost range)
+- Added `.filter-active` class with blue glow (#7aa2f7 shadow) to inputs/selects with non-default values
+- Created `/stats/filters` endpoint returning all providers/models with usage counts
+- Filter dropdowns fetch once on load and cache results (not per-page)
+- Providers/models sorted by usage count descending (most-used first)
+
+**Technical**:
+- New database method `get_filter_values()` with GROUP BY queries
+- JavaScript flag `filterValuesLoaded` prevents re-fetching
+- Alpine.js `:class` bindings toggle `.filter-active` based on values
+
+**Files**: `apantli/server.py:1218-1222`, `apantli/database.py:508-538`, `apantli/static/js/dashboard.js:675-710`, `templates/dashboard.html:17,413,420,427,434-436`, `apantli/static/css/dashboard.css:1327-1331`
