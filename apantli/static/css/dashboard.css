@@ -563,10 +563,21 @@
         .message-role {
             font-weight: 600;
             font-size: var(--font-size-sm);
-            color: var(--color-text);
             font-family: var(--font-system);
             text-transform: uppercase;
             letter-spacing: 0.05em;
+        }
+
+        .message-role[data-role="system"] {
+            color: #ff9e64;
+        }
+
+        .message-role[data-role="user"] {
+            color: #7aa2f7;
+        }
+
+        .message-role[data-role="assistant"] {
+            color: #9ece6a;
         }
 
         .message-meta {

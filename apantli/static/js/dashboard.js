@@ -25,9 +25,20 @@
             }
         }
 
-        let expandedRequests = new Set();
+        // Load expanded requests from localStorage
+        let expandedRequests = new Set(JSON.parse(localStorage.getItem('apantli_expandedRequests') || '[]'));
+        // Load folded messages from localStorage
+        let foldedMessages = new Set(JSON.parse(localStorage.getItem('apantli_foldedMessages') || '[]'));
         let detailViewMode = {}; // Track view mode per request: 'conversation' or 'json'
         let conversationMessages = {}; // Store conversation messages by requestId:messageIndex
+
+        function saveExpandedRequests() {
+            localStorage.setItem('apantli_expandedRequests', JSON.stringify([...expandedRequests]));
+        }
+
+        function saveFoldedMessages() {
+            localStorage.setItem('apantli_foldedMessages', JSON.stringify([...foldedMessages]));
+        }
 
         // Table sorting state: { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
         let tableSortState = {};
@@ -116,11 +127,18 @@
         }
 
         // Toggle message fold state
-        function toggleMessageFold(button) {
+        function toggleMessageFold(button, messageId) {
             const messageContent = button.closest('.message-content');
             const messageText = messageContent.querySelector('.message-text');
             const isFolded = messageText.classList.toggle('folded');
             button.textContent = isFolded ? '▶' : '▼';
+
+            if (isFolded) {
+                foldedMessages.add(messageId);
+            } else {
+                foldedMessages.delete(messageId);
+            }
+            saveFoldedMessages();
         }
 
         // Copy text to clipboard
@@ -212,6 +230,7 @@
                 const roleLabel = msg.role.charAt(0).toUpperCase() + msg.role.slice(1);
                 const tokens = estimateTokens(msg.content);
                 const formattedContent = formatMessageContent(msg.content);
+                const isFolded = foldedMessages.has(messageKey);
 
                 html += `
                     <div class="message">
@@ -219,15 +238,15 @@
                         <div class="message-content">
                             <div class="message-header">
                                 <div>
-                                    <span class="message-role">${roleLabel}</span>
+                                    <span class="message-role" data-role="${msg.role}">${roleLabel}</span>
                                     <span class="message-meta">~${tokens.toLocaleString()} tokens</span>
                                 </div>
                                 <div class="message-actions">
-                                    <button class="fold-btn" onclick="event.stopPropagation(); toggleMessageFold(this)" title="Fold/unfold message">▼</button>
+                                    <button class="fold-btn" onclick="event.stopPropagation(); toggleMessageFold(this, '${messageKey}')" title="Fold/unfold message">${isFolded ? '▶' : '▼'}</button>
                                     <button class="copy-btn" onclick="copyConversationMessage('${requestId}', ${index}, this)">Copy</button>
                                 </div>
                             </div>
-                            <div class="message-text">${formattedContent}</div>
+                            <div class="message-text${isFolded ? ' folded' : ''}">${formattedContent}</div>
                         </div>
                     </div>
                 `;
@@ -892,6 +911,7 @@
                 } else {
                     expandedRequests.delete(id);
                 }
+                saveExpandedRequests();
             }
         }
 
@@ -914,6 +934,17 @@
 
             // Trigger initial data load now that Alpine is ready
             onTabChange(alpineData.currentTab || 'stats');
+        });
+
+        // Debounced resize handler to re-render charts
+        let resizeTimeout;
+        window.addEventListener('resize', () => {
+            clearTimeout(resizeTimeout);
+            resizeTimeout = setTimeout(() => {
+                if (alpineData && alpineData.currentTab === 'stats') {
+                    renderProviderTrends();
+                }
+            }, 250);
         });
 
         let byModelData = [];
