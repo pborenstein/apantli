@@ -1,6 +1,8 @@
-# Phase QoL: Model Management UI
+# Phase 5: QoL Improvements
 
-Quality-of-life improvements for model management through dashboard UI.
+Quality-of-life improvements - fixing "things that annoy me" as they come up.
+
+Covers model management UI, dashboard UX, visual feedback, state persistence, and other paper-cut fixes.
 
 ---
 

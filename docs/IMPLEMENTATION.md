@@ -67,6 +67,10 @@ See: [chronicles/phase-3-documentation-polish.md](chronicles/phase-3-documentati
 
 See: [chronicles/phase-4-token-efficient-documentation.md](chronicles/phase-4-token-efficient-documentation.md)
 
+**Note**: Phase 5 is ongoing QoL work - fixing annoying paper-cuts as they come up rather than a planned feature set.
+
+See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvements.md)
+
 ---
 
 ## 🔵 Phase 5: Dashboard UX Improvements (Jan 2026)
