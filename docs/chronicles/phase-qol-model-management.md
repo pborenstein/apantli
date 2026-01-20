@@ -79,3 +79,28 @@ Quality-of-life improvements for model management through dashboard UI.
 - Add `.day-square.empty` CSS style (dashboard.css:785-789)
 
 **Files**: `apantli/static/js/dashboard.js`, `apantli/static/css/dashboard.css`
+
+---
+
+## Entry 6: Dashboard UX Improvements (2026-01-19)
+
+**What**: Added visual indicators, state persistence, and responsive layout improvements.
+
+**Why**: Users needed better visual feedback when scanning requests, and state should persist across refreshes.
+
+**Features**:
+- Expanded request rows have shaded background for quick scanning
+- Message fold/unfold buttons (▼/▶) to collapse content to 2 lines
+- Expanded requests persist via localStorage
+- Folded messages persist via localStorage
+- Charts re-render on window resize (debounced 250ms)
+- Color-coded message role headings: SYSTEM orange, USER blue, ASSISTANT green
+
+**How**:
+- Added `.expanded` class to request rows with distinct backgrounds (#333 dark, #e8e6e3 light)
+- Added fold buttons to message headers with `.folded` CSS class (max-height: 3.4em)
+- localStorage keys: `apantli_expandedRequests`, `apantli_foldedMessages`
+- Window resize listener triggers chart re-render when on Stats tab
+- Data attribute `data-role` on message role spans for CSS targeting
+
+**Files**: `apantli/static/js/dashboard.js`, `apantli/static/js/modules/requests.js`, `apantli/static/css/dashboard.css`

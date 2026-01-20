@@ -9,6 +9,7 @@
 | 2 | Advanced Features | ✅ Complete | Nov-Dec 2025 | Calendar viz, streaming fixes |
 | 3 | Documentation & Polish | ✅ Complete | Dec 2025 | Comprehensive docs |
 | 4 | Token-Efficient Documentation | ✅ Complete | Dec 2025-Jan 2026 | 95% reduction in session pickup |
+| 5 | Dashboard UX Improvements | 🔵 Active | Jan 2026 | Visual feedback & state persistence |
 
 ---
 
@@ -68,9 +69,31 @@ See: [chronicles/phase-4-token-efficient-documentation.md](chronicles/phase-4-to
 
 ---
 
+## 🔵 Phase 5: Dashboard UX Improvements (Jan 2026)
+
+**Goal**: Improve dashboard usability and visual feedback
+
+**Tasks**:
+- [x] Visual indicator for expanded request rows (shaded background)
+- [x] Collapsible message content with fold/unfold buttons
+- [x] Persist expanded requests state across page refreshes
+- [x] Persist folded messages state across page refreshes
+- [x] Responsive chart rendering on window resize
+- [x] Color-coded message role headings (SYSTEM/USER/ASSISTANT)
+- [ ] Merge to main and release v0.4.1
+
+**Key Changes**:
+- Request rows get `.expanded` class with distinct background color
+- Message fold buttons (▼/▶) collapse content to 2 lines
+- localStorage persistence: `apantli_expandedRequests`, `apantli_foldedMessages`
+- Debounced resize handler (250ms) re-renders charts for responsive layout
+- Role headings: SYSTEM orange (#ff9e64), USER blue (#7aa2f7), ASSISTANT green (#9ece6a)
+
+---
+
 ## Future Phases (Tentative)
 
-### Phase 5: Project-Based Usage Tracking
+### Phase 6: Project-Based Usage Tracking
 
 **Goal**: Track costs per project/client for invoicing and budget management
 
@@ -84,7 +107,7 @@ See: [chronicles/phase-4-token-efficient-documentation.md](chronicles/phase-4-to
 
 See: [docs/workshop/PROJECT_BASED_USAGE_TRACKING.md](workshop/PROJECT_BASED_USAGE_TRACKING.md)
 
-### Phase 6: Production Hardening
+### Phase 7: Production Hardening
 
 **Goal**: Prepare for multi-user and internet-exposed deployments
 
