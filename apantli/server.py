@@ -1054,7 +1054,8 @@ async def export_obsidian(request: Request):
 async def requests(request: Request, hours: Optional[int] = None, start_date: Optional[str] = None, end_date: Optional[str] = None,
                   timezone_offset: Optional[int] = None, offset: int = 0, limit: int = 50,
                   provider: Optional[str] = None, model: Optional[str] = None,
-                  min_cost: Optional[float] = None, max_cost: Optional[float] = None, search: Optional[str] = None):
+                  min_cost: Optional[float] = None, max_cost: Optional[float] = None, search: Optional[str] = None,
+                  sort_by: Optional[str] = None, sort_dir: str = "desc"):
     """Get recent requests with full details, optionally filtered by time range and attributes.
 
     Parameters:
@@ -1087,7 +1088,9 @@ async def requests(request: Request, hours: Optional[int] = None, start_date: Op
         model=model,
         min_cost=min_cost,
         max_cost=max_cost,
-        search=search
+        search=search,
+        sort_by=sort_by,
+        sort_dir=sort_dir
     )
     return await db.get_requests(filters)
 

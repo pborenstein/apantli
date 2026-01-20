@@ -43,6 +43,9 @@
         // Table sorting state: { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
         let tableSortState = {};
 
+        // Server-side sort state for requests table
+        let requestsSortState = { column: null, direction: 'desc' }; // Default: timestamp DESC
+
         // Extract text from content (handles both string and multimodal array formats)
         function extractContentText(content) {
             if (!content) return '';
@@ -628,6 +631,13 @@
                     url += `&search=${encodeURIComponent(filters.search)}`;
                 }
 
+                // Add sort parameters
+                const sortColumnMap = ['timestamp', 'model', 'total_tokens', 'cost', 'duration_ms'];
+                if (requestsSortState.column !== null) {
+                    url += `&sort_by=${sortColumnMap[requestsSortState.column]}`;
+                    url += `&sort_dir=${requestsSortState.direction}`;
+                }
+
                 const res = await fetch(url);
                 const data = await res.json();
 
@@ -728,7 +738,24 @@
         }
 
         function sortRequestsTable(columnIndex) {
-            sortTable('requests-list', columnIndex, requestsData, renderRequestsTable);
+            // Update sort state
+            if (requestsSortState.column === columnIndex) {
+                // Toggle direction or clear
+                if (requestsSortState.direction === 'desc') {
+                    requestsSortState.direction = 'asc';
+                } else if (requestsSortState.direction === 'asc') {
+                    // Clear sort
+                    requestsSortState.column = null;
+                    requestsSortState.direction = 'desc';
+                }
+            } else {
+                // New column, default to desc
+                requestsSortState.column = columnIndex;
+                requestsSortState.direction = 'desc';
+            }
+
+            // Reload data from server with new sort
+            loadRequests();
         }
 
         function renderRequestsTable(data, sortState) {
@@ -899,7 +926,9 @@
                 </thead>
             `;
             table.appendChild(tbody);
-            updateSortIndicators(table, sortState);
+
+            // Update sort indicators using server-side state
+            updateSortIndicators(table, requestsSortState);
         }
 
         function toggleDetail(id) {

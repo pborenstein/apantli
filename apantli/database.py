@@ -22,6 +22,8 @@ class RequestFilter:
   min_cost: Optional[float] = None
   max_cost: Optional[float] = None
   search: Optional[str] = None
+  sort_by: Optional[str] = None  # timestamp, model, total_tokens, cost, duration_ms
+  sort_dir: str = "desc"  # asc or desc
 
   def __post_init__(self):
     """Initialize mutable defaults."""
@@ -173,13 +175,25 @@ class Database:
       total_cost = agg_row[2] or 0.0
       avg_cost = agg_row[3] or 0.0
 
+      # Build ORDER BY clause
+      sort_column_map = {
+        'timestamp': 'timestamp',
+        'model': 'model',
+        'total_tokens': 'total_tokens',
+        'cost': 'cost',
+        'duration_ms': 'duration_ms'
+      }
+      sort_column = sort_column_map.get(filters.sort_by or 'timestamp', 'timestamp')
+      sort_direction = 'ASC' if filters.sort_dir == 'asc' else 'DESC'
+      order_by = f"ORDER BY {sort_column} {sort_direction}"
+
       # Get paginated results
       cursor = await conn.execute(f"""
         SELECT timestamp, model, provider, prompt_tokens, completion_tokens, total_tokens,
                cost, duration_ms, request_data, response_data
         FROM requests
         WHERE error IS NULL {filter_clause}
-        ORDER BY timestamp DESC
+        {order_by}
         LIMIT {filters.limit} OFFSET {filters.offset}
       """, params)
       rows = await cursor.fetchall()
