@@ -452,6 +452,14 @@
             background: var(--color-hover);
         }
 
+        .request-row.expanded {
+            background: #e8e6e3;
+        }
+
+        [data-theme="dark"] .request-row.expanded {
+            background: #333;
+        }
+
         .request-detail {
             padding: var(--spacing-md);
             background: var(--color-background-secondary);
@@ -573,6 +581,31 @@
             line-height: 1.7;
             color: var(--color-text);
             font-size: var(--font-size-sm);
+        }
+
+        .message-text.folded {
+            max-height: 3.4em;
+            overflow: hidden;
+        }
+
+        .message-actions {
+            display: flex;
+            gap: var(--spacing-xs);
+            align-items: center;
+        }
+
+        .fold-btn {
+            padding: 2px 6px;
+            border: none;
+            background: transparent;
+            cursor: pointer;
+            font-size: 10px;
+            color: var(--color-text-secondary);
+            transition: color 0.15s ease;
+        }
+
+        .fold-btn:hover {
+            color: var(--color-text);
         }
 
         .copy-btn {

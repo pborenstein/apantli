@@ -115,6 +115,14 @@
             return formatted;
         }
 
+        // Toggle message fold state
+        function toggleMessageFold(button) {
+            const messageContent = button.closest('.message-content');
+            const messageText = messageContent.querySelector('.message-text');
+            const isFolded = messageText.classList.toggle('folded');
+            button.textContent = isFolded ? '▶' : '▼';
+        }
+
         // Copy text to clipboard
         function copyToClipboard(text, button) {
             navigator.clipboard.writeText(text).then(() => {
@@ -214,7 +222,10 @@
                                     <span class="message-role">${roleLabel}</span>
                                     <span class="message-meta">~${tokens.toLocaleString()} tokens</span>
                                 </div>
-                                <button class="copy-btn" onclick="copyConversationMessage('${requestId}', ${index}, this)">Copy</button>
+                                <div class="message-actions">
+                                    <button class="fold-btn" onclick="event.stopPropagation(); toggleMessageFold(this)" title="Fold/unfold message">▼</button>
+                                    <button class="copy-btn" onclick="copyConversationMessage('${requestId}', ${index}, this)">Copy</button>
+                                </div>
                             </div>
                             <div class="message-text">${formattedContent}</div>
                         </div>
@@ -715,7 +726,8 @@
 
                 // Create main row
                 const mainRow = document.createElement('tr');
-                mainRow.className = 'request-row';
+                mainRow.id = 'row-' + requestId;
+                mainRow.className = 'request-row' + (expandedRequests.has(requestId) ? ' expanded' : '');
                 mainRow.onclick = () => toggleDetail(requestId);
                 mainRow.innerHTML = `
                     <td>${escapeHtml(new Date(timestamp.endsWith('Z') || timestamp.includes('+') ? timestamp : timestamp + 'Z').toLocaleString())}</td>
@@ -863,10 +875,16 @@
         }
 
         function toggleDetail(id) {
-            const row = document.getElementById('detail-' + id);
-            if (row) {
-                const isHidden = row.style.display === 'none' || !row.style.display;
-                row.style.display = isHidden ? 'table-row' : 'none';
+            const detailRow = document.getElementById('detail-' + id);
+            const mainRow = document.getElementById('row-' + id);
+            if (detailRow) {
+                const isHidden = detailRow.style.display === 'none' || !detailRow.style.display;
+                detailRow.style.display = isHidden ? 'table-row' : 'none';
+
+                // Toggle expanded class on main row
+                if (mainRow) {
+                    mainRow.classList.toggle('expanded', isHidden);
+                }
 
                 // Track expanded state
                 if (isHidden) {

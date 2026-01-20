@@ -370,7 +370,8 @@ function renderRequestsTable(data, sortState) {
 
     // Create main row
     const mainRow = document.createElement('tr')
-    mainRow.className = 'request-row'
+    mainRow.id = 'row-' + requestId
+    mainRow.className = 'request-row' + (state.expandedRequests.has(requestId) ? ' expanded' : '')
     mainRow.onclick = () => window.toggleDetail(requestId)
     mainRow.innerHTML = `
       <td>${escapeHtml(new Date(timestamp.endsWith('Z') || timestamp.includes('+') ? timestamp : timestamp + 'Z').toLocaleString())}</td>
@@ -513,10 +514,16 @@ function renderRequestsTable(data, sortState) {
 
 // Toggle detail row
 export function toggleDetail(id) {
-  const row = document.getElementById('detail-' + id)
-  if (row) {
-    const isHidden = row.style.display === 'none' || !row.style.display
-    row.style.display = isHidden ? 'table-row' : 'none'
+  const detailRow = document.getElementById('detail-' + id)
+  const mainRow = document.getElementById('row-' + id)
+  if (detailRow) {
+    const isHidden = detailRow.style.display === 'none' || !detailRow.style.display
+    detailRow.style.display = isHidden ? 'table-row' : 'none'
+
+    // Toggle expanded class on main row
+    if (mainRow) {
+      mainRow.classList.toggle('expanded', isHidden)
+    }
 
     // Track expanded state
     if (isHidden) {
