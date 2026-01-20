@@ -879,8 +879,21 @@
 
         // Make Alpine data accessible to functions
         let alpineData = null;
-        document.addEventListener('alpine:initialized', () => {
+        document.addEventListener('alpine:initialized', async () => {
             alpineData = Alpine.$data(document.body);
+
+            // Always fetch database date range on init so charts know the full range
+            try {
+                const res = await fetch('/stats/date-range');
+                const data = await res.json();
+                if (data.start_date && data.end_date) {
+                    alpineData.dbDateRange.startDate = data.start_date;
+                    alpineData.dbDateRange.endDate = data.end_date;
+                }
+            } catch (e) {
+                // Ignore errors - will fall back to data bounds
+            }
+
             // Trigger initial data load now that Alpine is ready
             onTabChange(alpineData.currentTab || 'stats');
         });
@@ -962,13 +975,28 @@
                     const dailyData = data.daily.sort((a, b) => a.date.localeCompare(b.date));
 
                     // Generate complete date range (including empty days)
-                    // Use first and last dates from data to ensure we cover the full range
+                    // Use filter dates if set, otherwise use dbDateRange for "All Time",
+                    // falling back to data bounds only if neither is available
                     const allDates = [];
-                    if (dailyData.length > 0) {
-                        const startDate = dailyData[0].date;
-                        const endDate = dailyData[dailyData.length - 1].date;
-                        const start = new Date(startDate + 'T00:00:00');
-                        const end = new Date(endDate + 'T00:00:00');
+                    let rangeStart, rangeEnd;
+
+                    if (filter.startDate && filter.endDate) {
+                        // Explicit filter range (This Week, This Month, etc.)
+                        rangeStart = filter.startDate;
+                        rangeEnd = filter.endDate;
+                    } else if (alpineData.dbDateRange.startDate && alpineData.dbDateRange.endDate) {
+                        // "All Time" - use database range
+                        rangeStart = alpineData.dbDateRange.startDate;
+                        rangeEnd = alpineData.dbDateRange.endDate;
+                    } else if (dailyData.length > 0) {
+                        // Fallback to data bounds
+                        rangeStart = dailyData[0].date;
+                        rangeEnd = dailyData[dailyData.length - 1].date;
+                    }
+
+                    if (rangeStart && rangeEnd) {
+                        const start = new Date(rangeStart + 'T00:00:00');
+                        const end = new Date(rangeEnd + 'T00:00:00');
                         for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
                             const dateStr = d.toISOString().split('T')[0];
                             allDates.push(dateStr);
@@ -1811,7 +1839,7 @@
                   <div class="calendar-weeks">
             `;
 
-            weeks.forEach(week => {
+            weeks.forEach((week, weekIndex) => {
                 const weekEnd = getWeekEnd(week.startDate);
                 const weekTotalCost = week.days.reduce((sum, d) => sum + d.data.cost, 0);
                 const weekTotalRequests = week.days.reduce((sum, d) => sum + d.data.requests, 0);
@@ -1826,6 +1854,16 @@
                         <div class="week-grid">
                 `;
 
+                // Calculate how many leading/trailing empty squares needed
+                // First day in this week's days array tells us where we start
+                const firstDayInWeek = new Date(week.days[0].date + 'T00:00:00').getDay();
+                const lastDayInWeek = new Date(week.days[week.days.length - 1].date + 'T00:00:00').getDay();
+
+                // Add leading empty squares (days before first day of this week's data)
+                for (let i = 0; i < firstDayInWeek; i++) {
+                    html += `<div class="day-square empty"></div>`;
+                }
+
                 // Render GitHub-style squares for the week
                 week.days.forEach(day => {
                     const intensityClass = getIntensityClass(day.data.cost);
@@ -1838,6 +1876,11 @@
                         </div>
                     `;
                 });
+
+                // Add trailing empty squares (days after last day of this week's data)
+                for (let i = lastDayInWeek; i < 6; i++) {
+                    html += `<div class="day-square empty"></div>`;
+                }
 
                 html += `
                         </div>

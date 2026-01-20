@@ -59,3 +59,23 @@ Quality-of-life improvements for model management through dashboard UI.
 3. `getDefaultValue()` returned null, template called `.toFixed()` on null
 
 **Files**: `apantli/server.py:193`, `apantli/static/js/compare.js:332-335,243`, `config.yaml`
+
+---
+
+## Entry 5: Dashboard Chart & Calendar Fixes (2026-01-19)
+
+**What**: Fixed chart date range clipping and calendar weeks showing fewer than 7 days.
+
+**Why**: "All Time" chart only showed data bounds (not full DB range), "This Week" showed 2 days instead of 7, calendar weeks at month boundaries were incomplete.
+
+**Root Causes**:
+1. `dbDateRange` only populated when user clicks "All Time" button, not on page load
+2. Chart used data bounds as fallback when `dbDateRange` was null
+3. Calendar `renderMonth` only rendered days within the month, no padding for week boundaries
+
+**How**:
+- Fetch `/stats/date-range` on Alpine init before charts render (dashboard.js:882-895)
+- Rewrite week rendering to add leading/trailing empty squares (dashboard.js:1857-1883)
+- Add `.day-square.empty` CSS style (dashboard.css:785-789)
+
+**Files**: `apantli/static/js/dashboard.js`, `apantli/static/css/dashboard.css`

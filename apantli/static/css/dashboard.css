@@ -782,6 +782,12 @@
             transform: scale(1.1);
         }
 
+        .day-square.empty {
+            background: transparent;
+            cursor: default;
+            pointer-events: none;
+        }
+
         /* Intensity levels - GitHub style */
         .day-square.level-0 {
             background: var(--color-background-tertiary);
