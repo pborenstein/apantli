@@ -3,26 +3,20 @@
 ---
 phase: QoL
 phase_name: "Dashboard UX Improvements"
-updated: 2026-01-19
-last_commit: fbc8ba6
+updated: 2026-01-20
+last_commit: 9b74501
 ---
 
 ## Current Focus
 
-Fixed server-side sorting for requests table to apply across entire dataset.
+Replaced flat date filter buttons with dropdown menus for better navigation.
 
 ## Active Tasks
 
-- [x] Add shaded background for expanded request rows
-- [x] Add collapsible messages with fold/unfold buttons
-- [x] Persist expanded/folded state across refreshes
-- [x] Make charts responsive to window resize
-- [x] Add color coding for message role headings
-- [x] Fix "Clear Filter" to clear ALL filters (not just date)
-- [x] Add visual indicators for active filters (blue glow)
-- [x] Fix filter dropdowns persisting across pagination
-- [x] Implement server-side sorting (applies to all data, not just page)
+- [x] Add dropdown menus for date filters (Days/Weeks/Months)
+- [x] Show selected item in dropdowns with inverted styling
 - [ ] Merge fixes-and-stuff to main
+- [ ] Tag v0.4.1 patch release
 
 ## Blockers
 
@@ -30,12 +24,11 @@ None.
 
 ## Context
 
-- Server-side sorting via `sort_by` and `sort_dir` parameters on `/requests` endpoint
-- Sorting persists across pagination (sorts entire dataset, not just visible page)
-- Column map: timestamp, model, total_tokens, cost, duration_ms
-- Need to clarify what "sorting" means for requests table in future (see note)
-- **Note**: Next time, think more clearly about what sorting means for this table
-- Branch: fixes-and-stuff (9 commits ahead of main)
+- Date filter dropdowns: Days (7 options), Weeks (4 options), Months (6 options)
+- All Time and Last 30 Days remain as simple buttons
+- Dropdown buttons highlight when any option is active
+- Selected items shown with inverted styling in dropdown menus
+- Branch: fixes-and-stuff (10 commits ahead of main)
 
 ## Next Session
 

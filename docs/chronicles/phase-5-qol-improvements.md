@@ -147,3 +147,23 @@ Covers model management UI, dashboard UX, visual feedback, state persistence, an
 **Note**: User flagged need to "think more clearly about what sorting means" for this table in future.
 
 **Files**: `apantli/database.py:25-26,178-188`, `apantli/server.py:1058,1092-1093`, `apantli/static/js/dashboard.js:47,634-639,740-759`
+
+---
+
+## Entry 9: Date Filter Dropdowns (2026-01-20)
+
+**What**: Replaced flat date filter buttons with dropdown menus for Days/Weeks/Months selections.
+
+**Why**: Consolidate 6 date filter buttons into 3 dropdown menus for cleaner UI and easier navigation through time ranges.
+
+**How**:
+- Converted Today/Yesterday/etc into Days dropdown (7 options: Today through 6 days ago)
+- Converted This Week into Weeks dropdown (4 options: This Week, Last Week, 2-3 weeks ago)
+- Converted This Month into Months dropdown (6 options: This Month through 5 months ago)
+- Kept All Time and Last 30 Days as simple buttons
+- Dropdown button highlights when any option is active
+- Selected item in dropdown shows with inverted styling
+- Added helper functions: `isDayFilterActive()`, `isWeekFilterActive()`, `isMonthFilterActive()`
+- Extended `setQuickFilter()` to handle new date range patterns (day-N, week-N, month-N)
+
+**Files**: `templates/dashboard.html:1-48,155-220,245-261`, `apantli/static/css/dashboard.css:1213-1253`
