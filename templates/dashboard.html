@@ -3,10 +3,48 @@
 <div class="date-filter">
     <div class="filter-buttons">
         <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'all') }" @click="setQuickFilter(dateFilter, 'all')">All Time</button>
-        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'today') }" @click="setQuickFilter(dateFilter, 'today')">Today</button>
-        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'yesterday') }" @click="setQuickFilter(dateFilter, 'yesterday')">Yesterday</button>
-        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-week') }" @click="setQuickFilter(dateFilter, 'this-week')">This Week</button>
-        <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'this-month') }" @click="setQuickFilter(dateFilter, 'this-month')">This Month</button>
+        
+        <div class="filter-dropdown" x-data="{ open: false }" @click.away="open = false">
+            <button class="filter-btn" :class="{ 'active': isDayFilterActive(dateFilter) }" @click="open = !open">
+                Days ▾
+            </button>
+            <div class="dropdown-menu" x-show="open" x-transition>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'today') }" @click="setQuickFilter(dateFilter, 'today'); open = false">Today</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'yesterday') }" @click="setQuickFilter(dateFilter, 'yesterday'); open = false">Yesterday</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'day-2') }" @click="setQuickFilter(dateFilter, 'day-2'); open = false">2 days ago</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'day-3') }" @click="setQuickFilter(dateFilter, 'day-3'); open = false">3 days ago</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'day-4') }" @click="setQuickFilter(dateFilter, 'day-4'); open = false">4 days ago</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'day-5') }" @click="setQuickFilter(dateFilter, 'day-5'); open = false">5 days ago</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'day-6') }" @click="setQuickFilter(dateFilter, 'day-6'); open = false">6 days ago</button>
+            </div>
+        </div>
+
+        <div class="filter-dropdown" x-data="{ open: false }" @click.away="open = false">
+            <button class="filter-btn" :class="{ 'active': isWeekFilterActive(dateFilter) }" @click="open = !open">
+                Weeks ▾
+            </button>
+            <div class="dropdown-menu" x-show="open" x-transition>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'this-week') }" @click="setQuickFilter(dateFilter, 'this-week'); open = false">This Week</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'last-week') }" @click="setQuickFilter(dateFilter, 'last-week'); open = false">Last Week</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'week-2') }" @click="setQuickFilter(dateFilter, 'week-2'); open = false">2 weeks ago</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'week-3') }" @click="setQuickFilter(dateFilter, 'week-3'); open = false">3 weeks ago</button>
+            </div>
+        </div>
+
+        <div class="filter-dropdown" x-data="{ open: false }" @click.away="open = false">
+            <button class="filter-btn" :class="{ 'active': isMonthFilterActive(dateFilter) }" @click="open = !open">
+                Months ▾
+            </button>
+            <div class="dropdown-menu" x-show="open" x-transition>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'this-month') }" @click="setQuickFilter(dateFilter, 'this-month'); open = false">This Month</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'last-month') }" @click="setQuickFilter(dateFilter, 'last-month'); open = false">Last Month</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'month-2') }" @click="setQuickFilter(dateFilter, 'month-2'); open = false">2 months ago</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'month-3') }" @click="setQuickFilter(dateFilter, 'month-3'); open = false">3 months ago</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'month-4') }" @click="setQuickFilter(dateFilter, 'month-4'); open = false">4 months ago</button>
+                <button :class="{ 'selected': isQuickActive(dateFilter, 'month-5') }" @click="setQuickFilter(dateFilter, 'month-5'); open = false">5 months ago</button>
+            </div>
+        </div>
+
         <button class="filter-btn" :class="{ 'active': isQuickActive(dateFilter, 'last-30-days') }" @click="setQuickFilter(dateFilter, 'last-30-days')">Last 30 Days</button>
     </div>
 
@@ -123,6 +161,16 @@
                 yesterday.setDate(yesterday.getDate() - 1);
                 filter.startDate = filter.endDate = this.formatDate(yesterday);
                 break;
+            case 'day-2':
+            case 'day-3':
+            case 'day-4':
+            case 'day-5':
+            case 'day-6':
+                const daysAgo = parseInt(range.split('-')[1]);
+                const targetDay = new Date(today);
+                targetDay.setDate(targetDay.getDate() - daysAgo);
+                filter.startDate = filter.endDate = this.formatDate(targetDay);
+                break;
             case 'this-week':
                 const weekStart = new Date(today);
                 weekStart.setDate(weekStart.getDate() - weekStart.getDay());
@@ -131,11 +179,45 @@
                 filter.startDate = this.formatDate(weekStart);
                 filter.endDate = this.formatDate(weekEnd);
                 break;
+            case 'last-week':
+                const lastWeekStart = new Date(today);
+                lastWeekStart.setDate(lastWeekStart.getDate() - lastWeekStart.getDay() - 7);
+                const lastWeekEnd = new Date(lastWeekStart);
+                lastWeekEnd.setDate(lastWeekStart.getDate() + 6);
+                filter.startDate = this.formatDate(lastWeekStart);
+                filter.endDate = this.formatDate(lastWeekEnd);
+                break;
+            case 'week-2':
+            case 'week-3':
+                const weeksAgo = parseInt(range.split('-')[1]);
+                const targetWeekStart = new Date(today);
+                targetWeekStart.setDate(targetWeekStart.getDate() - targetWeekStart.getDay() - (weeksAgo * 7));
+                const targetWeekEnd = new Date(targetWeekStart);
+                targetWeekEnd.setDate(targetWeekStart.getDate() + 6);
+                filter.startDate = this.formatDate(targetWeekStart);
+                filter.endDate = this.formatDate(targetWeekEnd);
+                break;
             case 'this-month':
                 const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
                 const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
                 filter.startDate = this.formatDate(monthStart);
                 filter.endDate = this.formatDate(monthEnd);
+                break;
+            case 'last-month':
+                const lastMonthStart = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+                const lastMonthEnd = new Date(today.getFullYear(), today.getMonth(), 0);
+                filter.startDate = this.formatDate(lastMonthStart);
+                filter.endDate = this.formatDate(lastMonthEnd);
+                break;
+            case 'month-2':
+            case 'month-3':
+            case 'month-4':
+            case 'month-5':
+                const monthsAgo = parseInt(range.split('-')[1]);
+                const targetMonthStart = new Date(today.getFullYear(), today.getMonth() - monthsAgo, 1);
+                const targetMonthEnd = new Date(today.getFullYear(), today.getMonth() - monthsAgo + 1, 0);
+                filter.startDate = this.formatDate(targetMonthStart);
+                filter.endDate = this.formatDate(targetMonthEnd);
                 break;
             case 'last-30-days':
                 const thirtyDaysAgo = new Date(today);
@@ -159,6 +241,24 @@
         const temp = { startDate: '', endDate: '' };
         this.setQuickFilter(temp, range);
         return filter.startDate === temp.startDate && filter.endDate === temp.endDate;
+    },
+
+    // Check if any day filter is active
+    isDayFilterActive(filter) {
+        const dayRanges = ['today', 'yesterday', 'day-2', 'day-3', 'day-4', 'day-5', 'day-6'];
+        return dayRanges.some(range => this.isQuickActive(filter, range));
+    },
+
+    // Check if any week filter is active
+    isWeekFilterActive(filter) {
+        const weekRanges = ['this-week', 'last-week', 'week-2', 'week-3'];
+        return weekRanges.some(range => this.isQuickActive(filter, range));
+    },
+
+    // Check if any month filter is active
+    isMonthFilterActive(filter) {
+        const monthRanges = ['this-month', 'last-month', 'month-2', 'month-3', 'month-4', 'month-5'];
+        return monthRanges.some(range => this.isQuickActive(filter, range));
     },
 
     // Build query string from filter
