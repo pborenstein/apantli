@@ -1324,6 +1324,12 @@
             color: var(--color-text);
         }
 
+        /* Active filter glow */
+        .filter-active {
+            border-color: #7aa2f7 !important;
+            box-shadow: 0 0 8px rgba(122, 162, 247, 0.5) !important;
+        }
+
         .filter-cost-range {
             display: flex;
             gap: 6px;

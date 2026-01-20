@@ -14,7 +14,7 @@
         <input type="date" x-model="dateFilter.startDate">
         <span>to</span>
         <input type="date" x-model="dateFilter.endDate">
-        <button @click="dateFilter = { startDate: '', endDate: '' }" class="btn btn-secondary">Clear Filter</button>
+        <button @click="dateFilter = { startDate: '', endDate: '' }; requestFilters = { provider: '', model: '', minCost: '', maxCost: '', search: '' }" class="btn btn-secondary">Clear All Filters</button>
     </div>
     <div class="filter-active-text" x-show="dateFilter.startDate || dateFilter.endDate">
         Active filter: <span x-text="dateFilter.startDate || '(none)'"></span> to <span x-text="dateFilter.endDate || '(none)'"></span>
@@ -410,30 +410,30 @@
             <div class="filter-row">
                 <div class="filter-search">
                     <label for="search-requests">Search:</label>
-                    <input type="text" id="search-requests" placeholder="Search in model or content..." x-model="requestFilters.search">
+                    <input type="text" id="search-requests" placeholder="Search in model or content..." x-model="requestFilters.search" :class="{ 'filter-active': requestFilters.search }">
                 </div>
             </div>
 
             <div class="filter-row">
                 <div class="filter-select">
                     <label for="filter-provider">Provider:</label>
-                    <select id="filter-provider" x-model="requestFilters.provider">
+                    <select id="filter-provider" x-model="requestFilters.provider" :class="{ 'filter-active': requestFilters.provider }">
                         <option value="">All</option>
                     </select>
                 </div>
 
                 <div class="filter-select">
                     <label for="filter-model">Model:</label>
-                    <select id="filter-model" x-model="requestFilters.model">
+                    <select id="filter-model" x-model="requestFilters.model" :class="{ 'filter-active': requestFilters.model }">
                         <option value="">All</option>
                     </select>
                 </div>
 
                 <div class="filter-cost-range">
                     <label>Cost Range:</label>
-                    <input type="number" id="min-cost" placeholder="Min $" step="0.0001" min="0" x-model.number="requestFilters.minCost">
+                    <input type="number" id="min-cost" placeholder="Min $" step="0.0001" min="0" x-model.number="requestFilters.minCost" :class="{ 'filter-active': requestFilters.minCost !== '' && requestFilters.minCost !== null }">
                     <span>to</span>
-                    <input type="number" id="max-cost" placeholder="Max $" step="0.0001" min="0" x-model.number="requestFilters.maxCost">
+                    <input type="number" id="max-cost" placeholder="Max $" step="0.0001" min="0" x-model.number="requestFilters.maxCost" :class="{ 'filter-active': requestFilters.maxCost !== '' && requestFilters.maxCost !== null }">
                 </div>
             </div>
         </div>

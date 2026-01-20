@@ -672,32 +672,41 @@
             }
         }
 
-        function populateFilterDropdowns() {
-            // Get unique providers from current page data
-            const providers = [...new Set(requestsObjects.map(r => r.provider).filter(Boolean))].sort();
-            const providerSelect = document.getElementById('filter-provider');
-            const currentProvider = alpineData.requestFilters.provider;
-            providerSelect.innerHTML = '<option value="">All</option>';
-            providers.forEach(p => {
-                const option = document.createElement('option');
-                option.value = p;
-                option.textContent = p;
-                if (p === currentProvider) option.selected = true;
-                providerSelect.appendChild(option);
-            });
+        // Populate filter dropdowns once on load (not per page)
+        let filterValuesLoaded = false;
+        async function populateFilterDropdowns() {
+            if (filterValuesLoaded) return;
 
-            // Get unique models from current page data
-            const models = [...new Set(requestsObjects.map(r => r.model).filter(Boolean))].sort();
-            const modelSelect = document.getElementById('filter-model');
-            const currentModel = alpineData.requestFilters.model;
-            modelSelect.innerHTML = '<option value="">All</option>';
-            models.forEach(m => {
-                const option = document.createElement('option');
-                option.value = m;
-                option.textContent = m;
-                if (m === currentModel) option.selected = true;
-                modelSelect.appendChild(option);
-            });
+            try {
+                const res = await fetch('/stats/filters');
+                const data = await res.json();
+
+                const providerSelect = document.getElementById('filter-provider');
+                const currentProvider = alpineData.requestFilters.provider;
+                providerSelect.innerHTML = '<option value="">All</option>';
+                data.providers.forEach(p => {
+                    const option = document.createElement('option');
+                    option.value = p.name;
+                    option.textContent = p.name;
+                    if (p.name === currentProvider) option.selected = true;
+                    providerSelect.appendChild(option);
+                });
+
+                const modelSelect = document.getElementById('filter-model');
+                const currentModel = alpineData.requestFilters.model;
+                modelSelect.innerHTML = '<option value="">All</option>';
+                data.models.forEach(m => {
+                    const option = document.createElement('option');
+                    option.value = m.name;
+                    option.textContent = m.name;
+                    if (m.name === currentModel) option.selected = true;
+                    modelSelect.appendChild(option);
+                });
+
+                filterValuesLoaded = true;
+            } catch (e) {
+                console.error('Failed to load filter values:', e);
+            }
         }
 
 

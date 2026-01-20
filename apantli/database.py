@@ -504,3 +504,35 @@ class Database:
         'start_date': None,
         'end_date': None
       }
+
+  async def get_filter_values(self):
+    """Get available filter values (providers and models) with usage counts.
+
+    Returns:
+      Dict with providers and models arrays, sorted by usage count descending
+    """
+    async with self._get_connection() as conn:
+      # Get providers with counts
+      cursor = await conn.execute("""
+        SELECT provider, COUNT(*) as count
+        FROM requests
+        WHERE error IS NULL AND provider IS NOT NULL
+        GROUP BY provider
+        ORDER BY count DESC
+      """)
+      providers = [{'name': row[0], 'count': row[1]} for row in await cursor.fetchall()]
+
+      # Get models with counts
+      cursor = await conn.execute("""
+        SELECT model, COUNT(*) as count
+        FROM requests
+        WHERE error IS NULL AND model IS NOT NULL
+        GROUP BY model
+        ORDER BY count DESC
+      """)
+      models = [{'name': row[0], 'count': row[1]} for row in await cursor.fetchall()]
+
+      return {
+        'providers': providers,
+        'models': models
+      }

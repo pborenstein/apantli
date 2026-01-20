@@ -1215,6 +1215,13 @@ async def stats_date_range(request: Request):
     return await db.get_date_range()
 
 
+@app.get("/stats/filters")
+async def stats_filters(request: Request):
+    """Get available filter values (providers and models) with usage counts."""
+    db = request.app.state.db
+    return await db.get_filter_values()
+
+
 @app.get("/")
 async def dashboard(request: Request):
     """Simple HTML dashboard."""
