@@ -87,6 +87,7 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - [x] "Clear All Filters" clears all filter fields (not just date)
 - [x] Visual indicators for active filters (blue glow)
 - [x] Fix filter dropdowns persisting across pagination
+- [x] Implement server-side sorting for requests table
 - [ ] Merge to main and release v0.4.1
 
 **Key Changes**:
@@ -98,6 +99,7 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - Active filters have `.filter-active` class with blue glow (#7aa2f7 shadow)
 - New `/stats/filters` endpoint returns all providers/models sorted by usage count
 - Filter dropdowns populated once on load, persist across pagination
+- Server-side sorting via `sort_by`/`sort_dir` params, applies to entire dataset not just page
 
 ---
 

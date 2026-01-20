@@ -128,3 +128,22 @@ Covers model management UI, dashboard UX, visual feedback, state persistence, an
 - Alpine.js `:class` bindings toggle `.filter-active` based on values
 
 **Files**: `apantli/server.py:1218-1222`, `apantli/database.py:508-538`, `apantli/static/js/dashboard.js:675-710`, `templates/dashboard.html:17,413,420,427,434-436`, `apantli/static/css/dashboard.css:1327-1331`
+
+---
+
+## Entry 8: Server-Side Sorting (2026-01-19)
+
+**What**: Moved requests table sorting from client-side to server-side so sorting applies to entire dataset, not just visible page.
+
+**Why**: Column sorting only sorted the current page of 50 results, causing confusion when paginating through sorted data.
+
+**How**:
+- Added `sort_by` and `sort_dir` parameters to `/requests` endpoint
+- Extended `RequestFilter` dataclass with sort fields (timestamp, model, total_tokens, cost, duration_ms)
+- Modified `get_requests()` to build ORDER BY clause from sort parameters
+- JavaScript tracks `requestsSortState` and passes to API on each request
+- Sort state persists across pagination
+
+**Note**: User flagged need to "think more clearly about what sorting means" for this table in future.
+
+**Files**: `apantli/database.py:25-26,178-188`, `apantli/server.py:1058,1092-1093`, `apantli/static/js/dashboard.js:47,634-639,740-759`

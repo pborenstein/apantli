@@ -4,12 +4,12 @@
 phase: QoL
 phase_name: "Dashboard UX Improvements"
 updated: 2026-01-19
-last_commit: a44d9a8
+last_commit: fbc8ba6
 ---
 
 ## Current Focus
 
-Dashboard filter improvements: clear all functionality and visual indicators for active filters.
+Fixed server-side sorting for requests table to apply across entire dataset.
 
 ## Active Tasks
 
@@ -21,6 +21,7 @@ Dashboard filter improvements: clear all functionality and visual indicators for
 - [x] Fix "Clear Filter" to clear ALL filters (not just date)
 - [x] Add visual indicators for active filters (blue glow)
 - [x] Fix filter dropdowns persisting across pagination
+- [x] Implement server-side sorting (applies to all data, not just page)
 - [ ] Merge fixes-and-stuff to main
 
 ## Blockers
@@ -29,12 +30,12 @@ None.
 
 ## Context
 
-- "Clear All Filters" now resets date, search, provider, model, and cost range
-- Active filters glow blue (#7aa2f7 shadow) for visibility in dark mode
-- Filter dropdowns fetch from `/stats/filters` endpoint once on load
-- Providers/models sorted by usage count (most-used first)
-- Dropdowns no longer repopulate per page - fixes pagination annoyance
-- Branch: fixes-and-stuff (7 commits ahead of main)
+- Server-side sorting via `sort_by` and `sort_dir` parameters on `/requests` endpoint
+- Sorting persists across pagination (sorts entire dataset, not just visible page)
+- Column map: timestamp, model, total_tokens, cost, duration_ms
+- Need to clarify what "sorting" means for requests table in future (see note)
+- **Note**: Next time, think more clearly about what sorting means for this table
+- Branch: fixes-and-stuff (9 commits ahead of main)
 
 ## Next Session
 
