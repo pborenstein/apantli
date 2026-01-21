@@ -88,6 +88,9 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - [x] Visual indicators for active filters (blue glow)
 - [x] Fix filter dropdowns persisting across pagination
 - [x] Implement server-side sorting for requests table
+- [x] Replace flat date filter buttons with dropdown menus
+- [x] Add gradient tinting for tokens/cost/duration in requests table
+- [x] Add provider color tinting for model names
 - [ ] Merge to main and release v0.4.1
 
 **Key Changes**:
@@ -100,6 +103,10 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - New `/stats/filters` endpoint returns all providers/models sorted by usage count
 - Filter dropdowns populated once on load, persist across pagination
 - Server-side sorting via `sort_by`/`sort_dir` params, applies to entire dataset not just page
+- Date filter dropdowns: Days (7 options), Weeks (4 options), Months (6 options)
+- Requests table metrics with gradient tinting: tokens (blue), cost (green), duration (amber)
+- Higher values brighter + glowier (0-6px blur, 30-40% opacity) for dark mode
+- Model names tinted with provider colors using existing PROVIDER_COLORS map
 
 ---
 

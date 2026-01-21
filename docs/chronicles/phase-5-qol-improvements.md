@@ -167,3 +167,21 @@ Covers model management UI, dashboard UX, visual feedback, state persistence, an
 - Extended `setQuickFilter()` to handle new date range patterns (day-N, week-N, month-N)
 
 **Files**: `templates/dashboard.html:1-48,155-220,245-261`, `apantli/static/css/dashboard.css:1213-1253`
+
+---
+
+## Entry 10: Gradient Tinting for Metrics (2026-01-20)
+
+**What**: Added gradient color tinting with glow effects to requests table metrics (tokens, cost, duration) and provider colors for model names.
+
+**Why**: Improve visual hierarchy and scanability - higher metric values should draw the eye with brighter colors and glow effects optimized for dark mode.
+
+**How**:
+- Created `getValueTint()` function to generate gradient colors based on value normalization
+- Higher values = brighter (0.7-1.0 brightness range keeps readability on dark background)
+- Added text-shadow glow effect scaling 0-6px blur with 30-40% opacity based on normalized value
+- Tokens (blue #3b82f6), Cost (green #10b981), Duration (amber #f59e0b)
+- Model names tinted with provider colors from existing PROVIDER_COLORS map
+- Calculated min/max per page for normalization ensuring darkest/brightest always represent extremes
+
+**Files**: `apantli/static/js/dashboard.js:1029-1048,783-822`

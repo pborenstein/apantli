@@ -761,6 +761,18 @@
         function renderRequestsTable(data, sortState) {
             const tbody = document.createElement('tbody');
 
+            // Calculate min/max for gradient tinting
+            const tokens = data.map(r => r[2]);
+            const costs = data.map(r => r[3]);
+            const durations = data.map(r => r[4]);
+
+            const minTokens = Math.min(...tokens);
+            const maxTokens = Math.max(...tokens);
+            const minCost = Math.min(...costs);
+            const maxCost = Math.max(...costs);
+            const minDuration = Math.min(...durations);
+            const maxDuration = Math.max(...durations);
+
             data.forEach(row => {
                 const timestamp = row[5];
                 const requestObj = requestsObjects.find(r => r.timestamp === timestamp);
@@ -779,6 +791,20 @@
                 const promptCost = totalTokens > 0 ? (promptTokens / totalTokens) * cost : 0;
                 const completionCost = cost - promptCost;
 
+                // Calculate gradient colors for this row
+                const tokenColor = getValueTint(row[2], minTokens, maxTokens, '#3b82f6');
+                const costColor = getValueTint(row[3], minCost, maxCost, '#10b981');
+                const durationColor = getValueTint(row[4], minDuration, maxDuration, '#f59e0b');
+
+                // Calculate glow intensity (higher values = more glow)
+                const tokenGlow = (row[2] - minTokens) / (maxTokens - minTokens || 1);
+                const costGlow = (row[3] - minCost) / (maxCost - minCost || 1);
+                const durationGlow = (row[4] - minDuration) / (maxDuration - minDuration || 1);
+
+                // Get provider color for model
+                const provider = requestObj.provider || 'unknown';
+                const modelColor = getProviderColor(provider);
+
                 // Create main row
                 const mainRow = document.createElement('tr');
                 mainRow.id = 'row-' + requestId;
@@ -786,10 +812,10 @@
                 mainRow.onclick = () => toggleDetail(requestId);
                 mainRow.innerHTML = `
                     <td>${escapeHtml(new Date(timestamp.endsWith('Z') || timestamp.includes('+') ? timestamp : timestamp + 'Z').toLocaleString())}</td>
-                    <td>${escapeHtml(row[1])}</td>
-                    <td>${row[2].toLocaleString()}</td>
-                    <td>$${row[3].toFixed(4)}</td>
-                    <td>${row[4]}ms</td>
+                    <td style="color: ${modelColor}; font-weight: 600; text-shadow: 0 0 6px ${modelColor}30;">${escapeHtml(row[1])}</td>
+                    <td style="color: ${tokenColor}; font-weight: 600; text-shadow: 0 0 ${6 * tokenGlow}px ${tokenColor}40;">${row[2].toLocaleString()}</td>
+                    <td style="color: ${costColor}; font-weight: 600; text-shadow: 0 0 ${6 * costGlow}px ${costColor}40;">$${row[3].toFixed(4)}</td>
+                    <td style="color: ${durationColor}; font-weight: 600; text-shadow: 0 0 ${6 * durationGlow}px ${durationColor}40;">${row[4]}ms</td>
                 `;
 
                 // Create detail row, restore expanded state
@@ -1023,6 +1049,28 @@
             const nb = Math.round(b + (255 - b) * lightness);
 
             return `#${nr.toString(16).padStart(2, '0')}${ng.toString(16).padStart(2, '0')}${nb.toString(16).padStart(2, '0')}`;
+        }
+
+        // Generate vibrant color tint based on value (higher = brighter/glowier for dark mode)
+        function getValueTint(value, min, max, baseColor = '#3b82f6') {
+            if (max === min) return baseColor;
+
+            // Normalize value to 0-1 range
+            const normalized = (value - min) / (max - min);
+
+            // Parse base color to RGB
+            const r = parseInt(baseColor.slice(1, 3), 16);
+            const g = parseInt(baseColor.slice(3, 5), 16);
+            const b = parseInt(baseColor.slice(5, 7), 16);
+
+            // Subtle brighten: 0.7 to 1.0 range (much more subtle)
+            // Higher values = slightly brighter
+            const factor = 0.7 + (normalized * 0.3);
+            const nr = Math.min(255, Math.round(r + (255 - r) * (factor - 0.7)));
+            const ng = Math.min(255, Math.round(g + (255 - g) * (factor - 0.7)));
+            const nb = Math.min(255, Math.round(b + (255 - b) * (factor - 0.7)));
+
+            return `rgb(${nr}, ${ng}, ${nb})`;
         }
 
         async function renderProviderTrends() {
