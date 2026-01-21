@@ -5,6 +5,43 @@ All notable changes to Apantli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.4.1] - 2026-01-20
+
+### Added
+- Gradient color tinting for requests table metrics (tokens, cost, duration) ([e5df6e9](https://github.com/pborenstein/apantli/commit/e5df6e9))
+  - Higher values appear brighter with glow effect (0-6px blur, 30-40% opacity)
+  - Tokens (blue), Cost (green), Duration (amber) color-coded
+  - Model names tinted with provider colors (OpenAI green, Anthropic orange, Google blue)
+  - Optimized for dark mode with subtle brightness range
+- Dropdown menus for date filters replacing flat buttons ([9b74501](https://github.com/pborenstein/apantli/commit/9b74501))
+  - Days dropdown (7 options: Today through 6 days ago)
+  - Weeks dropdown (4 options: This Week through 3 weeks ago)
+  - Months dropdown (6 options: This Month through 5 months ago)
+  - Active dropdown buttons highlight when any option is selected
+  - Selected items show with inverted styling
+- Server-side sorting for requests table ([fbc8ba6](https://github.com/pborenstein/apantli/commit/fbc8ba6))
+  - Sorting now applies to entire dataset, not just current page
+  - Sort state persists across pagination
+- Visual indicators for active filters with blue glow ([a44d9a8](https://github.com/pborenstein/apantli/commit/a44d9a8))
+  - "Clear All Filters" button clears all filter fields (date, search, provider, model, cost)
+  - New `/stats/filters` endpoint for populating filter dropdowns
+  - Providers and models sorted by usage count (most-used first)
+  - Filter dropdowns fetch once and cache results
+- State persistence for expanded requests and folded messages ([01f896f](https://github.com/pborenstein/apantli/commit/01f896f))
+  - Expanded state persists via localStorage across page refreshes
+  - Folded message state persists via localStorage
+  - Charts re-render on window resize (debounced 250ms)
+- Visual indicators for expanded requests ([33d7e2d](https://github.com/pborenstein/apantli/commit/33d7e2d))
+  - Expanded request rows have shaded background for quick scanning
+  - Message fold/unfold buttons (▼/▶) collapse content to 2 lines
+  - Color-coded message role headings: SYSTEM (orange), USER (blue), ASSISTANT (green)
+
+### Fixed
+- Dashboard chart date range clipping and calendar week rendering ([fd45afd](https://github.com/pborenstein/apantli/commit/fd45afd))
+  - "All Time" chart now shows full database range on page load
+  - Calendar weeks at month boundaries now show complete 7-day weeks
+  - Added empty day squares with proper styling
+
 ## [0.4.0] - 2026-01-11
 
 ### Added
