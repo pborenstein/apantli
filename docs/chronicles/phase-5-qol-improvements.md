@@ -185,3 +185,23 @@ Covers model management UI, dashboard UX, visual feedback, state persistence, an
 - Calculated min/max per page for normalization ensuring darkest/brightest always represent extremes
 
 **Files**: `apantli/static/js/dashboard.js:1029-1048,783-822`
+
+---
+
+## Entry 11: Codebase Cleanup (2026-01-28)
+
+**What**: Removed dead code and documented UI/CSS technical state.
+
+**Why**: The `static/js/modules/` directory contained 1,587 lines of unused code from an incomplete refactoring attempt. Documentation had stale line counts.
+
+**How**:
+
+- Deleted 7 unused JS module files (never imported by dashboard.html)
+- Updated version marker from 2025-10-16 to 2026-01-28
+- Added "Technical Review" section to DASHBOARD.md documenting:
+  - CSS/JS file organization and line ranges
+  - Known technical debt (monolithic files, duplicated colors)
+  - Future refactoring options with effort estimates
+- Updated line counts in CLAUDE.md and CONTEXT.md
+
+**Files**: Deleted `apantli/static/js/modules/`, updated `docs/DASHBOARD.md`
