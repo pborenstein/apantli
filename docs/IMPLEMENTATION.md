@@ -98,6 +98,7 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - [x] Split dashboard.js into ES6 modules (core, state, requests, stats, calendar, models)
 - [x] Add section comments to dashboard.css for navigation
 - [x] Consolidate provider colors to read from CSS variables
+- [ ] Fix broken dashboard after modularization (Alpine.js integration issue)
 
 **Key Changes**:
 - Request rows get `.expanded` class with distinct background color

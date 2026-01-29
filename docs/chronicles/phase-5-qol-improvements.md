@@ -262,3 +262,26 @@ Covers model management UI, dashboard UX, visual feedback, state persistence, an
 - All 17 unit tests pass
 
 **Files**: `apantli/static/js/modules/*` (new), `apantli/static/js/dashboard.js`, `apantli/static/css/dashboard.css`, `templates/dashboard.html`, `docs/CODE_REVIEW.md`
+
+---
+
+## Entry 14: Debugging Broken Dashboard (2026-01-29)
+
+**What**: Created PR #21 for frontend refactoring but discovered dashboard completely broken - no requests loading, all tabs empty.
+
+**Why**: ES6 module refactoring changed function signatures without properly updating Alpine.js integration. `loadRequests()` now requires `alpineData` parameter but wasn't receiving it.
+
+**Status**: Work in progress - multiple fix attempts unsuccessful.
+
+**Attempted Fixes**:
+- Added missing `onTabChange()` function that was lost during refactoring
+- Changed from `DOMContentLoaded` to `alpine:initialized` event
+- Created module-level `alpineData` variable to store Alpine context
+- Updated all HTML watchers to pass `this` context or use `dashboardApp.*` namespace
+- Incremented version number multiple times to bust browser cache
+
+**Problem**: API endpoints work fine (/requests returns 1,731 records) but frontend not loading data. Alpine.js context not being passed to modules correctly despite using `alpine:initialized` event and `Alpine.$data(document.body)`.
+
+**Next Steps**: Need to debug in browser console, verify event firing order, trace function call chain from Alpine watchers to module functions.
+
+**Files**: `apantli/static/js/dashboard.js`, `templates/dashboard.html` (v20260128-4)

@@ -3,32 +3,33 @@
 ---
 phase: QoL
 phase_name: "Dashboard UX Improvements"
-updated: 2026-01-28
-last_commit: 7f0baf6
+updated: 2026-01-29
+last_commit: 34e9ec8
 ---
 
 ## Current Focus
 
-Frontend refactoring complete. Implemented all three improvements from CODE_REVIEW.md.
+Fixing broken dashboard after ES6 module refactoring - requests not loading.
 
 ## Active Tasks
 
-None - frontend refactoring complete.
+- [ ] Debug and fix Alpine.js integration with modularized dashboard.js
+- [ ] Ensure loadRequests() receives Alpine data context properly
+- [ ] Verify all tabs (requests, stats, calendar, models) load correctly
 
 ## Blockers
 
-None.
+Dashboard refactoring broke runtime functionality - Alpine data context not being passed to modules correctly.
 
 ## Context
 
-- Split monolithic dashboard.js (2,691 lines) into 6 ES6 modules
-- Added 13 section markers to dashboard.css for navigation
-- Consolidated provider colors to read from CSS custom properties
-- Updated dashboard.html to use type="module" and dashboardApp namespace
-- All onclick handlers updated to use dashboardApp.* prefix
-- All 17 unit tests passing
+- PR #21 created but dashboard is broken - no requests showing
+- Module refactoring changed function signatures (loadRequests now needs alpineData param)
+- Attempted fixes: added onTabChange(), used alpine:initialized event, passed Alpine context
+- Still not working after multiple attempts - needs deeper debugging
+- API endpoints work fine (/requests returns 1,731 records)
 - Branch: apantli-review
 
 ## Next Session
 
-Merge apantli-review branch to main, or continue with new feature work.
+Debug Alpine.js module integration. Check browser console for errors, verify alpine:initialized event fires, trace loadRequests() call chain.

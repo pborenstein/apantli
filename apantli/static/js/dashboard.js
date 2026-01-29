@@ -58,17 +58,31 @@ window.dashboardApp = {
   sortTable: core.sortTable
 }
 
-// Initialize when DOM is ready
-document.addEventListener('DOMContentLoaded', () => {
-  // Load initial data based on active tab
-  const hash = window.location.hash || '#requests'
-  if (hash === '#requests') {
-    requests.loadRequests()
-  } else if (hash === '#stats') {
+// Store Alpine data globally for access from modules
+let alpineData = null
+
+// Tab change handler - called by Alpine.js x-init watcher
+window.onTabChange = function(tab) {
+  if (tab === 'stats') stats.refreshStats()
+  if (tab === 'calendar') calendar.loadCalendar()
+  if (tab === 'models') models.loadModels()
+  if (tab === 'requests' && alpineData) requests.loadRequests(alpineData)
+}
+
+// Initialize when Alpine is ready
+document.addEventListener('alpine:initialized', () => {
+  // Store Alpine data reference
+  alpineData = window.Alpine.$data(document.body)
+
+  // Load initial tab based on URL hash
+  const hash = window.location.hash.slice(1) || 'requests'
+  if (hash === 'requests' && alpineData) {
+    requests.loadRequests(alpineData)
+  } else if (hash === 'stats') {
     stats.refreshStats()
-  } else if (hash === '#calendar') {
+  } else if (hash === 'calendar') {
     calendar.loadCalendar()
-  } else if (hash === '#models') {
+  } else if (hash === 'models') {
     models.loadModels()
   }
 })

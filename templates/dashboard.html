@@ -338,7 +338,7 @@
     $watch('theme', value => {
         // Reload calendar when theme changes to update colors
         if (currentTab === 'calendar') {
-            loadCalendar();
+            dashboardApp.loadCalendar();
         }
     });
 
@@ -376,22 +376,22 @@
     });
 
     $watch('dateFilter', value => {
-        refreshStats();
-        loadCalendar(); // Reload calendar with new filter
+        dashboardApp.refreshStats();
+        dashboardApp.loadCalendar(); // Reload calendar with new filter
         if (currentPage === 1) {
-            loadRequests(); // Already on page 1, manually trigger reload
+            dashboardApp.loadRequests(this); // Already on page 1, manually trigger reload
         } else {
             currentPage = 1; // Will trigger loadRequests via currentPage watcher
         }
     }, { deep: true });
     $watch('requestFilters', value => {
         if (currentPage === 1) {
-            loadRequests(); // Already on page 1, manually trigger reload
+            dashboardApp.loadRequests(this); // Already on page 1, manually trigger reload
         } else {
             currentPage = 1; // Will trigger loadRequests via currentPage watcher
         }
     }, { deep: true });
-    $watch('currentPage', value => loadRequests());
+    $watch('currentPage', value => dashboardApp.loadRequests(this));
 ">
     <!-- Settings Modal -->
     <div class="settings-modal"
@@ -748,6 +748,6 @@
         </div>
     </div>
 
-    <script type="module" src="/static/js/dashboard.js?v=20260128-1"></script>
+    <script type="module" src="/static/js/dashboard.js?v=20260128-4"></script>
 </body>
 </html>
