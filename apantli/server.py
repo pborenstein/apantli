@@ -22,7 +22,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
 import litellm
-from litellm import completion
+from litellm import completion, model_cost
 from litellm.exceptions import (
     RateLimitError,
     InternalServerError,
@@ -617,8 +617,6 @@ async def get_providers():
     Returns a list of providers that can be used with Apantli, grouped by
     popularity and showing how many models are available for each.
     """
-    from litellm import model_cost
-
     # Group models by provider
     provider_counts: dict[str, int] = {}
     for model_id in model_cost.keys():
@@ -673,8 +671,6 @@ async def get_provider_models(provider: str):
     Returns:
         List of models with their pricing and context window information
     """
-    from litellm import model_cost
-
     # Filter models for this provider
     provider_models = []
     for model_id, info in model_cost.items():
@@ -748,7 +744,6 @@ async def add_model(request: Request):
         "timeout": 120       // optional
     }
     """
-    from litellm import model_cost
     from apantli.config import ModelConfig, ConfigError
 
     try:
@@ -1352,7 +1347,7 @@ def main():
                         url = f"http://{ip}:{args.port}/"
                         if url not in addresses:
                             addresses.append(url)
-            except:
+            except (OSError, socket.error):
                 pass
 
         print(f"   Server at {' or '.join(addresses)}\n")

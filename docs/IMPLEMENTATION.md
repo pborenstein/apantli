@@ -92,6 +92,9 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - [x] Add gradient tinting for tokens/cost/duration in requests table
 - [x] Add provider color tinting for model names
 - [x] Merge to main and release v0.4.1
+- [x] Create consolidated CODE_REVIEW.md with frontend + backend assessments
+- [x] Fix bare except clause in server.py
+- [x] Move duplicate model_cost imports to module level
 
 **Key Changes**:
 - Request rows get `.expanded` class with distinct background color

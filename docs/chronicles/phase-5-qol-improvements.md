@@ -205,3 +205,27 @@ Covers model management UI, dashboard UX, visual feedback, state persistence, an
 - Updated line counts in CLAUDE.md and CONTEXT.md
 
 **Files**: Deleted `apantli/static/js/modules/`, updated `docs/DASHBOARD.md`
+
+---
+
+## Entry 12: Code Review & Backend Fixes (2026-01-28)
+
+**What**: Comprehensive code review of frontend and backend, with minor fixes.
+
+**Why**: Document technical debt and architecture for future contributors; fix easy issues found during review.
+
+**How**:
+
+- Created `docs/CODE_REVIEW.md` consolidating all review findings
+- Moved Technical Review section from DASHBOARD.md to CODE_REVIEW.md
+- Backend review covered: server.py, database.py, config.py, errors.py, utils.py, llm.py
+- Fixed bare `except:` at server.py:1355 (now catches `OSError, socket.error`)
+- Moved `from litellm import model_cost` from 3 inline imports to module level
+
+**Key Findings**:
+
+- Frontend: Monolithic JS (2,691 lines), duplicated provider colors, minimal CSS comments
+- Backend: server.py too large (1,378 lines), mixes proxy logic with CRUD; uses print() not logging
+- Overall: Functional and maintainable, issues are organizational not functional
+
+**Files**: `docs/CODE_REVIEW.md` (new), `docs/DASHBOARD.md`, `apantli/server.py`

@@ -4,16 +4,16 @@
 phase: QoL
 phase_name: "Dashboard UX Improvements"
 updated: 2026-01-28
-last_commit: 39d4423
+last_commit: d39df05
 ---
 
 ## Current Focus
 
-Codebase cleanup and documentation review complete. Ready for new features.
+Code review complete. Created CODE_REVIEW.md documenting frontend + backend technical state.
 
 ## Active Tasks
 
-None - cleanup work complete.
+None - review work complete.
 
 ## Blockers
 
@@ -21,12 +21,13 @@ None.
 
 ## Context
 
-- Deleted 1,587 lines of dead code (unused JS modules in static/js/modules/)
-- Updated DASHBOARD.md with technical review documenting CSS/JS architecture
-- Updated stale line counts across documentation
-- All tests passing, server verified working
-- Branch: apantli-review (2 commits ahead of main)
+- Created `docs/CODE_REVIEW.md` with full frontend and backend assessments
+- Moved Technical Review section from DASHBOARD.md to CODE_REVIEW.md
+- Fixed bare `except:` in server.py (now catches OSError, socket.error)
+- Moved `from litellm import model_cost` to module level (was duplicated in 3 functions)
+- All tests passing
+- Branch: apantli-review
 
 ## Next Session
 
-Merge cleanup commits to main, or start new feature work.
+Merge review branch to main, or continue with new feature work.
