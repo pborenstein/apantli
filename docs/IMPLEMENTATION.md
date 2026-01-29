@@ -91,7 +91,7 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - [x] Replace flat date filter buttons with dropdown menus
 - [x] Add gradient tinting for tokens/cost/duration in requests table
 - [x] Add provider color tinting for model names
-- [ ] Merge to main and release v0.4.1
+- [x] Merge to main and release v0.4.1
 
 **Key Changes**:
 - Request rows get `.expanded` class with distinct background color

@@ -8,10 +8,10 @@ Apantli is a lightweight local LLM proxy that routes requests to multiple provid
 
 ## Quick Architecture
 
-**Core Modules** (~1,900 lines):
-- `apantli/server.py` (887 lines) - FastAPI app, HTTP routes, request orchestration
-- `apantli/config.py` (189 lines) - Configuration with Pydantic validation
-- `apantli/database.py` (506 lines) - Async database operations with aiosqlite
+**Core Modules** (~2,500 lines):
+- `apantli/server.py` (1,382 lines) - FastAPI app, HTTP routes, request orchestration
+- `apantli/config.py` (312 lines) - Configuration with Pydantic validation
+- `apantli/database.py` (552 lines) - Async database operations with aiosqlite
 - `apantli/llm.py` (27 lines) - Provider inference
 - `apantli/errors.py` (129 lines) - Error formatting
 - `apantli/utils.py` (117 lines) - Timezone utilities
@@ -39,14 +39,14 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design, dat
 - [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) - Common issues and solutions
 
 **Project Status**:
-- [CHRONICLES.md](docs/CHRONICLES.md) - Key decisions and interesting episodes
+- [chronicles/](docs/chronicles/) - Phase-specific development history
 - [IMPLEMENTATION.md](docs/IMPLEMENTATION.md) - Current status and recent work
 
 ## Session Orientation
 
 ### Starting a session
 
-1. **Check recent work**: Read [CHRONICLES.md](docs/CHRONICLES.md) latest entries and [IMPLEMENTATION.md](docs/IMPLEMENTATION.md)
+1. **Check recent work**: Read [CONTEXT.md](docs/CONTEXT.md) and [IMPLEMENTATION.md](docs/IMPLEMENTATION.md)
 2. **Understand current state**: `git log --oneline -10` for recent commits
 3. **Run tests**: `make all` or `pytest tests/ -v` to verify everything works
 
@@ -55,10 +55,10 @@ See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for detailed system design, dat
 - `config.yaml` - Model definitions, API key references
 - `.env` - API keys (gitignored, not in repo)
 - `requests.db` - SQLite database (full request/response logs + costs)
-- `templates/dashboard.html` (502 lines) - Dashboard UI structure
+- `templates/dashboard.html` (753 lines) - Dashboard UI structure
 - `templates/compare.html` (258 lines) - Playground UI structure
-- `apantli/static/js/dashboard.js` (1,728 lines) - Dashboard logic
-- `apantli/static/js/compare.js` (556 lines) - Playground logic
+- `apantli/static/js/dashboard.js` (2,691 lines) - Dashboard logic
+- `apantli/static/js/compare.js` (560 lines) - Playground logic
 
 ### Development
 
