@@ -214,30 +214,136 @@ All timestamps are displayed in your browser's local timezone, automatically det
 
 **Tech Stack**: Single-page app using vanilla JavaScript + Alpine.js for reactivity. No build step required.
 
-**File Structure** (refactored 2025-10-18):
-- `templates/dashboard.html` (502 lines) - HTML structure and Alpine.js reactive data model
-- `apantli/static/css/dashboard.css` (1,451 lines) - All styles including theme variables
-- `apantli/static/js/dashboard.js` (1,728 lines) - All JavaScript logic and Alpine.js methods
+**File Structure** (updated 2026-01-28):
+
+- `templates/dashboard.html` (753 lines) - HTML structure, Jinja2 macros, Alpine.js reactive data
+- `apantli/static/css/dashboard.css` (2,209 lines) - All styles including theme variables
+- `apantli/static/js/dashboard.js` (2,691 lines) - All JavaScript logic
 
 **Browser History** (added 2025-10-20):
+
 - URL hash synchronized with current tab via Alpine.js watcher
 - `popstate` event listener handles browser navigation
 - Hash takes precedence over localStorage for initial tab selection
 - Direct linking supported (e.g., `/#calendar`)
 
 **Customization**:
+
 - **Adding UI elements**: Edit `templates/dashboard.html` for structure
 - **Styling changes**: Edit `apantli/static/css/dashboard.css` for colors, layout, themes
 - **Logic changes**: Edit `apantli/static/js/dashboard.js` for data fetching, filters, interactions
-- See inline comments in each file for guidance
 
-**Performance**: Dashboard uses indexed queries and client-side sorting for fast navigation. Performance characteristics:
+**Performance**: Dashboard uses indexed queries and server-side sorting for fast navigation:
 
 - <100K requests: Queries complete in <200ms
 - 100K-500K requests: Queries complete in 500ms-2s
 - >500K requests: May see slower queries; consider archiving old data
 
-All statistics are calculated server-side using indexed queries for best performance.
+## Technical Review (2026-01-28)
+
+Assessment of UI/CSS codebase health and areas for future improvement.
+
+### Current State
+
+The dashboard has grown organically through Phase 5 QoL improvements. Core functionality works well but the codebase shows signs of accumulated complexity.
+
+**What works well**:
+
+- CSS custom properties for theming (light/dark mode)
+- Provider colors defined as CSS variables
+- Alpine.js for reactive state management
+- localStorage persistence for UI preferences
+- Server-side sorting and filtering
+
+**Known technical debt**:
+
+| Issue | Impact | Notes |
+|-------|--------|-------|
+| Monolithic JS file | Maintainability | 2,691 lines, 80+ functions, no module structure |
+| Duplicated provider colors | DRY violation | Defined in both CSS variables and JS object |
+| Minimal CSS comments | Navigation | Only 4 section comments in 2,209 lines |
+| Inconsistent error handling | Reliability | Some fetches use wrapper, most use inline try/catch |
+
+### Architecture
+
+**CSS Organization** (`dashboard.css`):
+
+```
+Lines 1-70:      CSS variables (colors, spacing, typography)
+Lines 70-1600:   Core styles (layout, tables, forms, charts)
+Lines 1604-1668: Models management styles
+Lines 1669-1687: Toast notifications
+Lines 1688-1785: Modal styles
+Lines 1786-2209: Add Model wizard styles
+```
+
+**JavaScript Organization** (`dashboard.js`):
+
+The file contains all dashboard logic in a single scope:
+
+- Error handling utilities (lines 1-26)
+- State management (lines 28-48)
+- Content extraction helpers (lines 50-106)
+- Conversation view rendering (lines 108-310)
+- Table sorting (lines 310-400)
+- Tab management (lines 401-410)
+- Models CRUD (lines 410-545)
+- JSON tree rendering (lines 549-608)
+- Requests loading/filtering (lines 609-760)
+- Requests table rendering (lines 761-1020)
+- Provider colors and tinting (lines 1022-1075)
+- Charts and stats (lines 1076-1500)
+- Stats tables (lines 1575-1835)
+- Calendar (lines 1849-2200)
+- Add Model wizard (lines 2206-2690)
+
+### Future Refactoring Options
+
+**Option 1: Extract JS modules** (Medium effort)
+
+Split `dashboard.js` into ES modules:
+
+- `core.js` - Error handling, fetch wrapper, utilities
+- `state.js` - Alpine data, localStorage persistence
+- `requests.js` - Request loading, filtering, table rendering
+- `stats.js` - Stats fetching, chart rendering
+- `calendar.js` - Calendar rendering and interactions
+- `models.js` - Model CRUD and wizard
+
+Would require adding `type="module"` to script tag and updating function references.
+
+**Option 2: Add CSS section comments** (Low effort)
+
+Add clear section markers to make navigation easier:
+
+```css
+/* ==========================================================================
+   VARIABLES
+   ========================================================================== */
+
+/* ==========================================================================
+   LAYOUT
+   ========================================================================== */
+```
+
+**Option 3: Consolidate provider colors** (Low effort)
+
+Use CSS custom properties from JS instead of duplicating:
+
+```javascript
+const style = getComputedStyle(document.documentElement)
+const openaiColor = style.getPropertyValue('--color-openai').trim()
+```
+
+### Recommendation
+
+The codebase is functional and maintainable for its current size. Refactoring is optional but would help if:
+
+- Multiple developers work on the dashboard
+- Significant new features are planned
+- The JS file grows beyond ~3,000 lines
+
+For now, the priority should be feature work rather than refactoring for its own sake.
 
 ## Troubleshooting
 
