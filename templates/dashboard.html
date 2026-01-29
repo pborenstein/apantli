@@ -481,7 +481,7 @@
             <div>
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: var(--spacing-sm);">
                     <h3 style="margin: 0;">Recent Errors</h3>
-                    <button onclick="clearErrors()" class="btn btn-secondary">Clear Errors</button>
+                    <button onclick="dashboardApp.clearErrors()" class="btn btn-secondary">Clear Errors</button>
                 </div>
                 <table id="errors"></table>
             </div>
@@ -497,8 +497,8 @@
     <div id="models-tab" x-show="currentTab === 'models'">
         <h2>Available Models</h2>
         <div class="models-toolbar">
-            <button class="btn btn-primary" onclick="openAddModelModal()">+ Add Model</button>
-            <button class="btn btn-secondary" onclick="openExportModal()">Export for Obsidian</button>
+            <button class="btn btn-primary" onclick="dashboardApp.openAddModelModal()">+ Add Model</button>
+            <button class="btn btn-secondary" onclick="dashboardApp.openExportModal()">Export for Obsidian</button>
         </div>
         <table id="models-list"></table>
     </div>
@@ -588,7 +588,7 @@
         <div class="modal-content">
             <div class="modal-header">
                 <h3>Export for Obsidian Copilot</h3>
-                <button class="modal-close" onclick="closeExportModal()">&times;</button>
+                <button class="modal-close" onclick="dashboardApp.closeExportModal()">&times;</button>
             </div>
             <div class="modal-body">
                 <p>Copy this JSON configuration and paste it into Obsidian Copilot settings:</p>
@@ -598,8 +598,8 @@
                 <pre id="export-json" class="json-preview"></pre>
             </div>
             <div class="modal-footer">
-                <button class="btn btn-primary" onclick="copyExportJson()">Copy to Clipboard</button>
-                <button class="btn btn-secondary" onclick="closeExportModal()">Close</button>
+                <button class="btn btn-primary" onclick="dashboardApp.copyExportJson()">Copy to Clipboard</button>
+                <button class="btn btn-secondary" onclick="dashboardApp.closeExportModal()">Close</button>
             </div>
         </div>
     </div>
@@ -609,7 +609,7 @@
         <div class="modal-content modal-wizard">
             <div class="modal-header">
                 <h3>Add New Model</h3>
-                <button class="modal-close" onclick="closeAddModelModal()">&times;</button>
+                <button class="modal-close" onclick="dashboardApp.closeAddModelModal()">&times;</button>
             </div>
             <div class="wizard-progress">
                 <div class="wizard-step" data-step="1">
@@ -740,14 +740,14 @@
                 </div>
             </div>
             <div class="modal-footer wizard-footer">
-                <button class="btn btn-secondary" id="wizard-back-btn" onclick="wizardBack()" style="display: none;">Back</button>
-                <button class="btn btn-secondary" onclick="closeAddModelModal()">Cancel</button>
-                <button class="btn btn-primary" id="wizard-next-btn" onclick="wizardNext()" disabled>Next</button>
-                <button class="btn btn-primary" id="wizard-submit-btn" onclick="submitAddModel()" style="display: none;">Add Model</button>
+                <button class="btn btn-secondary" id="wizard-back-btn" onclick="dashboardApp.wizardBack()" style="display: none;">Back</button>
+                <button class="btn btn-secondary" onclick="dashboardApp.closeAddModelModal()">Cancel</button>
+                <button class="btn btn-primary" id="wizard-next-btn" onclick="dashboardApp.wizardNext()" disabled>Next</button>
+                <button class="btn btn-primary" id="wizard-submit-btn" onclick="dashboardApp.submitAddModel()" style="display: none;">Add Model</button>
             </div>
         </div>
     </div>
 
-    <script src="/static/js/dashboard.js?v=20251124-1"></script>
+    <script type="module" src="/static/js/dashboard.js?v=20260128-1"></script>
 </body>
 </html>

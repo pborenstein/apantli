@@ -229,3 +229,36 @@ Covers model management UI, dashboard UX, visual feedback, state persistence, an
 - Overall: Functional and maintainable, issues are organizational not functional
 
 **Files**: `docs/CODE_REVIEW.md` (new), `docs/DASHBOARD.md`, `apantli/server.py`
+
+---
+
+## Entry 13: Frontend Refactoring (2026-01-28)
+
+**What**: Implemented all three frontend refactoring improvements from CODE_REVIEW.md.
+
+**Why**: Dashboard.js had grown to 2,691 lines with no module structure, making navigation difficult. Provider colors were duplicated between CSS and JS. CSS had minimal navigation markers.
+
+**How**:
+
+1. **Module extraction**: Split dashboard.js into 6 ES6 modules
+   - `modules/core.js` (6.2K): Error handling, fetch wrapper, color utilities, table sorting
+   - `modules/state.js` (1.0K): localStorage persistence, state management
+   - `modules/requests.js` (26K): Conversation view, JSON tree, request table, filtering
+   - `modules/stats.js` (32K): Charts, provider trends, efficiency tables, error tracking
+   - `modules/calendar.js` (12K): Multi-month calendar, date range selection
+   - `modules/models.js` (24K): CRUD operations, add model wizard, export
+   - Main `dashboard.js` (68 lines): Imports modules, exposes `window.dashboardApp` namespace
+
+2. **CSS organization**: Added 13 section markers to dashboard.css for navigation
+   - CSS Variables, Base Styles, Settings & Modals, Buttons & Controls, etc.
+
+3. **Provider colors**: Consolidated to read from CSS custom properties
+   - Removed hardcoded PROVIDER_COLORS object
+   - `getProviderColor()` now uses `getComputedStyle(document.documentElement)`
+
+**Technical**:
+- Updated dashboard.html script tag to `type="module"`
+- All onclick handlers updated to use `dashboardApp.*` prefix
+- All 17 unit tests pass
+
+**Files**: `apantli/static/js/modules/*` (new), `apantli/static/js/dashboard.js`, `apantli/static/css/dashboard.css`, `templates/dashboard.html`, `docs/CODE_REVIEW.md`

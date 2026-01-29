@@ -4,16 +4,16 @@
 phase: QoL
 phase_name: "Dashboard UX Improvements"
 updated: 2026-01-28
-last_commit: d39df05
+last_commit: 7f0baf6
 ---
 
 ## Current Focus
 
-Code review complete. Created CODE_REVIEW.md documenting frontend + backend technical state.
+Frontend refactoring complete. Implemented all three improvements from CODE_REVIEW.md.
 
 ## Active Tasks
 
-None - review work complete.
+None - frontend refactoring complete.
 
 ## Blockers
 
@@ -21,13 +21,14 @@ None.
 
 ## Context
 
-- Created `docs/CODE_REVIEW.md` with full frontend and backend assessments
-- Moved Technical Review section from DASHBOARD.md to CODE_REVIEW.md
-- Fixed bare `except:` in server.py (now catches OSError, socket.error)
-- Moved `from litellm import model_cost` to module level (was duplicated in 3 functions)
-- All tests passing
+- Split monolithic dashboard.js (2,691 lines) into 6 ES6 modules
+- Added 13 section markers to dashboard.css for navigation
+- Consolidated provider colors to read from CSS custom properties
+- Updated dashboard.html to use type="module" and dashboardApp namespace
+- All onclick handlers updated to use dashboardApp.* prefix
+- All 17 unit tests passing
 - Branch: apantli-review
 
 ## Next Session
 
-Merge review branch to main, or continue with new feature work.
+Merge apantli-review branch to main, or continue with new feature work.

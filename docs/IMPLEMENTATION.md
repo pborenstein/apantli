@@ -95,6 +95,9 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - [x] Create consolidated CODE_REVIEW.md with frontend + backend assessments
 - [x] Fix bare except clause in server.py
 - [x] Move duplicate model_cost imports to module level
+- [x] Split dashboard.js into ES6 modules (core, state, requests, stats, calendar, models)
+- [x] Add section comments to dashboard.css for navigation
+- [x] Consolidate provider colors to read from CSS variables
 
 **Key Changes**:
 - Request rows get `.expanded` class with distinct background color

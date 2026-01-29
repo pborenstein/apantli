@@ -79,33 +79,51 @@ The file contains all dashboard logic in a single scope:
 - Calendar (lines 1849-2200)
 - Add Model wizard (lines 2206-2690)
 
-### Refactoring Options
+### Refactoring Completed (2026-01-28)
 
-**Option 1: Extract JS modules** (Medium effort)
+All three frontend refactoring options have been implemented:
 
-Split `dashboard.js` into ES modules:
+**✓ Option 1: Extract JS modules** (Completed)
 
-- `core.js` - Error handling, fetch wrapper, utilities
-- `state.js` - Alpine data, localStorage persistence
-- `requests.js` - Request loading, filtering, table rendering
-- `stats.js` - Stats fetching, chart rendering
-- `calendar.js` - Calendar rendering and interactions
-- `models.js` - Model CRUD and wizard
+Split monolithic `dashboard.js` (2,691 lines) into focused ES6 modules:
 
-Would require adding `type="module"` to script tag and updating function references.
+- `modules/core.js` (6.2K) - Error handling, fetch wrapper, color utilities, table sorting
+- `modules/state.js` (1.0K) - localStorage persistence, state management
+- `modules/requests.js` (26K) - Conversation view, JSON tree, request table, filtering
+- `modules/stats.js` (32K) - Charts, provider trends, efficiency tables, error tracking
+- `modules/calendar.js` (12K) - Multi-month calendar, date range selection
+- `modules/models.js` (24K) - CRUD operations, add model wizard, export
 
-**Option 2: Add CSS section comments** (Low effort)
+Main entry point: `dashboard.js` (68 lines) imports all modules and exposes to `window.dashboardApp` for Alpine.js/onclick handlers.
 
-Add clear section markers to make navigation easier.
+Changes:
+- Added `type="module"` to script tag in dashboard.html
+- Updated all onclick handlers to use `dashboardApp.` prefix
+- All 17 unit tests pass
 
-**Option 3: Consolidate provider colors** (Low effort)
+**✓ Option 2: Add CSS section comments** (Completed)
 
-Use CSS custom properties from JS instead of duplicating:
+Added 13 major section markers to `dashboard.css` for easy navigation:
+- CSS Variables, Base Styles, Settings & Modals, Buttons & Controls
+- Request Tables & Details, Calendar Styles, Charts & Visualizations
+- Stats Tables, Filters & Search, Request Summary & Pagination
+- Loading & Error States, Responsive Design, Models Management
+- Toast Notifications, Modals, Add Model Wizard
+
+**✓ Option 3: Consolidate provider colors** (Completed)
+
+Eliminated duplication by making `getProviderColor()` read from CSS custom properties:
 
 ```javascript
-const style = getComputedStyle(document.documentElement)
-const openaiColor = style.getPropertyValue('--color-openai').trim()
+function getProviderColor(provider) {
+  const style = getComputedStyle(document.documentElement)
+  const colorVar = `--color-${provider.toLowerCase()}`
+  const color = style.getPropertyValue(colorVar).trim()
+  return color || style.getPropertyValue('--color-default').trim()
+}
 ```
+
+Removed hardcoded `PROVIDER_COLORS` object (was duplicating CSS variables).
 
 ---
 
