@@ -79,13 +79,13 @@ The file contains all dashboard logic in a single scope:
 - Calendar (lines 1849-2200)
 - Add Model wizard (lines 2206-2690)
 
-### Refactoring Completed (2026-01-28)
+### Refactoring Attempted (2026-01-28 - 2026-01-29)
 
-All three frontend refactoring options have been implemented:
+Two of three frontend refactoring options were completed successfully:
 
-**✓ Option 1: Extract JS modules** (Completed)
+**✗ Option 1: Extract JS modules** (Abandoned)
 
-Split monolithic `dashboard.js` (2,691 lines) into focused ES6 modules:
+Attempted to split monolithic `dashboard.js` (2,691 lines) into focused ES6 modules. The modules were created and tested in isolation:
 
 - `modules/core.js` (6.2K) - Error handling, fetch wrapper, color utilities, table sorting
 - `modules/state.js` (1.0K) - localStorage persistence, state management
@@ -94,12 +94,16 @@ Split monolithic `dashboard.js` (2,691 lines) into focused ES6 modules:
 - `modules/calendar.js` (12K) - Multi-month calendar, date range selection
 - `modules/models.js` (24K) - CRUD operations, add model wizard, export
 
-Main entry point: `dashboard.js` (68 lines) imports all modules and exposes to `window.dashboardApp` for Alpine.js/onclick handlers.
+**Why it was abandoned**:
+- ES6 modules are always deferred (execute after HTML parsing completes)
+- Alpine.js also loads with `defer`, creating a race condition
+- Dashboard functions must be available synchronously when Alpine initializes
+- Dynamic `import()` in regular `<script>` tags not supported in Safari
+- No reliable way to ensure modules load before Alpine without breaking functionality
 
-Changes:
-- Added `type="module"` to script tag in dashboard.html
-- Updated all onclick handlers to use `dashboardApp.` prefix
-- All 17 unit tests pass
+The module files remain in the codebase for reference but are not used. Dashboard.js remains monolithic at 2,691 lines.
+
+**Alternative considered**: Using a build tool (webpack/rollup) to bundle modules into a single file would work, but adds build complexity that's not justified for this project size
 
 **✓ Option 2: Add CSS section comments** (Completed)
 
