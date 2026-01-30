@@ -91,7 +91,14 @@ See: [chronicles/phase-5-qol-improvements.md](chronicles/phase-5-qol-improvement
 - [x] Replace flat date filter buttons with dropdown menus
 - [x] Add gradient tinting for tokens/cost/duration in requests table
 - [x] Add provider color tinting for model names
-- [ ] Merge to main and release v0.4.1
+- [x] Merge to main and release v0.4.1
+- [x] Create consolidated CODE_REVIEW.md with frontend + backend assessments
+- [x] Fix bare except clause in server.py
+- [x] Move duplicate model_cost imports to module level
+- [x] Split dashboard.js into ES6 modules (core, state, requests, stats, calendar, models)
+- [x] Add section comments to dashboard.css for navigation
+- [x] Consolidate provider colors to read from CSS variables
+- [ ] Fix broken dashboard after modularization (Alpine.js integration issue)
 
 **Key Changes**:
 - Request rows get `.expanded` class with distinct background color

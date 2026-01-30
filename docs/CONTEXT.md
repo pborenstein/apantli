@@ -3,36 +3,38 @@
 ---
 phase: QoL
 phase_name: "Dashboard UX Improvements"
-updated: 2026-01-20
-last_commit: 0cfe108
+updated: 2026-01-29
+last_commit: 872e7aa (reverted)
 ---
 
 ## Current Focus
 
-Enhanced requests table with gradient tinting for metrics and provider colors for models.
+Reverted ES6 module refactoring - incompatible with Safari's script loading order.
 
 ## Active Tasks
 
-- [x] Add dropdown menus for date filters (Days/Weeks/Months)
-- [x] Show selected item in dropdowns with inverted styling
-- [x] Add gradient tinting for tokens/cost/duration (higher = brighter/glowier)
-- [x] Add provider colors to model names
-- [ ] Merge fixes-and-stuff to main
-- [ ] Tag v0.4.1 patch release
+- [x] Attempted ES6 module refactoring of dashboard.js
+- [x] Discovered Safari requires modules to be deferred, breaking Alpine.js integration
+- [x] Reverted to working monolithic dashboard.js from 872e7aa
 
-## Blockers
+## Resolution
 
-None.
+ES6 module refactoring is **not viable** for this codebase because:
+- ES6 modules are always deferred (execute after HTML parsing)
+- Alpine.js also uses defer, creating race condition
+- Dashboard functions must be available when Alpine initializes
+- Dynamic import() in regular scripts not supported in Safari
+- Safari 26 supports ES6 but timing issues make it incompatible
+
+The modules exist in `apantli/static/js/modules/` but are not used. Dashboard remains monolithic at 2,691 lines.
 
 ## Context
 
-- Requests table now has visual hierarchy with color/glow tinting
-- Tokens (blue), Cost (green), Duration (amber) use gradient + glow
-- Higher values brighter and glowier (0-6px blur, 30-40% opacity)
-- Model names tinted with provider colors (OpenAI green, Anthropic orange, Google blue)
-- Dark mode optimized: subtle brightness range (0.7-1.0) keeps readability
-- Branch: fixes-and-stuff (11 commits ahead of main)
+- Branch: apantli-review (reverted changes)
+- Dashboard working at commit 872e7aa
+- Modularization code exists but cannot be integrated
+- CODE_REVIEW.md needs update to reflect this
 
 ## Next Session
 
-Merge fixes-and-stuff to main, tag v0.4.1 patch release.
+Update CODE_REVIEW.md to document why modularization was abandoned. Consider alternative refactoring approaches that don't require ES6 modules.

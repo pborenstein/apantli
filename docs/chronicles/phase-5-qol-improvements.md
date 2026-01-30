@@ -185,3 +185,103 @@ Covers model management UI, dashboard UX, visual feedback, state persistence, an
 - Calculated min/max per page for normalization ensuring darkest/brightest always represent extremes
 
 **Files**: `apantli/static/js/dashboard.js:1029-1048,783-822`
+
+---
+
+## Entry 11: Codebase Cleanup (2026-01-28)
+
+**What**: Removed dead code and documented UI/CSS technical state.
+
+**Why**: The `static/js/modules/` directory contained 1,587 lines of unused code from an incomplete refactoring attempt. Documentation had stale line counts.
+
+**How**:
+
+- Deleted 7 unused JS module files (never imported by dashboard.html)
+- Updated version marker from 2025-10-16 to 2026-01-28
+- Added "Technical Review" section to DASHBOARD.md documenting:
+  - CSS/JS file organization and line ranges
+  - Known technical debt (monolithic files, duplicated colors)
+  - Future refactoring options with effort estimates
+- Updated line counts in CLAUDE.md and CONTEXT.md
+
+**Files**: Deleted `apantli/static/js/modules/`, updated `docs/DASHBOARD.md`
+
+---
+
+## Entry 12: Code Review & Backend Fixes (2026-01-28)
+
+**What**: Comprehensive code review of frontend and backend, with minor fixes.
+
+**Why**: Document technical debt and architecture for future contributors; fix easy issues found during review.
+
+**How**:
+
+- Created `docs/CODE_REVIEW.md` consolidating all review findings
+- Moved Technical Review section from DASHBOARD.md to CODE_REVIEW.md
+- Backend review covered: server.py, database.py, config.py, errors.py, utils.py, llm.py
+- Fixed bare `except:` at server.py:1355 (now catches `OSError, socket.error`)
+- Moved `from litellm import model_cost` from 3 inline imports to module level
+
+**Key Findings**:
+
+- Frontend: Monolithic JS (2,691 lines), duplicated provider colors, minimal CSS comments
+- Backend: server.py too large (1,378 lines), mixes proxy logic with CRUD; uses print() not logging
+- Overall: Functional and maintainable, issues are organizational not functional
+
+**Files**: `docs/CODE_REVIEW.md` (new), `docs/DASHBOARD.md`, `apantli/server.py`
+
+---
+
+## Entry 13: Frontend Refactoring (2026-01-28)
+
+**What**: Implemented all three frontend refactoring improvements from CODE_REVIEW.md.
+
+**Why**: Dashboard.js had grown to 2,691 lines with no module structure, making navigation difficult. Provider colors were duplicated between CSS and JS. CSS had minimal navigation markers.
+
+**How**:
+
+1. **Module extraction**: Split dashboard.js into 6 ES6 modules
+   - `modules/core.js` (6.2K): Error handling, fetch wrapper, color utilities, table sorting
+   - `modules/state.js` (1.0K): localStorage persistence, state management
+   - `modules/requests.js` (26K): Conversation view, JSON tree, request table, filtering
+   - `modules/stats.js` (32K): Charts, provider trends, efficiency tables, error tracking
+   - `modules/calendar.js` (12K): Multi-month calendar, date range selection
+   - `modules/models.js` (24K): CRUD operations, add model wizard, export
+   - Main `dashboard.js` (68 lines): Imports modules, exposes `window.dashboardApp` namespace
+
+2. **CSS organization**: Added 13 section markers to dashboard.css for navigation
+   - CSS Variables, Base Styles, Settings & Modals, Buttons & Controls, etc.
+
+3. **Provider colors**: Consolidated to read from CSS custom properties
+   - Removed hardcoded PROVIDER_COLORS object
+   - `getProviderColor()` now uses `getComputedStyle(document.documentElement)`
+
+**Technical**:
+- Updated dashboard.html script tag to `type="module"`
+- All onclick handlers updated to use `dashboardApp.*` prefix
+- All 17 unit tests pass
+
+**Files**: `apantli/static/js/modules/*` (new), `apantli/static/js/dashboard.js`, `apantli/static/css/dashboard.css`, `templates/dashboard.html`, `docs/CODE_REVIEW.md`
+
+---
+
+## Entry 14: Debugging Broken Dashboard (2026-01-29)
+
+**What**: Created PR #21 for frontend refactoring but discovered dashboard completely broken - no requests loading, all tabs empty.
+
+**Why**: ES6 module refactoring changed function signatures without properly updating Alpine.js integration. `loadRequests()` now requires `alpineData` parameter but wasn't receiving it.
+
+**Status**: Work in progress - multiple fix attempts unsuccessful.
+
+**Attempted Fixes**:
+- Added missing `onTabChange()` function that was lost during refactoring
+- Changed from `DOMContentLoaded` to `alpine:initialized` event
+- Created module-level `alpineData` variable to store Alpine context
+- Updated all HTML watchers to pass `this` context or use `dashboardApp.*` namespace
+- Incremented version number multiple times to bust browser cache
+
+**Problem**: API endpoints work fine (/requests returns 1,731 records) but frontend not loading data. Alpine.js context not being passed to modules correctly despite using `alpine:initialized` event and `Alpine.$data(document.body)`.
+
+**Next Steps**: Need to debug in browser console, verify event firing order, trace function call chain from Alpine watchers to module functions.
+
+**Files**: `apantli/static/js/dashboard.js`, `templates/dashboard.html` (v20260128-4)

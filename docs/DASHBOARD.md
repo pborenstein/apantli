@@ -214,30 +214,30 @@ All timestamps are displayed in your browser's local timezone, automatically det
 
 **Tech Stack**: Single-page app using vanilla JavaScript + Alpine.js for reactivity. No build step required.
 
-**File Structure** (refactored 2025-10-18):
-- `templates/dashboard.html` (502 lines) - HTML structure and Alpine.js reactive data model
-- `apantli/static/css/dashboard.css` (1,451 lines) - All styles including theme variables
-- `apantli/static/js/dashboard.js` (1,728 lines) - All JavaScript logic and Alpine.js methods
+**File Structure** (updated 2026-01-28):
+
+- `templates/dashboard.html` (753 lines) - HTML structure, Jinja2 macros, Alpine.js reactive data
+- `apantli/static/css/dashboard.css` (2,209 lines) - All styles including theme variables
+- `apantli/static/js/dashboard.js` (2,691 lines) - All JavaScript logic
 
 **Browser History** (added 2025-10-20):
+
 - URL hash synchronized with current tab via Alpine.js watcher
 - `popstate` event listener handles browser navigation
 - Hash takes precedence over localStorage for initial tab selection
 - Direct linking supported (e.g., `/#calendar`)
 
 **Customization**:
+
 - **Adding UI elements**: Edit `templates/dashboard.html` for structure
 - **Styling changes**: Edit `apantli/static/css/dashboard.css` for colors, layout, themes
 - **Logic changes**: Edit `apantli/static/js/dashboard.js` for data fetching, filters, interactions
-- See inline comments in each file for guidance
 
-**Performance**: Dashboard uses indexed queries and client-side sorting for fast navigation. Performance characteristics:
+**Performance**: Dashboard uses indexed queries and server-side sorting for fast navigation:
 
 - <100K requests: Queries complete in <200ms
 - 100K-500K requests: Queries complete in 500ms-2s
 - >500K requests: May see slower queries; consider archiving old data
-
-All statistics are calculated server-side using indexed queries for best performance.
 
 ## Troubleshooting
 

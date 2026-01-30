@@ -1,31 +1,25 @@
-// Global state management
+// Load expanded requests from localStorage
+export let expandedRequests = new Set(JSON.parse(localStorage.getItem('apantli_expandedRequests') || '[]'))
 
-export const state = {
-  expandedRequests: new Set(),
-  detailViewMode: {}, // Track view mode per request: 'conversation' or 'json'
-  tableSortState: {}, // { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
-  modelsData: [],
-  requestsData: [],
-  requestsObjects: [],
-  serverAggregates: { total: 0, total_tokens: 0, total_cost: 0, avg_cost: 0 },
-  byModelData: [],
-  byProviderData: [],
-  errorsData: [],
-  hiddenProviders: new Set(),
-  currentMonth: new Date()
+// Load folded messages from localStorage
+export let foldedMessages = new Set(JSON.parse(localStorage.getItem('apantli_foldedMessages') || '[]'))
+
+// Track view mode per request: 'conversation' or 'json'
+export let detailViewMode = {}
+
+// Store conversation messages by requestId:messageIndex
+export let conversationMessages = {}
+
+export function saveExpandedRequests() {
+  localStorage.setItem('apantli_expandedRequests', JSON.stringify([...expandedRequests]))
 }
 
-export function resetState() {
-  state.expandedRequests.clear()
-  state.detailViewMode = {}
-  state.tableSortState = {}
-  state.modelsData = []
-  state.requestsData = []
-  state.requestsObjects = []
-  state.serverAggregates = { total: 0, total_tokens: 0, total_cost: 0, avg_cost: 0 }
-  state.byModelData = []
-  state.byProviderData = []
-  state.errorsData = []
-  state.hiddenProviders.clear()
-  state.currentMonth = new Date()
+export function saveFoldedMessages() {
+  localStorage.setItem('apantli_foldedMessages', JSON.stringify([...foldedMessages]))
 }
+
+// Table sorting state: { tableId: { column: index, direction: 'asc'|'desc'|null, originalData: [] } }
+export let tableSortState = {}
+
+// Server-side sort state for requests table
+export let requestsSortState = { column: null, direction: 'desc' } // Default: timestamp DESC

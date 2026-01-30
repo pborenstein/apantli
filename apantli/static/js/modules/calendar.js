@@ -1,385 +1,366 @@
-// Calendar view for daily statistics - multi-month scrollable with bar graphs
+// Calendar rendering with date range selection
+import { getProviderColor } from './core.js'
 
-import { state } from './state.js'
-import { formatDate } from './core.js'
-
+// Module-level state
 let calendarData = {}
-let alpineData = null
-
-// Range selection state
 let rangeSelectionStart = null
 let rangeSelectionEnd = null
 let isSelecting = false
 
-// Initialize calendar with Alpine.js data reference
-export function initCalendar(alpine) {
-  alpineData = alpine
+
+function formatDate(date) {
+    const year = date.getFullYear()
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
 }
 
-// Load calendar data for all months (or filtered range)
 export async function loadCalendar() {
-  if (!alpineData) return
+    if (!alpineData) return
 
-  const filter = alpineData.dateFilter
-  const timezoneOffset = -new Date().getTimezoneOffset()
+    const filter = alpineData.dateFilter
+    const timezoneOffset = -new Date().getTimezoneOffset()
 
-  let startDate, endDate
+    let startDate, endDate
 
-  if (filter.startDate && filter.endDate) {
-    // Use filtered range
-    startDate = filter.startDate
-    endDate = filter.endDate
-  } else {
-    // Fetch all available data
-    const rangeRes = await fetch('/stats/date-range')
-    const rangeData = await rangeRes.json()
-
-    if (!rangeData.start_date || !rangeData.end_date) {
-      document.getElementById('calendar-container').innerHTML = '<div class="calendar-empty">No data available</div>'
-      return
-    }
-
-    startDate = rangeData.start_date
-    endDate = rangeData.end_date
-  }
-
-  // Fetch daily stats for the entire range
-  const res = await fetch(`/stats/daily?start_date=${startDate}&end_date=${endDate}&timezone_offset=${timezoneOffset}`)
-  const data = await res.json()
-
-  // Store data by date
-  calendarData = {}
-  data.daily.forEach(day => {
-    calendarData[day.date] = day
-  })
-
-  // Render all months
-  renderAllMonths(startDate, endDate)
-}
-
-// Render all months in the date range
-function renderAllMonths(startDate, endDate) {
-  const container = document.getElementById('calendar-container')
-  const start = new Date(startDate + 'T00:00:00')
-  const end = new Date(endDate + 'T00:00:00')
-
-  // Group data by month
-  const monthsData = {}
-  const startMonth = new Date(start.getFullYear(), start.getMonth(), 1)
-  const endMonth = new Date(end.getFullYear(), end.getMonth(), 1)
-
-  for (let d = new Date(startMonth); d <= endMonth; d.setMonth(d.getMonth() + 1)) {
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
-    monthsData[key] = {
-      year: d.getFullYear(),
-      month: d.getMonth()
-    }
-  }
-
-  // Render each month
-  let html = ''
-  Object.values(monthsData).reverse().forEach(({ year, month }) => {
-    html += renderMonth(year, month)
-  })
-
-  container.innerHTML = html
-
-  // Attach event listeners after rendering
-  attachEventListeners()
-}
-
-// Render a single month
-function renderMonth(year, month) {
-  const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
-                    'July', 'August', 'September', 'October', 'November', 'December']
-
-  const firstDay = new Date(year, month, 1)
-  const lastDay = new Date(year, month + 1, 0)
-  const startingDayOfWeek = firstDay.getDay()
-  const daysInMonth = lastDay.getDate()
-
-  // Calculate max cost and requests for this month (for bar scaling)
-  const monthData = []
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = formatDate(new Date(year, month, day))
-    const dayData = calendarData[date]
-    if (dayData) monthData.push(dayData)
-  }
-
-  const maxCost = Math.max(...monthData.map(d => d.cost), 0.01)
-  const maxRequests = Math.max(...monthData.map(d => d.requests), 1)
-
-  const today = formatDate(new Date())
-
-  let html = `
-    <div class="calendar-month">
-      <h3 class="month-header">${monthNames[month]} ${year}</h3>
-      <div class="calendar-grid-wrapper">
-        <div class="week-numbers" id="week-numbers-${year}-${month}">
-  `
-
-  // Calculate week numbers and render week column
-  const weeks = []
-  let currentWeekStart = null
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = new Date(year, month, day)
-    const dayOfWeek = date.getDay()
-
-    if (dayOfWeek === 0 || day === 1) { // Sunday or first day of month
-      const weekStart = getWeekStart(formatDate(date))
-      if (weekStart !== currentWeekStart) {
-        currentWeekStart = weekStart
-        weeks.push({
-          number: getWeekNumber(weekStart),
-          startDate: weekStart
-        })
-      }
-    }
-  }
-
-  weeks.forEach(week => {
-    html += `
-      <div class="week-number"
-           data-week-start="${week.startDate}"
-           data-week-num="${week.number}">
-        ${week.number}
-      </div>
-    `
-  })
-
-  html += `
-        </div>
-        <div class="calendar-grid">
-  `
-
-  // Day headers
-  ;['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].forEach(day => {
-    html += `<div class="calendar-day-header">${day}</div>`
-  })
-
-  // Empty cells before month starts
-  for (let i = 0; i < startingDayOfWeek; i++) {
-    html += '<div class="calendar-day empty"></div>'
-  }
-
-  // Day cells
-  for (let day = 1; day <= daysInMonth; day++) {
-    const date = formatDate(new Date(year, month, day))
-    const dayData = calendarData[date] || { requests: 0, cost: 0 }
-    const isToday = date === today ? 'today' : ''
-    const weekClass = `week-${getWeekNumber(date)}`
-
-    const costHeight = dayData.cost > 0 ? (dayData.cost / maxCost * 100) : 0
-    const requestsHeight = dayData.requests > 0 ? (dayData.requests / maxRequests * 100) : 0
-
-    const ariaLabel = `${date}: ${dayData.requests} requests, $${dayData.cost.toFixed(2)} total cost`
-
-    html += `
-      <div class="calendar-day ${isToday} ${weekClass}"
-           data-date="${date}"
-           tabindex="0"
-           role="gridcell"
-           aria-label="${ariaLabel}">
-        <div class="day-number">${day}</div>
-        <div class="day-bars">
-          <div class="bar-container">
-            <div class="bar cost-bar" style="height: ${costHeight}%"></div>
-            <div class="bar-label">$${dayData.cost.toFixed(2)}</div>
-          </div>
-          <div class="bar-container">
-            <div class="bar requests-bar" style="height: ${requestsHeight}%"></div>
-            <div class="bar-label">${dayData.requests}</div>
-          </div>
-        </div>
-      </div>
-    `
-  }
-
-  html += `
-        </div>
-      </div>
-    </div>
-  `
-
-  return html
-}
-
-// Attach event listeners to calendar elements
-function attachEventListeners() {
-  // Day click/drag event listeners
-  document.querySelectorAll('.calendar-day:not(.empty)').forEach(el => {
-    const date = el.dataset.date
-
-    el.addEventListener('mousedown', (e) => onDayMouseDown(date, e))
-    el.addEventListener('mouseenter', () => onDayMouseEnter(date))
-    el.addEventListener('mouseup', () => onDayMouseUp(date))
-
-    // Keyboard support
-    el.addEventListener('keydown', (e) => {
-      if (e.key === 'Enter' || e.key === ' ') {
-        e.preventDefault()
-        onDayClick(date)
-      }
-    })
-  })
-
-  // Week number event listeners
-  document.querySelectorAll('.week-number').forEach(el => {
-    const weekStart = el.dataset.weekStart
-    const weekNum = el.dataset.weekNum
-
-    el.addEventListener('mouseenter', () => onWeekHover(`week-${weekNum}`, true))
-    el.addEventListener('mouseleave', () => onWeekHover(`week-${weekNum}`, false))
-    el.addEventListener('click', () => onWeekClick(weekStart))
-  })
-
-  // Global mouseup for range selection
-  document.addEventListener('mouseup', handleGlobalMouseUp, { once: false })
-}
-
-// Week number calculation
-function getWeekNumber(dateStr) {
-  const date = new Date(dateStr + 'T00:00:00')
-  const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
-  const pastDaysOfYear = (date - firstDayOfYear) / 86400000
-  return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
-}
-
-// Get Monday of the week containing this date
-function getWeekStart(dateStr) {
-  const date = new Date(dateStr + 'T00:00:00')
-  const day = date.getDay()
-  const diff = date.getDate() - day + (day === 0 ? -6 : 1)
-  const monday = new Date(date.setDate(diff))
-  return monday.toISOString().split('T')[0]
-}
-
-// Get Sunday of the week containing this date
-function getWeekEnd(dateStr) {
-  const start = getWeekStart(dateStr)
-  const startDate = new Date(start + 'T00:00:00')
-  const endDate = new Date(startDate)
-  endDate.setDate(startDate.getDate() + 6)
-  return endDate.toISOString().split('T')[0]
-}
-
-// Day click - navigate to Stats tab
-function onDayClick(date) {
-  if (!alpineData) return
-
-  alpineData.dateFilter.startDate = date
-  alpineData.dateFilter.endDate = date
-  alpineData.currentTab = 'stats'
-  window.location.hash = 'stats'
-}
-
-// Week hover - highlight week row
-function onWeekHover(weekClass, isEntering) {
-  const days = document.querySelectorAll(`.calendar-day.${weekClass}`)
-  days.forEach(day => {
-    if (isEntering) {
-      day.classList.add('week-highlighted')
+    if (filter.startDate && filter.endDate) {
+        startDate = filter.startDate
+        endDate = filter.endDate
     } else {
-      day.classList.remove('week-highlighted')
+        const rangeRes = await fetch('/stats/date-range')
+        const rangeData = await rangeRes.json()
+
+        if (!rangeData.start_date || !rangeData.end_date) {
+            document.getElementById('calendar-container').innerHTML = '<div class="calendar-empty">No data available</div>'
+            return
+        }
+
+        startDate = rangeData.start_date
+        endDate = rangeData.end_date
     }
-  })
+
+    const res = await fetch(`/stats/daily?start_date=${startDate}&end_date=${endDate}&timezone_offset=${timezoneOffset}`)
+    const data = await res.json()
+
+    calendarData = {}
+    data.daily.forEach(day => {
+        calendarData[day.date] = day
+    })
+
+    renderAllMonths(startDate, endDate)
 }
 
-// Week click - navigate to Stats tab with week filter
-function onWeekClick(weekStartDate) {
-  if (!alpineData) return
+function renderAllMonths(startDate, endDate) {
+    const container = document.getElementById('calendar-container')
+    const start = new Date(startDate + 'T00:00:00')
+    const end = new Date(endDate + 'T00:00:00')
 
-  const weekEnd = getWeekEnd(weekStartDate)
-  alpineData.dateFilter.startDate = weekStartDate
-  alpineData.dateFilter.endDate = weekEnd
-  alpineData.currentTab = 'stats'
-  window.location.hash = 'stats'
-}
+    const monthsData = {}
+    const startMonth = new Date(start.getFullYear(), start.getMonth(), 1)
+    const endMonth = new Date(end.getFullYear(), end.getMonth(), 1)
 
-// Range selection handlers
-function onDayMouseDown(date, event) {
-  event.stopPropagation()
-
-  rangeSelectionStart = date
-  rangeSelectionEnd = date
-  isSelecting = true
-
-  updateRangeSelection()
-}
-
-function onDayMouseEnter(date) {
-  if (!isSelecting) return
-
-  rangeSelectionEnd = date
-  updateRangeSelection()
-}
-
-function onDayMouseUp(date) {
-  if (!isSelecting) return
-
-  isSelecting = false
-
-  // Check if it's a click (same day) vs drag
-  if (rangeSelectionStart === rangeSelectionEnd) {
-    // Single day click
-    onDayClick(date)
-  } else {
-    // Range selection
-    const [start, end] = [rangeSelectionStart, rangeSelectionEnd].sort()
-
-    if (alpineData) {
-      alpineData.dateFilter.startDate = start
-      alpineData.dateFilter.endDate = end
-      alpineData.currentTab = 'stats'
-      window.location.hash = 'stats'
+    for (let d = new Date(startMonth); d <= endMonth; d.setMonth(d.getMonth() + 1)) {
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+        monthsData[key] = {
+            year: d.getFullYear(),
+            month: d.getMonth()
+        }
     }
-  }
 
-  clearRangeSelection()
+    // Calculate intensity levels based on quartiles (GitHub style)
+    const costs = Object.values(calendarData).map(d => d.cost).filter(c => c > 0)
+    costs.sort((a, b) => a - b)
+
+    const intensityLevels = {
+        q1: costs[Math.floor(costs.length * 0.25)] || 0,
+        q2: costs[Math.floor(costs.length * 0.50)] || 0,
+        q3: costs[Math.floor(costs.length * 0.75)] || 0
+    }
+
+    let html = ''
+    Object.values(monthsData).reverse().forEach(({ year, month }) => {
+        html += renderMonth(year, month, intensityLevels)
+    })
+
+    container.innerHTML = html
+    attachCalendarListeners()
 }
 
-function handleGlobalMouseUp() {
-  if (isSelecting) {
-    onDayMouseUp(rangeSelectionEnd)
-  }
+function renderMonth(year, month, intensityLevels) {
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
+                      'July', 'August', 'September', 'October', 'November', 'December']
+
+    const firstDay = new Date(year, month, 1)
+    const lastDay = new Date(year, month + 1, 0)
+    const daysInMonth = lastDay.getDate()
+
+    // Group days into weeks
+    const weeks = []
+    let currentWeek = null
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = new Date(year, month, day)
+        const dateStr = formatDate(date)
+        const dayOfWeek = date.getDay()
+
+        if (dayOfWeek === 0 || day === 1) {
+            if (currentWeek) weeks.push(currentWeek)
+            const weekStart = getWeekStart(dateStr)
+            currentWeek = {
+                number: getWeekNumber(weekStart),
+                startDate: weekStart,
+                days: []
+            }
+        }
+
+        currentWeek.days.push({
+            date: dateStr,
+            dayNum: day,
+            data: calendarData[dateStr] || { requests: 0, cost: 0 }
+        })
+    }
+    if (currentWeek) weeks.push(currentWeek)
+
+    // Helper to get intensity level
+    function getIntensityClass(cost) {
+        if (cost === 0) return 'level-0'
+        if (cost <= intensityLevels.q1) return 'level-1'
+        if (cost <= intensityLevels.q2) return 'level-2'
+        if (cost <= intensityLevels.q3) return 'level-3'
+        return 'level-4'
+    }
+
+    let html = `
+        <div class="calendar-month">
+          <h3 class="month-header">${monthNames[month]} ${year}</h3>
+          <div class="calendar-weeks">
+    `
+
+    weeks.forEach((week, weekIndex) => {
+        const weekEnd = getWeekEnd(week.startDate)
+        const weekTotalCost = week.days.reduce((sum, d) => sum + d.data.cost, 0)
+        const weekTotalRequests = week.days.reduce((sum, d) => sum + d.data.requests, 0)
+
+        html += `
+            <div class="week-row" data-week-start="${week.startDate}">
+                <div class="week-label"
+                     data-week-num="${week.number}"
+                     title="Week ${week.number}: Click for week stats">
+                    ${week.number}
+                </div>
+                <div class="week-grid">
+        `
+
+        // Calculate how many leading/trailing empty squares needed
+        // First day in this week's days array tells us where we start
+        const firstDayInWeek = new Date(week.days[0].date + 'T00:00:00').getDay()
+        const lastDayInWeek = new Date(week.days[week.days.length - 1].date + 'T00:00:00').getDay()
+
+        // Add leading empty squares (days before first day of this week's data)
+        for (let i = 0; i < firstDayInWeek; i++) {
+            html += `<div class="day-square empty"></div>`
+        }
+
+        // Render GitHub-style squares for the week
+        week.days.forEach(day => {
+            const intensityClass = getIntensityClass(day.data.cost)
+            const dayName = new Date(day.date + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'short' })
+
+            html += `
+                <div class="day-square ${intensityClass}"
+                     data-date="${day.date}"
+                     title="${dayName} ${day.dayNum}: $${day.data.cost.toFixed(4)} (${day.data.requests} req)">
+                </div>
+            `
+        })
+
+        // Add trailing empty squares (days after last day of this week's data)
+        for (let i = lastDayInWeek; i < 6; i++) {
+            html += `<div class="day-square empty"></div>`
+        }
+
+        html += `
+                </div>
+                <div class="week-total">
+                    $${weekTotalCost.toFixed(2)}<br>
+                    <span class="week-requests">${weekTotalRequests} req</span>
+                </div>
+            </div>
+        `
+    })
+
+    html += `</div></div>`
+    return html
 }
 
-function updateRangeSelection() {
-  // Remove all selection classes
-  document.querySelectorAll('.calendar-day').forEach(el => {
-    el.classList.remove('range-selecting', 'range-start', 'range-end')
-  })
+function attachCalendarListeners() {
+    // Day square click handlers
+    document.querySelectorAll('.day-square').forEach(el => {
+        const date = el.dataset.date
+        el.addEventListener('mousedown', (e) => onCalendarDayMouseDown(date, e))
+        el.addEventListener('mouseenter', () => onCalendarDayMouseEnter(date))
+        el.addEventListener('mouseup', () => onCalendarDayMouseUp(date))
+    })
 
-  if (!rangeSelectionStart || !rangeSelectionEnd) return
+    // Week row hover/click handlers
+    document.querySelectorAll('.week-row').forEach(el => {
+        const weekStart = el.dataset.weekStart
+        el.addEventListener('mouseenter', () => {
+            el.classList.add('week-highlighted')
+        })
+        el.addEventListener('mouseleave', () => {
+            el.classList.remove('week-highlighted')
+        })
+    })
 
-  const [start, end] = [rangeSelectionStart, rangeSelectionEnd].sort()
-  const startDate = new Date(start + 'T00:00:00')
-  const endDate = new Date(end + 'T00:00:00')
+    // Week label click handlers
+    document.querySelectorAll('.week-label').forEach(el => {
+        const weekStart = el.closest('.week-row').dataset.weekStart
+        el.addEventListener('click', () => onWeekClick(weekStart))
+    })
 
-  // Mark all days in range
-  document.querySelectorAll('.calendar-day').forEach(el => {
-    const dateStr = el.dataset.date
-    if (!dateStr) return
+    document.addEventListener('mouseup', handleCalendarGlobalMouseUp)
+}
 
+function getWeekNumber(dateStr) {
     const date = new Date(dateStr + 'T00:00:00')
+    const firstDayOfYear = new Date(date.getFullYear(), 0, 1)
+    const pastDaysOfYear = (date - firstDayOfYear) / 86400000
+    return Math.ceil((pastDaysOfYear + firstDayOfYear.getDay() + 1) / 7)
+}
 
-    if (date >= startDate && date <= endDate) {
-      el.classList.add('range-selecting')
-      if (dateStr === start) el.classList.add('range-start')
-      if (dateStr === end) el.classList.add('range-end')
+function getWeekStart(dateStr) {
+    const date = new Date(dateStr + 'T00:00:00')
+    const day = date.getDay()
+    const diff = date.getDate() - day + (day === 0 ? -6 : 1)
+    const monday = new Date(date.setDate(diff))
+    return monday.toISOString().split('T')[0]
+}
+
+function getWeekEnd(dateStr) {
+    const start = getWeekStart(dateStr)
+    const startDate = new Date(start + 'T00:00:00')
+    const endDate = new Date(startDate)
+    endDate.setDate(startDate.getDate() + 6)
+    return endDate.toISOString().split('T')[0]
+}
+
+function onCalendarDayClick(date) {
+    if (!alpineData) return
+    alpineData.dateFilter.startDate = date
+    alpineData.dateFilter.endDate = date
+    alpineData.currentTab = 'stats'
+    window.location.hash = 'stats'
+}
+
+function onWeekClick(weekStartDate) {
+    if (!alpineData) return
+    const weekEnd = getWeekEnd(weekStartDate)
+    alpineData.dateFilter.startDate = weekStartDate
+    alpineData.dateFilter.endDate = weekEnd
+    alpineData.currentTab = 'stats'
+    window.location.hash = 'stats'
+}
+
+function onCalendarDayMouseDown(date, event) {
+    event.stopPropagation()
+    rangeSelectionStart = date
+    rangeSelectionEnd = date
+    isSelecting = true
+    updateCalendarRangeSelection()
+}
+
+function onCalendarDayMouseEnter(date) {
+    if (!isSelecting) return
+    rangeSelectionEnd = date
+    updateCalendarRangeSelection()
+}
+
+function onCalendarDayMouseUp(date) {
+    if (!isSelecting) return
+    isSelecting = false
+
+    if (rangeSelectionStart === rangeSelectionEnd) {
+        onCalendarDayClick(date)
+    } else {
+        const [start, end] = [rangeSelectionStart, rangeSelectionEnd].sort()
+        if (alpineData) {
+            alpineData.dateFilter.startDate = start
+            alpineData.dateFilter.endDate = end
+            alpineData.currentTab = 'stats'
+            window.location.hash = 'stats'
+        }
     }
-  })
+    clearCalendarRangeSelection()
 }
 
-function clearRangeSelection() {
-  rangeSelectionStart = null
-  rangeSelectionEnd = null
-  document.querySelectorAll('.calendar-day').forEach(el => {
-    el.classList.remove('range-selecting', 'range-start', 'range-end')
-  })
+function handleCalendarGlobalMouseUp() {
+    if (isSelecting) {
+        onCalendarDayMouseUp(rangeSelectionEnd)
+    }
 }
 
-// Cleanup on navigation away from calendar
-export function cleanupCalendar() {
-  document.removeEventListener('mouseup', handleGlobalMouseUp)
+function updateCalendarRangeSelection() {
+    document.querySelectorAll('.day-square').forEach(el => {
+        el.classList.remove('range-selecting')
+    })
+
+    if (!rangeSelectionStart || !rangeSelectionEnd) return
+
+    const [start, end] = [rangeSelectionStart, rangeSelectionEnd].sort()
+    const startDate = new Date(start + 'T00:00:00')
+    const endDate = new Date(end + 'T00:00:00')
+
+    document.querySelectorAll('.day-square').forEach(el => {
+        const dateStr = el.dataset.date
+        if (!dateStr) return
+        const date = new Date(dateStr + 'T00:00:00')
+        if (date >= startDate && date <= endDate) {
+            el.classList.add('range-selecting')
+        }
+    })
 }
+
+function clearCalendarRangeSelection() {
+    rangeSelectionStart = null
+    rangeSelectionEnd = null
+    document.querySelectorAll('.day-square').forEach(el => {
+        el.classList.remove('range-selecting')
+    })
+}
+
+// Auto-refresh stats every 5 seconds (uses current filter state)
+setInterval(() => {
+    if (alpineData && alpineData.currentTab === 'stats') {
+        refreshStats()
+    }
+}, 5000)
+
+// Load initial tab data after Alpine initializes
+document.addEventListener('alpine:initialized', () => {
+    const initialTab = localStorage.getItem('_x_currentTab')?.replace(/['"]/g, '') || 'stats'
+    onTabChange(initialTab)
+})
+
+// Handle browser back/forward navigation
+window.addEventListener('popstate', () => {
+    if (!alpineData) return
+    const hash = window.location.hash.slice(1)
+    if (hash && ['stats', 'calendar', 'models', 'requests'].includes(hash)) {
+        alpineData.currentTab = hash
+    } else if (!hash) {
+        // No hash means navigate to default (stats)
+        alpineData.currentTab = 'stats'
+    }
+})
+
+// Model Management Modal Functions
+// Wizard state
+let wizardState = {
+    currentStep: 1,
+    selectedProvider: null,
+    selectedModel: null,
+    providers: [],
+    models: []
+}
+
