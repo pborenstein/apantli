@@ -1,40 +1,30 @@
 # Current Session Context
 
 ---
-phase: QoL
-phase_name: "Dashboard UX Improvements"
-updated: 2026-01-29
-last_commit: 872e7aa (reverted)
+phase: lore
+phase_name: "Lore & Writing"
+updated: 2026-03-14
+last_commit: 59f6195
 ---
 
 ## Current Focus
 
-Reverted ES6 module refactoring - incompatible with Safari's script loading order.
+Surfacing process artifacts for an article about how to code with Claude. Created `docs/lore/` to track historically interesting files.
 
 ## Active Tasks
 
-- [x] Attempted ES6 module refactoring of dashboard.js
-- [x] Discovered Safari requires modules to be deferred, breaking Alpine.js integration
-- [x] Reverted to working monolithic dashboard.js from 872e7aa
-
-## Resolution
-
-ES6 module refactoring is **not viable** for this codebase because:
-- ES6 modules are always deferred (execute after HTML parsing)
-- Alpine.js also uses defer, creating race condition
-- Dashboard functions must be available when Alpine initializes
-- Dynamic import() in regular scripts not supported in Safari
-- Safari 26 supports ES6 but timing issues make it incompatible
-
-The modules exist in `apantli/static/js/modules/` but are not used. Dashboard remains monolithic at 2,691 lines.
+- [x] Reviewed hidden.nogit.dir for public-safe artifacts
+- [x] Created docs/lore/ with five key files
+- [ ] Write/expand the article in Obsidian
 
 ## Context
 
-- Branch: apantli-review (reverted changes)
-- Dashboard working at commit 872e7aa
-- Modularization code exists but cannot be integrated
-- CODE_REVIEW.md needs update to reflect this
+- Article draft: `~/Obsidian/amoxtli/L/How I code with Claude.md`
+- `docs/lore/` contains: THE_STORY_OF_APANTLI.md, ARCHAEOLOGICAL_LEARNINGS.md, archaeology.md, WHAT_I_THINK_YOU_WANT.md, REFACTORING_SUMMARY.md
+- All lore files reviewed as safe for public repo
+- Originals remain in hidden.nogit.dir (untracked)
+- Phase 5 QoL work is complete (see docs/chronicles/phase-5-qol-improvements.md)
 
 ## Next Session
 
-Update CODE_REVIEW.md to document why modularization was abandoned. Consider alternative refactoring approaches that don't require ES6 modules.
+Pick up the article. Use lore files as examples of Claude creating exploratory tools and mid-session diagnostics.
