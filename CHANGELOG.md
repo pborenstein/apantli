@@ -5,6 +5,22 @@ All notable changes to Apantli will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.0] - 2026-03-28
+
+### Added
+
+- Modernize launchd service management with `launchctl bootstrap/bootout` API ([a52cb3c](https://github.com/pborenstein/apantli/commit/a52cb3c))
+  - Rewrite `dev.sh` with subcommands (start/stop/status/dev mode)
+  - Remove tailscale plist handling from `dev.sh` and `install.sh`
+
+### Changed
+
+- Modularize dashboard JS and add code review ([#21](https://github.com/pborenstein/apantli/pull/21)) ([59f6195](https://github.com/pborenstein/apantli/commit/59f6195))
+  - Fix bare except clause in `server.py` (now catches `OSError`, `socket.error`)
+  - Move `model_cost` import to module level
+  - Remove 1,587 lines of unused JS modules
+  - Document and revert ES6 module refactoring (Safari/Alpine.js incompatibility)
+
 ## [0.4.1] - 2026-01-20
 
 ### Added
@@ -237,6 +253,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 | Version | Date | Major Features |
 |:--------|:-----|:---------------|
+| 1.0.0 | 2026-03-28 | Modern launchd management, dashboard cleanup |
+| 0.4.1 | 2026-01-20 | Gradient metrics, dropdown filters, server-side sorting |
+| 0.4.0 | 2026-01-11 | Model management UI, CRUD APIs |
 | 0.3.6 | 2025-11-24 | Copy buttons for JSON request/response |
 | 0.3.4 | 2025-11-08 | Documentation update plan |
 | 0.3.3 | 2025-11-08 | UI/UX design review |
@@ -277,6 +296,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+[1.0.0]: https://github.com/pborenstein/apantli/releases/tag/v1.0.0
+[0.4.1]: https://github.com/pborenstein/apantli/releases/tag/v0.4.1
+[0.4.0]: https://github.com/pborenstein/apantli/releases/tag/v0.4.0
 [0.3.6]: https://github.com/pborenstein/apantli/releases/tag/v0.3.6
 [0.3.4]: https://github.com/pborenstein/apantli/releases/tag/v0.3.4
 [0.3.3]: https://github.com/pborenstein/apantli/releases/tag/v0.3.3
