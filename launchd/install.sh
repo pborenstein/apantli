@@ -45,65 +45,23 @@ cat "$PROJECT_DIR/launchd/apantli.plist.template" | \
 
 echo -e "${GREEN}✓${NC} Created $APANTLI_PLIST"
 
-# Ask about Tailscale
+# Stop existing service if registered
 echo
-read -p "Do you want to set up Tailscale HTTPS access? (y/n) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
-    # Check if tailscale is installed
-    TAILSCALE_BIN="$(which tailscale 2>/dev/null || echo "")"
+GUI_DOMAIN="gui/$(id -u)"
+echo -e "${BLUE}Stopping any existing service...${NC}"
+launchctl bootout "$GUI_DOMAIN/dev.pborenstein.apantli" 2>/dev/null || true
 
-    if [ -z "$TAILSCALE_BIN" ]; then
-        echo -e "${RED}Error: tailscale not found in PATH${NC}"
-        echo "Please install Tailscale first: https://tailscale.com/download"
-        exit 1
-    fi
-
-    echo -e "${BLUE}Generating Tailscale service...${NC}"
-    TAILSCALE_PLIST="$HOME_DIR/Library/LaunchAgents/dev.$USERNAME.apantli.tailscale.plist"
-
-    cat "$PROJECT_DIR/launchd/tailscale.plist.template" | \
-        sed "s|{{USERNAME}}|$USERNAME|g" | \
-        sed "s|{{TAILSCALE_BIN}}|$TAILSCALE_BIN|g" | \
-        sed "s|{{HOME}}|$HOME_DIR|g" \
-        > "$TAILSCALE_PLIST"
-
-    echo -e "${GREEN}✓${NC} Created $TAILSCALE_PLIST"
-    SETUP_TAILSCALE=true
-else
-    SETUP_TAILSCALE=false
-fi
-
-# Unload existing services if running
-echo
-echo -e "${BLUE}Unloading any existing services...${NC}"
-launchctl unload "$APANTLI_PLIST" 2>/dev/null || true
-if [ "$SETUP_TAILSCALE" = true ]; then
-    launchctl unload "$TAILSCALE_PLIST" 2>/dev/null || true
-fi
-
-# Load services
-echo -e "${BLUE}Loading services...${NC}"
-launchctl load "$APANTLI_PLIST"
-echo -e "${GREEN}✓${NC} Loaded apantli service"
-
-if [ "$SETUP_TAILSCALE" = true ]; then
-    # Reset any existing Tailscale serve config
-    tailscale serve reset 2>/dev/null || true
-
-    launchctl load "$TAILSCALE_PLIST"
-    echo -e "${GREEN}✓${NC} Loaded Tailscale service"
-
-    # Give it a moment to set up
-    sleep 2
-fi
+# Start service
+echo -e "${BLUE}Starting service...${NC}"
+launchctl bootstrap "$GUI_DOMAIN" "$APANTLI_PLIST"
+echo -e "${GREEN}✓${NC} Started apantli service"
 
 # Show status
 echo
 echo -e "${GREEN}✓ Installation complete!${NC}"
 echo
 echo -e "${BLUE}Service status:${NC}"
-launchctl list | grep "dev.$USERNAME.apantli" || echo "  No services found"
+launchctl print "$GUI_DOMAIN/dev.pborenstein.apantli" 2>/dev/null | grep -E "state|pid" | head -3 || echo "  No service found"
 
 echo
 echo -e "${BLUE}Access apantli at:${NC}"
@@ -115,22 +73,13 @@ if [ -n "$LAN_IP" ]; then
     echo "  LAN:         http://$LAN_IP:4000"
 fi
 
-if [ "$SETUP_TAILSCALE" = true ]; then
-    # Get Tailscale hostname
-    TS_HOSTNAME=$(tailscale status --json 2>/dev/null | grep -o '"HostName":"[^"]*"' | cut -d'"' -f4 || echo "")
-    if [ -n "$TS_HOSTNAME" ]; then
-        echo "  Tailscale:   https://$TS_HOSTNAME"
-    else
-        echo "  Tailscale:   (run 'tailscale serve status' to see URL)"
-    fi
-fi
-
 echo
 echo -e "${BLUE}View logs:${NC}"
 echo "  $PROJECT_DIR/view-logs.sh"
 echo
 echo -e "${BLUE}Manage services:${NC}"
-echo "  Stop:    launchctl unload ~/Library/LaunchAgents/dev.$USERNAME.apantli.plist"
-echo "  Start:   launchctl load ~/Library/LaunchAgents/dev.$USERNAME.apantli.plist"
-echo "  Restart: launchctl unload ~/Library/LaunchAgents/dev.$USERNAME.apantli.plist && launchctl load ~/Library/LaunchAgents/dev.$USERNAME.apantli.plist"
+echo "  ./dev.sh stop     Stop the service"
+echo "  ./dev.sh start    Start the service"
+echo "  ./dev.sh status   Show service status"
+echo "  ./dev.sh          Dev mode (stops service, runs with reload)"
 echo

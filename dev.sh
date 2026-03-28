@@ -1,82 +1,171 @@
 #!/bin/bash
+set -euo pipefail
 
-# Colors for output
+# === Configuration ===
+PROJECT_NAME="apantli"
+SERVICE_LABEL="dev.pborenstein.apantli"
+SERVICE_PLIST="$HOME/Library/LaunchAgents/${SERVICE_LABEL}.plist"
+PORT=4000
+VENV_DIR=".venv"
+GUI_DOMAIN="gui/$(id -u)"
+
+# === Colors ===
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 RED='\033[0;31m'
-NC='\033[0m' # No Color
+DIM='\033[2m'
+NC='\033[0m'
 
-USERNAME="$(whoami)"
-APANTLI_PLIST="$HOME/Library/LaunchAgents/dev.$USERNAME.apantli.plist"
-TAILSCALE_PLIST="$HOME/Library/LaunchAgents/dev.$USERNAME.apantli.tailscale.plist"
+# === Helpers ===
 
-echo -e "${BLUE}🔧 Apantli Development Mode${NC}"
-echo
+info()    { echo -e "${BLUE}$*${NC}"; }
+ok()      { echo -e "${GREEN}$*${NC}"; }
+warn()    { echo -e "${YELLOW}$*${NC}"; }
+err()     { echo -e "${RED}$*${NC}"; }
 
-# Check if launchd service exists
-if [ ! -f "$APANTLI_PLIST" ]; then
-    echo -e "${YELLOW}No launchd service found. Running directly...${NC}"
-    echo
-else
-    # Check if service is running
-    if launchctl list | grep -q "dev.$USERNAME.apantli"; then
-        echo -e "${YELLOW}Stopping launchd service...${NC}"
-        launchctl unload "$APANTLI_PLIST" 2>/dev/null || true
-        echo -e "${GREEN}✓${NC} Service stopped"
-        echo
-        STOPPED_SERVICE=true
-    else
-        STOPPED_SERVICE=false
-    fi
-fi
-
-# Kill any existing apantli processes on port 4000
-PIDS=$(lsof -ti :4000 2>/dev/null)
-if [ ! -z "$PIDS" ]; then
-    echo -e "${YELLOW}Stopping existing processes on port 4000...${NC}"
-    echo "$PIDS" | xargs kill 2>/dev/null || true
-    sleep 1
-    echo -e "${GREEN}✓${NC} Port cleared"
-    echo
-fi
-
-# Function to restore service on exit
-cleanup() {
-    echo
-    echo
-    if [ "$STOPPED_SERVICE" = true ]; then
-        echo -e "${YELLOW}Restore launchd service? (y/n)${NC}"
-        read -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${BLUE}Restarting launchd service...${NC}"
-            launchctl load "$APANTLI_PLIST"
-            echo -e "${GREEN}✓${NC} Service restored"
-        else
-            echo -e "${YELLOW}Service not restored. To start it manually:${NC}"
-            echo "  launchctl load $APANTLI_PLIST"
-        fi
-    fi
+service_is_registered() {
+  launchctl print "$GUI_DOMAIN/$SERVICE_LABEL" &>/dev/null
 }
 
-trap cleanup EXIT
+port_in_use() {
+  lsof -ti :"$PORT" &>/dev/null
+}
 
-# Run apantli in development mode with auto-reload
-echo -e "${GREEN}Starting apantli in development mode with auto-reload...${NC}"
-echo -e "${BLUE}Press Ctrl+C to stop${NC}"
-echo
+kill_port() {
+  local pids
+  pids=$(lsof -ti :"$PORT" 2>/dev/null) || return 0
+  [ -z "$pids" ] && return 0
+  warn "Killing processes on port $PORT..."
+  echo "$pids" | xargs kill 2>/dev/null || true
+  sleep 1
+  pids=$(lsof -ti :"$PORT" 2>/dev/null) || return 0
+  [ -z "$pids" ] && return 0
+  echo "$pids" | xargs kill -9 2>/dev/null || true
+  sleep 1
+}
 
-# Check if we're in a virtual environment
-if [ -z "$VIRTUAL_ENV" ]; then
-    # Not in venv, use the venv python directly
-    if [ -f ".venv/bin/python3" ]; then
-        .venv/bin/python3 -m apantli.server --reload
-    else
-        echo -e "${RED}Error: .venv not found. Please run 'uv sync' first.${NC}"
-        exit 1
-    fi
-else
-    # Already in venv
-    caffeinate -dimsu -- python3 -m apantli.server --reload
-fi
+# === Commands ===
+
+cmd_stop() {
+  if service_is_registered; then
+    info "Stopping $PROJECT_NAME service..."
+    launchctl bootout "$GUI_DOMAIN/$SERVICE_LABEL" 2>/dev/null || true
+    ok "  Service stopped"
+  else
+    info "  Service is not running"
+  fi
+}
+
+cmd_start() {
+  if [ ! -f "$SERVICE_PLIST" ]; then
+    err "Plist not found: $SERVICE_PLIST"
+    err "Run ./launchd/install.sh first."
+    exit 1
+  fi
+
+  if service_is_registered; then
+    warn "Service already registered. Stopping first..."
+    launchctl bootout "$GUI_DOMAIN/$SERVICE_LABEL" 2>/dev/null || true
+    sleep 1
+  fi
+
+  info "Starting $PROJECT_NAME service..."
+  launchctl bootstrap "$GUI_DOMAIN" "$SERVICE_PLIST"
+
+  sleep 2
+  if port_in_use; then
+    ok "  Service running on port $PORT"
+  else
+    warn "  Port $PORT not yet in use -- service may still be starting"
+    warn "  Check: ./dev.sh status"
+  fi
+}
+
+cmd_status() {
+  info "$PROJECT_NAME service status:"
+  echo
+  if service_is_registered; then
+    ok "  Service: registered"
+    launchctl print "$GUI_DOMAIN/$SERVICE_LABEL" 2>/dev/null | grep -E "state|pid" | head -5 || true
+  else
+    warn "  Service: not registered"
+  fi
+  echo
+  if port_in_use; then
+    ok "  Port $PORT: in use (PID $(lsof -ti :$PORT 2>/dev/null | head -1))"
+  else
+    warn "  Port $PORT: free"
+  fi
+}
+
+cmd_dev() {
+  info "$PROJECT_NAME dev mode"
+  echo
+
+  # Sanity: plist exists
+  if [ ! -f "$SERVICE_PLIST" ]; then
+    err "Plist not found: $SERVICE_PLIST"
+    err "Run ./launchd/install.sh first."
+    exit 1
+  fi
+
+  # Sanity: venv exists
+  if [ ! -f "$VENV_DIR/bin/python3" ]; then
+    err "Venv not found at $VENV_DIR -- run 'uv sync' first."
+    exit 1
+  fi
+
+  # Stop the launchd service
+  cmd_stop
+
+  # Make sure port is free
+  if port_in_use; then
+    kill_port
+  fi
+  if port_in_use; then
+    err "Port $PORT still in use after stopping service"
+    err "PID: $(lsof -ti :$PORT 2>/dev/null)"
+    exit 1
+  fi
+  ok "  Port $PORT is free"
+  echo
+
+  # On exit: no prompt, just print how to restart
+  trap '_cleanup' EXIT
+  trap '_cleanup; exit 130' INT TERM
+
+  info "Starting dev server with auto-reload..."
+  info "Press Ctrl+C to stop"
+  echo
+
+  caffeinate -dimsu -- .venv/bin/python3 -m apantli.server --reload
+}
+
+_cleanup() {
+  echo
+  info "$PROJECT_NAME dev server stopped. Service is still stopped."
+  echo -e "  ${DIM}./dev.sh start${NC}  to restart the service"
+}
+
+# === Dispatch ===
+
+case "${1:-}" in
+  start)  cmd_start ;;
+  stop)   cmd_stop ;;
+  status) cmd_status ;;
+  help|-h|--help)
+    echo "Usage: ./dev.sh [command]"
+    echo
+    echo "  (none)    Stop service, run dev server with reload"
+    echo "  start     Start the launchd service"
+    echo "  stop      Stop the launchd service"
+    echo "  status    Show service and port status"
+    ;;
+  "")     cmd_dev ;;
+  *)
+    err "Unknown command: $1"
+    echo "Run './dev.sh help' for usage."
+    exit 1
+    ;;
+esac

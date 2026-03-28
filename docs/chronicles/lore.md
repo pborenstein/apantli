@@ -34,3 +34,17 @@ Process artifacts and historical documents surfaced for writing and reference.
 - Retired `article-from-repo.md` outline (superseded by written article)
 
 **Files**: all four moved to `~/Obsidian/amoxtli/L/` (untracked)
+
+## Entry 17: Modern launchd Service Management (2026-03-28)
+
+**What**: Rewrote `dev.sh` with subcommands and modernized `install.sh` from deprecated `launchctl load/unload` to `bootstrap/bootout`. Removed tailscale plist handling.
+
+**Why**: `launchctl unload` didn't reliably stop services with `KeepAlive=true`. Old dev.sh prompted to restart on exit (unwanted). Tailscale HTTPS via launchd not needed.
+
+**How**:
+- Rewrote `dev.sh`: bare = dev mode (stops service, no restart prompt), `start`/`stop`/`status` subcommands
+- Updated `install.sh` to use `bootout`/`bootstrap`, removed tailscale prompt and setup
+- Hardcoded `dev.pborenstein.apantli` label (was `$(whoami)`, same result but wrong intent)
+- Cleaned up stale `dev.philip.*` plist files
+
+**Files**: `dev.sh`, `launchd/install.sh`

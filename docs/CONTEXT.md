@@ -1,35 +1,30 @@
 # Current Session Context
 
 ---
-phase: lore
-phase_name: "Lore & Writing"
-updated: 2026-03-14
-last_commit: 8ed2388
+phase: maintenance
+phase_name: "Service Management"
+updated: 2026-03-28
+last_commit: c7e6bf4
 ---
 
 ## Current Focus
 
-Writing articles about the apantli development process. Two new articles drafted in Obsidian, using the repo's git history and lore files as primary sources.
+Rewrote `dev.sh` and `launchd/install.sh` to use modern `launchctl bootstrap/bootout` API. Removed tailscale plist handling. Consistent with temoa's pattern.
 
 ## Active Tasks
 
-- [x] Reviewed hidden.nogit.dir for public-safe artifacts
-- [x] Created docs/lore/ with five key files
-- [x] Annotated original article with <details><summary> illustration blocks
-- [x] Drafted new article "How Claude Codes with Philip" (repo-as-primary-source)
-- [x] Extracted session/memory section into standalone file
-- [ ] Continue writing/editing articles in Obsidian
+- [x] Rewrite dev.sh with subcommands (dev/start/stop/status)
+- [x] Modernize launchctl calls in install.sh
+- [x] Remove tailscale handling from dev.sh and install.sh
+- [x] Clean up stale dev.philip.* plist files
+- [ ] Continue editing articles in Obsidian
 
 ## Context
 
-- `docs/lore/` contains the five tracked lore artifacts (public repo safe)
-- Four new article files moved to `~/Obsidian/amoxtli/L/`:
-  - `how-claude-codes-with-philip.md` — main new article, Claude's voice
-  - `article-annotated.md` — original article with <details> illustration blocks
-  - `the-memory-problem.md` — standalone excerpt on session tracking
-  - `article-from-repo.md` — outline (superseded by the written article)
-- Original article: `~/Obsidian/amoxtli/L/How I code with Claude.md`
+- Service label is `dev.pborenstein.apantli` (reverse-domain, hardcoded -- was `$(whoami)` before)
+- Tailscale plist templates still in `launchd/` but no longer managed by dev.sh or install.sh
+- Same dev.sh structure as temoa: bare = dev mode, start/stop/status subcommands
 
 ## Next Session
 
-Continue editing the articles in Obsidian. `how-claude-codes-with-philip.md` is the main piece; `article-annotated.md` is the illustrated version of the original.
+Continue editing the articles in Obsidian. `how-claude-codes-with-philip.md` is the main piece.
