@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
     <key>Label</key>
-    <string>dev.{{USERNAME}}.apantli</string>
+    <string>dev.pborenstein.apantli</string>
 
     <key>ProgramArguments</key>
     <array>

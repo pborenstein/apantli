@@ -33,10 +33,9 @@ fi
 
 # Generate apantli plist
 echo -e "${BLUE}Generating apantli service...${NC}"
-APANTLI_PLIST="$HOME_DIR/Library/LaunchAgents/dev.$USERNAME.apantli.plist"
+APANTLI_PLIST="$HOME_DIR/Library/LaunchAgents/dev.pborenstein.apantli.plist"
 
 cat "$PROJECT_DIR/launchd/apantli.plist.template" | \
-    sed "s|{{USERNAME}}|$USERNAME|g" | \
     sed "s|{{VENV_PYTHON}}|$VENV_PYTHON|g" | \
     sed "s|{{PROJECT_DIR}}|$PROJECT_DIR|g" | \
     sed "s|{{HOME}}|$HOME_DIR|g" | \
